@@ -45,157 +45,105 @@
         </div>
     </div>
 
-    <!-- 添加试听课表单 -->
+    <!-- 添加试听课按钮 -->
     <div class="form-section">
-        <h3><i class="fas fa-plus"></i> 添加试听课记录</h3>
-        
-        <!-- 选择录入方式 -->
-        <div class="input-mode-selector">
-            <h4><i class="fas fa-user-plus"></i> 录入方式</h4>
-            <div class="mode-options">
-                <label class="radio-option">
-                    <input type="radio" name="input_mode" value="existing" checked>
-                    <div class="option-content">
-                        <i class="fas fa-users"></i>
-                        <span>选择已有学员</span>
-                        <small>从现有学员中选择</small>
-                    </div>
-                </label>
-                <label class="radio-option">
-                    <input type="radio" name="input_mode" value="new">
-                    <div class="option-content">
-                        <i class="fas fa-user-plus"></i>
-                        <span>录入新学员</span>
-                        <small>添加新的学员信息</small>
-                    </div>
-                </label>
-            </div>
+        <div class="add-trial-header">
+            <h3><i class="fas fa-plus"></i> 试听课管理</h3>
+            <button type="button" class="btn btn-primary" id="addTrialBtn">
+                <i class="fas fa-user-plus"></i> 录入新学员
+            </button>
         </div>
-        
-        <form method="POST" class="form-grid">
-            <!-- 选择已有学员 -->
-            <div id="existing-customer-section" class="customer-section">
-                <div class="form-group">
-                    <label for="customer_id">
-                        <i class="fas fa-user"></i> 选择学员 *
-                    </label>
-                    <select name="customer_id" id="customer_id" class="customer-select">
-                        <option value="">请选择学员...</option>
-                        {% for customer in customers %}
-                        <option value="{{ customer.id }}" 
-                                data-name="{{ customer.name }}" 
-                                data-phone="{{ customer.phone }}"
-                                data-grade="{{ customer.grade or '' }}"
-                                data-region="{{ customer.region or '' }}">
-                            {{ customer.name }} - {{ customer.phone }}
-                            {% if customer.grade %} ({{ customer.grade }}){% endif %}
-                        </option>
-                        {% endfor %}
-                    </select>
-                    <small class="form-help">
-                        <i class="fas fa-info-circle"></i> 
-                        共有 {{ customers|length }} 位学员可选择
-                    </small>
+    </div>
+
+    <!-- 录入新学员模态框 -->
+    <div id="addTrialModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4><i class="fas fa-user-plus"></i> 录入新学员试听课</h4>
+                <span class="close">&times;</span>
+            </div>
+            <form method="POST" class="modal-form" id="trialForm">
+                <div class="modal-body">
+                    <!-- 学员信息 -->
+                    <div class="form-section-modal">
+                        <h5><i class="fas fa-user"></i> 学员信息</h5>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="new_customer_name">学员姓名 *</label>
+                                <input type="text" name="new_customer_name" id="new_customer_name" placeholder="请输入学员姓名" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="new_customer_phone">联系电话 *</label>
+                                <input type="tel" name="new_customer_phone" id="new_customer_phone" placeholder="请输入联系电话" required>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="new_customer_gender">性别</label>
+                                <select name="new_customer_gender" id="new_customer_gender">
+                                    <option value="">请选择</option>
+                                    <option value="男">男</option>
+                                    <option value="女">女</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="new_customer_grade">年级</label>
+                                <select name="new_customer_grade" id="new_customer_grade">
+                                    <option value="">请选择</option>
+                                    <option value="一年级">一年级</option>
+                                    <option value="二年级">二年级</option>
+                                    <option value="三年级">三年级</option>
+                                    <option value="四年级">四年级</option>
+                                    <option value="五年级">五年级</option>
+                                    <option value="六年级">六年级</option>
+                                    <option value="初一">初一</option>
+                                    <option value="初二">初二</option>
+                                    <option value="初三">初三</option>
+                                    <option value="高一">高一</option>
+                                    <option value="高二">高二</option>
+                                    <option value="高三">高三</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="new_customer_region">地区</label>
+                                <input type="text" name="new_customer_region" id="new_customer_region" placeholder="请输入地区">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 试听课信息 -->
+                    <div class="form-section-modal">
+                        <h5><i class="fas fa-book"></i> 试听课信息</h5>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="trial_price">试听课售价 *</label>
+                                <input type="number" name="trial_price" id="trial_price" step="0.01" min="0" placeholder="请输入售价" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="source">渠道来源 *</label>
+                                <select name="source" id="source" required>
+                                    <option value="">请选择渠道</option>
+                                    <option value="淘宝">淘宝</option>
+                                    <option value="视频号">视频号</option>
+                                    <option value="抖音">抖音</option>
+                                    <option value="小红书">小红书</option>
+                                    <option value="其他">其他</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 
-                <!-- 选中学员信息预览 -->
-                <div id="customer-preview" class="customer-preview" style="display: none;">
-                    <h5><i class="fas fa-eye"></i> 学员信息预览</h5>
-                    <div class="preview-grid">
-                        <div class="preview-item">
-                            <label>姓名：</label>
-                            <span id="preview-name">-</span>
-                        </div>
-                        <div class="preview-item">
-                            <label>电话：</label>
-                            <span id="preview-phone">-</span>
-                        </div>
-                        <div class="preview-item">
-                            <label>年级：</label>
-                            <span id="preview-grade">-</span>
-                        </div>
-                        <div class="preview-item">
-                            <label>地区：</label>
-                            <span id="preview-region">-</span>
-                        </div>
-                    </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" id="cancelBtn">取消</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> 保存试听课记录
+                    </button>
                 </div>
-            </div>
-            
-            <!-- 录入新学员 -->
-            <div id="new-customer-section" class="customer-section" style="display: none;">
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="new_customer_name">学员姓名 *</label>
-                        <input type="text" name="new_customer_name" id="new_customer_name" placeholder="请输入学员姓名">
-                    </div>
-                    <div class="form-group">
-                        <label for="new_customer_phone">联系电话 *</label>
-                        <input type="tel" name="new_customer_phone" id="new_customer_phone" placeholder="请输入联系电话">
-                    </div>
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="new_customer_gender">性别</label>
-                        <select name="new_customer_gender" id="new_customer_gender">
-                            <option value="">请选择</option>
-                            <option value="男">男</option>
-                            <option value="女">女</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="new_customer_grade">年级</label>
-                        <select name="new_customer_grade" id="new_customer_grade">
-                            <option value="">请选择</option>
-                            <option value="一年级">一年级</option>
-                            <option value="二年级">二年级</option>
-                            <option value="三年级">三年级</option>
-                            <option value="四年级">四年级</option>
-                            <option value="五年级">五年级</option>
-                            <option value="六年级">六年级</option>
-                            <option value="初一">初一</option>
-                            <option value="初二">初二</option>
-                            <option value="初三">初三</option>
-                            <option value="高一">高一</option>
-                            <option value="高二">高二</option>
-                            <option value="高三">高三</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="new_customer_region">地区</label>
-                        <input type="text" name="new_customer_region" id="new_customer_region" placeholder="请输入地区">
-                    </div>
-                </div>
-            </div>
-            
-            <!-- 试听课信息 -->
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="trial_price">试听课售价 *</label>
-                    <input type="number" name="trial_price" id="trial_price" step="0.01" min="0" required>
-                </div>
-                
-                <div class="form-group">
-                    <label for="source">渠道来源 *</label>
-                    <select name="source" id="source" required>
-                        <option value="">请选择渠道</option>
-                        <option value="淘宝">淘宝</option>
-                        <option value="视频号">视频号</option>
-                        <option value="抖音">抖音</option>
-                        <option value="小红书">小红书</option>
-                        <option value="其他">其他</option>
-                    </select>
-                </div>
-            </div>
-            
-            <div class="form-group">
-                <button type="submit" class="btn btn-primary">
-                    <i class="fas fa-plus"></i> 添加试听课
-                </button>
-            </div>
-        </form>
+            </form>
+        </div>
     </div>
 
     <!-- 数据统计图表 -->
@@ -359,88 +307,73 @@ function deleteTrialCourse(courseId) {
 document.addEventListener('DOMContentLoaded', function() {
     console.log('试听课管理页面加载完成');
     
-    // 处理录入方式切换
-    const inputModeRadios = document.querySelectorAll('input[name="input_mode"]');
-    const existingSection = document.getElementById('existing-customer-section');
-    const newSection = document.getElementById('new-customer-section');
-    const customerSelect = document.getElementById('customer_id');
-    const customerPreview = document.getElementById('customer-preview');
-    const newCustomerInputs = newSection.querySelectorAll('input[required], select[required]');
-    
-    inputModeRadios.forEach(radio => {
-        radio.addEventListener('change', function() {
-            if (this.value === 'existing') {
-                existingSection.style.display = 'block';
-                newSection.style.display = 'none';
-                customerSelect.required = true;
-                // 移除新客户字段的必填要求
-                newCustomerInputs.forEach(input => {
-                    input.required = false;
-                });
-            } else {
-                existingSection.style.display = 'none';
-                newSection.style.display = 'block';
-                customerPreview.style.display = 'none';
-                customerSelect.required = false;
-                customerSelect.value = '';
-                // 添加新客户字段的必填要求
-                document.getElementById('new_customer_name').required = true;
-                document.getElementById('new_customer_phone').required = true;
-            }
-        });
-    });
-    
-    // 学员选择变化处理
-    customerSelect.addEventListener('change', function() {
-        const selectedOption = this.options[this.selectedIndex];
+    // 模态框控制
+     const addTrialBtn = document.getElementById('addTrialBtn');
+     const trialModal = document.getElementById('trialModal');
+     const closeModal = document.querySelector('.close');
+     const cancelBtn = document.getElementById('cancelBtn');
+     const trialForm = document.getElementById('trialForm');
+     
+     // 打开模态框
+     addTrialBtn.addEventListener('click', function() {
+         trialModal.style.display = 'block';
+         document.body.style.overflow = 'hidden'; // 防止背景滚动
+     });
+     
+     // 关闭模态框
+     function closeTrialModal() {
+         trialModal.style.display = 'none';
+         document.body.style.overflow = 'auto';
+         trialForm.reset(); // 重置表单
+     }
+     
+     closeModal.addEventListener('click', closeTrialModal);
+     cancelBtn.addEventListener('click', closeTrialModal);
+     
+     // 点击模态框外部关闭
+     window.addEventListener('click', function(event) {
+         if (event.target === trialModal) {
+             closeTrialModal();
+         }
+     });
+     
+     // 表单提交验证
+     trialForm.addEventListener('submit', function(e) {
+         const name = document.getElementById('customer_name').value.trim();
+         const phone = document.getElementById('customer_phone').value.trim();
+         const price = document.getElementById('trial_price').value.trim();
+         const source = document.getElementById('source').value;
         
-        if (this.value && selectedOption.dataset.name) {
-            // 显示学员信息预览
-            document.getElementById('preview-name').textContent = selectedOption.dataset.name || '-';
-            document.getElementById('preview-phone').textContent = selectedOption.dataset.phone || '-';
-            document.getElementById('preview-grade').textContent = selectedOption.dataset.grade || '-';
-            document.getElementById('preview-region').textContent = selectedOption.dataset.region || '-';
-            
-            customerPreview.style.display = 'block';
-        } else {
-            customerPreview.style.display = 'none';
+        if (!name) {
+            e.preventDefault();
+            alert('请输入学员姓名');
+            return;
         }
-    });
-    
-    // 表单提交验证
-    const form = document.querySelector('.form-grid');
-    form.addEventListener('submit', function(e) {
-        const inputMode = document.querySelector('input[name="input_mode"]:checked').value;
         
-        if (inputMode === 'existing') {
-            if (!customerSelect.value) {
-                e.preventDefault();
-                alert('请选择学员');
-                return;
-            }
-        } else {
-            const name = document.getElementById('new_customer_name').value.trim();
-            const phone = document.getElementById('new_customer_phone').value.trim();
-            
-            if (!name) {
-                e.preventDefault();
-                alert('请输入学员姓名');
-                return;
-            }
-            
-            if (!phone) {
-                e.preventDefault();
-                alert('请输入联系电话');
-                return;
-            }
-            
-            // 验证手机号格式
-            const phoneRegex = /^1[3-9]\d{9}$/;
-            if (!phoneRegex.test(phone)) {
-                e.preventDefault();
-                alert('请输入正确的手机号码');
-                return;
-            }
+        if (!phone) {
+            e.preventDefault();
+            alert('请输入联系电话');
+            return;
+        }
+        
+        // 验证手机号格式
+        const phoneRegex = /^1[3-9]\d{9}$/;
+        if (!phoneRegex.test(phone)) {
+            e.preventDefault();
+            alert('请输入正确的手机号码');
+            return;
+        }
+        
+        if (!price || parseFloat(price) < 0) {
+            e.preventDefault();
+            alert('请输入正确的试听课售价');
+            return;
+        }
+        
+        if (!source) {
+            e.preventDefault();
+            alert('请选择渠道来源');
+            return;
         }
     });
     
@@ -1111,6 +1044,220 @@ document.addEventListener('DOMContentLoaded', function() {
     to {
         opacity: 1;
         transform: translateY(0);
+    }
+}
+
+/* 添加试听课按钮区域样式 */
+.add-trial-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-radius: 12px;
+    border: 1px solid #dee2e6;
+    margin-bottom: 30px;
+}
+
+.add-trial-header h3 {
+    margin: 0;
+    color: #495057;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.add-trial-header h3 i {
+    margin-right: 8px;
+    color: #007bff;
+}
+
+/* 模态框样式 */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(3px);
+    animation: modalFadeIn 0.3s ease;
+}
+
+.modal-content {
+    background-color: #fff;
+    margin: 3% auto;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 600px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    animation: modalSlideIn 0.3s ease;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 25px;
+    border-bottom: 1px solid #e9ecef;
+    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+    color: white;
+    border-radius: 12px 12px 0 0;
+}
+
+.modal-header h4 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.modal-header h4 i {
+    margin-right: 8px;
+}
+
+.close {
+    color: white;
+    font-size: 24px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    padding: 5px;
+    border-radius: 50%;
+}
+
+.close:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: scale(1.1);
+}
+
+.modal-body {
+    padding: 25px;
+}
+
+.form-section-modal {
+    margin-bottom: 25px;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border-left: 4px solid #007bff;
+}
+
+.form-section-modal h5 {
+    margin: 0 0 15px 0;
+    color: #495057;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.form-section-modal h5 i {
+    margin-right: 8px;
+    color: #007bff;
+}
+
+.modal-form .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    margin-bottom: 15px;
+}
+
+.modal-form .form-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.modal-form .form-group:last-child {
+    grid-column: 1 / -1;
+}
+
+.modal-form label {
+    margin-bottom: 5px;
+    font-weight: 500;
+    color: #495057;
+    font-size: 14px;
+}
+
+.modal-form input,
+.modal-form select {
+    padding: 10px 12px;
+    border: 2px solid #e9ecef;
+    border-radius: 6px;
+    font-size: 14px;
+    transition: all 0.3s ease;
+}
+
+.modal-form input:focus,
+.modal-form select:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 20px 25px;
+    border-top: 1px solid #e9ecef;
+    background: #f8f9fa;
+    border-radius: 0 0 12px 12px;
+}
+
+.btn-secondary {
+    background: #6c757d;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.btn-secondary:hover {
+    background: #5a6268;
+    transform: translateY(-1px);
+}
+
+@keyframes modalFadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-50px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .modal-content {
+        width: 95%;
+        margin: 5% auto;
+    }
+    
+    .modal-form .form-row {
+        grid-template-columns: 1fr;
+    }
+    
+    .add-trial-header {
+        flex-direction: column;
+        gap: 15px;
+        text-align: center;
     }
 }
 
