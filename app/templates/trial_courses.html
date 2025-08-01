@@ -155,12 +155,48 @@
     <div class="table-section">
         <div class="table-header">
             <h3><i class="fas fa-list"></i> 试听课记录</h3>
+            
+            <!-- 搜索和筛选 -->
+            <div class="search-filter-section">
+                <div class="search-box">
+                    <input type="text" id="searchInput" placeholder="搜索学员姓名或电话..." class="search-input">
+                    <i class="fas fa-search search-icon"></i>
+                </div>
+                
+                <div class="filter-controls">
+                    <select id="sourceFilter" class="filter-select">
+                        <option value="">全部渠道</option>
+                        <option value="淘宝">淘宝</option>
+                        <option value="视频号">视频号</option>
+                        <option value="抖音">抖音</option>
+                        <option value="小红书">小红书</option>
+                        <option value="其他">其他</option>
+                    </select>
+                    
+                    <select id="statusFilter" class="filter-select">
+                        <option value="">全部状态</option>
+                        <option value="pending">待转化</option>
+                        <option value="converted">已转正课</option>
+                    </select>
+                    
+                    <button id="exportBtn" class="btn btn-outline-primary">
+                        <i class="fas fa-download"></i> 导出数据
+                    </button>
+                    
+                    <button id="batchDeleteBtn" class="btn btn-outline-danger" style="display: none;">
+                        <i class="fas fa-trash"></i> 批量删除
+                    </button>
+                </div>
+            </div>
         </div>
         
         <div class="table-container">
             <table class="data-table">
                 <thead>
                     <tr>
+                        <th>
+                            <input type="checkbox" id="selectAll" class="batch-checkbox">
+                        </th>
                         <th>学员姓名</th>
                         <th>性别</th>
                         <th>年级</th>
@@ -176,6 +212,9 @@
                 <tbody>
                     {% for course, customer in trial_courses %}
                     <tr>
+                        <td>
+                            <input type="checkbox" class="row-checkbox" data-course-id="{{ course.id }}">
+                        </td>
                         <td>{{ customer.name }}</td>
                         <td>{{ customer.gender or '-' }}</td>
                         <td>{{ customer.grade or '-' }}</td>
@@ -210,7 +249,7 @@
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="10" class="text-center">暂无试听课记录</td>
+                        <td colspan="11" class="text-center">暂无试听课记录</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -335,6 +374,185 @@ document.addEventListener('DOMContentLoaded', function() {
             }, 300);
         }, 3000);
     }
+    
+    // 搜索和筛选功能
+    const searchInput = document.getElementById('searchInput');
+    const sourceFilter = document.getElementById('sourceFilter');
+    const statusFilter = document.getElementById('statusFilter');
+    const exportBtn = document.getElementById('exportBtn');
+    const batchDeleteBtn = document.getElementById('batchDeleteBtn');
+    const selectAllCheckbox = document.getElementById('selectAll');
+    const rowCheckboxes = document.querySelectorAll('.row-checkbox');
+    const tableRows = document.querySelectorAll('.data-table tbody tr');
+    
+    // 搜索功能
+    function filterTable() {
+        const searchTerm = searchInput.value.toLowerCase();
+        const sourceValue = sourceFilter.value;
+        const statusValue = statusFilter.value;
+        
+        tableRows.forEach(row => {
+             if (row.cells.length === 1) return; // 跳过"暂无记录"行
+             
+             const name = row.cells[1].textContent.toLowerCase(); // 调整索引
+             const phone = row.cells[5].textContent.toLowerCase(); // 调整索引
+             const source = row.cells[7].textContent; // 调整索引
+             const statusElement = row.cells[9].querySelector('.status-badge'); // 调整索引
+             const status = statusElement ? (statusElement.classList.contains('status-converted') ? 'converted' : 'pending') : '';
+            
+            const matchesSearch = name.includes(searchTerm) || phone.includes(searchTerm);
+            const matchesSource = !sourceValue || source === sourceValue;
+            const matchesStatus = !statusValue || status === statusValue;
+            
+            if (matchesSearch && matchesSource && matchesStatus) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+        
+        // 更新统计信息
+        updateFilterStats();
+    }
+    
+    // 更新筛选后的统计信息
+    function updateFilterStats() {
+        const visibleRows = Array.from(tableRows).filter(row => 
+            row.style.display !== 'none' && row.cells.length > 1
+        );
+        
+        let totalPrice = 0;
+        visibleRows.forEach(row => {
+             const priceText = row.cells[6].textContent.replace('¥', ''); // 调整索引
+             totalPrice += parseFloat(priceText) || 0;
+         });
+        
+        // 可以在这里添加显示筛选后统计信息的逻辑
+        console.log(`筛选后记录数: ${visibleRows.length}, 总金额: ¥${totalPrice.toFixed(2)}`);
+    }
+    
+    // 绑定事件
+    searchInput.addEventListener('input', filterTable);
+    sourceFilter.addEventListener('change', filterTable);
+    statusFilter.addEventListener('change', filterTable);
+    
+    // 导出功能
+    exportBtn.addEventListener('click', function() {
+        const visibleRows = Array.from(tableRows).filter(row => 
+            row.style.display !== 'none' && row.cells.length > 1
+        );
+        
+        if (visibleRows.length === 0) {
+            alert('没有数据可导出');
+            return;
+        }
+        
+        // 构建CSV数据
+        let csvContent = '学员姓名,性别,年级,地区,联系方式,试听课售价,渠道来源,报名时间,状态\n';
+        
+        visibleRows.forEach(row => {
+             const cells = Array.from(row.cells).slice(1, 10); // 排除复选框列和操作列
+            const rowData = cells.map(cell => {
+                let text = cell.textContent.trim();
+                // 处理状态列
+                if (cell.querySelector('.status-badge')) {
+                    text = cell.querySelector('.status-badge').textContent.trim();
+                }
+                // 转义CSV特殊字符
+                if (text.includes(',') || text.includes('"') || text.includes('\n')) {
+                    text = '"' + text.replace(/"/g, '""') + '"';
+                }
+                return text;
+            });
+            csvContent += rowData.join(',') + '\n';
+        });
+        
+        // 下载文件
+        const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', `试听课记录_${new Date().toISOString().split('T')[0]}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+         document.body.removeChild(link);
+     });
+     
+     // 批量操作功能
+     function updateBatchDeleteButton() {
+         const checkedBoxes = document.querySelectorAll('.row-checkbox:checked');
+         if (checkedBoxes.length > 0) {
+             batchDeleteBtn.style.display = 'inline-flex';
+             batchDeleteBtn.textContent = `批量删除 (${checkedBoxes.length})`;
+         } else {
+             batchDeleteBtn.style.display = 'none';
+         }
+     }
+     
+     // 全选/取消全选
+     selectAllCheckbox.addEventListener('change', function() {
+         const visibleCheckboxes = Array.from(rowCheckboxes).filter(checkbox => {
+             const row = checkbox.closest('tr');
+             return row.style.display !== 'none';
+         });
+         
+         visibleCheckboxes.forEach(checkbox => {
+             checkbox.checked = this.checked;
+         });
+         
+         updateBatchDeleteButton();
+     });
+     
+     // 单个复选框变化
+     rowCheckboxes.forEach(checkbox => {
+         checkbox.addEventListener('change', function() {
+             updateBatchDeleteButton();
+             
+             // 更新全选状态
+             const visibleCheckboxes = Array.from(rowCheckboxes).filter(checkbox => {
+                 const row = checkbox.closest('tr');
+                 return row.style.display !== 'none';
+             });
+             
+             const checkedCount = visibleCheckboxes.filter(cb => cb.checked).length;
+             selectAllCheckbox.checked = checkedCount === visibleCheckboxes.length && visibleCheckboxes.length > 0;
+             selectAllCheckbox.indeterminate = checkedCount > 0 && checkedCount < visibleCheckboxes.length;
+         });
+     });
+     
+     // 批量删除
+     batchDeleteBtn.addEventListener('click', function() {
+         const checkedBoxes = document.querySelectorAll('.row-checkbox:checked');
+         const courseIds = Array.from(checkedBoxes).map(checkbox => checkbox.dataset.courseId);
+         
+         if (courseIds.length === 0) {
+             alert('请选择要删除的记录');
+             return;
+         }
+         
+         if (confirm(`确定要删除选中的 ${courseIds.length} 条试听课记录吗？`)) {
+             // 批量删除API调用
+             Promise.all(courseIds.map(id => 
+                 fetch(`/api/trial-courses/${id}`, {
+                     method: 'DELETE',
+                     headers: {
+                         'Content-Type': 'application/json',
+                     }
+                 })
+             )).then(responses => {
+                 const allSuccessful = responses.every(response => response.ok);
+                 if (allSuccessful) {
+                     location.reload();
+                 } else {
+                     alert('部分删除失败，请刷新页面查看结果');
+                 }
+             }).catch(error => {
+                 console.error('Error:', error);
+                 alert('批量删除失败');
+             });
+         }
+     });
 });
 </script>
 
@@ -479,8 +697,101 @@ document.addEventListener('DOMContentLoaded', function() {
 }
 
 .table-header h3 {
-    margin: 0;
+    margin: 0 0 20px 0;
     color: #333;
+}
+
+.search-filter-section {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.search-box {
+    position: relative;
+    flex: 1;
+    min-width: 250px;
+}
+
+.search-input {
+    width: 100%;
+    padding: 10px 40px 10px 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 14px;
+    transition: border-color 0.2s;
+}
+
+.search-input:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 2px rgba(0,123,255,0.25);
+}
+
+.search-icon {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #6c757d;
+    pointer-events: none;
+}
+
+.filter-controls {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.filter-select {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+    background: white;
+    min-width: 120px;
+}
+
+.filter-select:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 2px rgba(0,123,255,0.25);
+}
+
+.btn-outline-primary {
+    background: transparent;
+    color: #007bff;
+    border: 1px solid #007bff;
+}
+
+.btn-outline-primary:hover {
+    background: #007bff;
+    color: white;
+}
+
+.btn-outline-danger {
+    background: transparent;
+    color: #dc3545;
+    border: 1px solid #dc3545;
+}
+
+.btn-outline-danger:hover {
+    background: #dc3545;
+    color: white;
+}
+
+.batch-checkbox,
+.row-checkbox {
+    cursor: pointer;
+    transform: scale(1.2);
+}
+
+.data-table th:first-child,
+.data-table td:first-child {
+    width: 40px;
+    text-align: center;
 }
 
 .table-container {
