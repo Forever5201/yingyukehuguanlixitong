@@ -312,9 +312,6 @@ function deleteTrialCourse(courseId) {
 document.addEventListener('DOMContentLoaded', function() {
     console.log('试听课管理页面加载完成');
     
-    // 初始化图表
-    initCharts();
-    
     // 处理录入方式切换
     const inputModeRadios = document.querySelectorAll('input[name="input_mode"]');
     const existingSection = document.getElementById('existing-customer-section');
@@ -401,6 +398,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const selectAllCheckbox = document.getElementById('selectAll');
     const rowCheckboxes = document.querySelectorAll('.row-checkbox');
     const tableRows = document.querySelectorAll('.data-table tbody tr');
+    
+    // 初始化图表
+    initCharts();
     
     // 搜索功能
     function filterTable() {
