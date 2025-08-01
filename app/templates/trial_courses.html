@@ -151,6 +151,20 @@
         </form>
     </div>
 
+    <!-- 数据统计图表 -->
+    <div class="charts-section">
+        <div class="charts-grid">
+            <div class="chart-card">
+                <h4><i class="fas fa-chart-pie"></i> 渠道来源分布</h4>
+                <canvas id="sourceChart" width="300" height="200"></canvas>
+            </div>
+            <div class="chart-card">
+                <h4><i class="fas fa-chart-bar"></i> 转化率统计</h4>
+                <canvas id="conversionChart" width="300" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+
     <!-- 试听课列表 -->
     <div class="table-section">
         <div class="table-header">
@@ -298,6 +312,9 @@ function deleteTrialCourse(courseId) {
 document.addEventListener('DOMContentLoaded', function() {
     console.log('试听课管理页面加载完成');
     
+    // 初始化图表
+    initCharts();
+    
     // 处理录入方式切换
     const inputModeRadios = document.querySelectorAll('input[name="input_mode"]');
     const existingSection = document.getElementById('existing-customer-section');
@@ -411,8 +428,9 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
         
-        // 更新统计信息
+        // 更新统计信息和图表
         updateFilterStats();
+        updateChartsWithFilteredData();
     }
     
     // 更新筛选后的统计信息
@@ -551,8 +569,190 @@ document.addEventListener('DOMContentLoaded', function() {
                  console.error('Error:', error);
                  alert('批量删除失败');
              });
-         }
+         }});
      });
+     
+     // 根据筛选结果更新图表
+      function updateChartsWithFilteredData() {
+          const visibleRows = Array.from(tableRows).filter(row => 
+              row.style.display !== 'none' && row.cells.length > 1
+          );
+          
+          const sourceData = {};
+          const conversionData = { total: 0, converted: 0 };
+          
+          visibleRows.forEach(row => {
+              const source = row.cells[7].textContent.trim();
+              const statusElement = row.cells[9].querySelector('.status-badge');
+              const isConverted = statusElement && statusElement.classList.contains('status-converted');
+              
+              // 统计渠道来源
+              sourceData[source] = (sourceData[source] || 0) + 1;
+              
+              // 统计转化率
+              conversionData.total++;
+              if (isConverted) {
+                  conversionData.converted++;
+              }
+          });
+          
+          // 重新绘制图表
+          drawSourceChart(sourceData);
+          drawConversionChart(conversionData);
+      }
+      
+      // 图表初始化函数
+      function initCharts() {
+         // 统计数据
+         const sourceData = {};
+         const conversionData = { total: 0, converted: 0 };
+         
+         tableRows.forEach(row => {
+             if (row.cells.length === 1) return; // 跳过"暂无记录"行
+             
+             const source = row.cells[7].textContent.trim();
+             const statusElement = row.cells[9].querySelector('.status-badge');
+             const isConverted = statusElement && statusElement.classList.contains('status-converted');
+             
+             // 统计渠道来源
+             sourceData[source] = (sourceData[source] || 0) + 1;
+             
+             // 统计转化率
+             conversionData.total++;
+             if (isConverted) {
+                 conversionData.converted++;
+             }
+         });
+         
+         // 绘制渠道来源饼图
+         drawSourceChart(sourceData);
+         
+         // 绘制转化率柱状图
+         drawConversionChart(conversionData);
+     }
+     
+     // 绘制渠道来源饼图
+     function drawSourceChart(data) {
+         const canvas = document.getElementById('sourceChart');
+         const ctx = canvas.getContext('2d');
+         const centerX = canvas.width / 2;
+         const centerY = canvas.height / 2;
+         const radius = Math.min(centerX, centerY) - 20;
+         
+         // 清空画布
+         ctx.clearRect(0, 0, canvas.width, canvas.height);
+         
+         if (Object.keys(data).length === 0) {
+             ctx.fillStyle = '#666';
+             ctx.font = '14px Arial';
+             ctx.textAlign = 'center';
+             ctx.fillText('暂无数据', centerX, centerY);
+             return;
+         }
+         
+         const total = Object.values(data).reduce((sum, val) => sum + val, 0);
+         const colors = ['#007bff', '#28a745', '#ffc107', '#dc3545', '#6f42c1', '#fd7e14'];
+         
+         let currentAngle = -Math.PI / 2;
+         let colorIndex = 0;
+         
+         // 绘制饼图
+         Object.entries(data).forEach(([source, count]) => {
+             const sliceAngle = (count / total) * 2 * Math.PI;
+             
+             ctx.beginPath();
+             ctx.moveTo(centerX, centerY);
+             ctx.arc(centerX, centerY, radius, currentAngle, currentAngle + sliceAngle);
+             ctx.closePath();
+             ctx.fillStyle = colors[colorIndex % colors.length];
+             ctx.fill();
+             
+             // 绘制标签
+             const labelAngle = currentAngle + sliceAngle / 2;
+             const labelX = centerX + Math.cos(labelAngle) * (radius * 0.7);
+             const labelY = centerY + Math.sin(labelAngle) * (radius * 0.7);
+             
+             ctx.fillStyle = 'white';
+             ctx.font = 'bold 12px Arial';
+             ctx.textAlign = 'center';
+             ctx.fillText(`${count}`, labelX, labelY);
+             
+             currentAngle += sliceAngle;
+             colorIndex++;
+         });
+         
+         // 绘制图例
+         let legendY = 10;
+         colorIndex = 0;
+         Object.entries(data).forEach(([source, count]) => {
+             const percentage = ((count / total) * 100).toFixed(1);
+             
+             ctx.fillStyle = colors[colorIndex % colors.length];
+             ctx.fillRect(canvas.width - 120, legendY, 12, 12);
+             
+             ctx.fillStyle = '#333';
+             ctx.font = '11px Arial';
+             ctx.textAlign = 'left';
+             ctx.fillText(`${source} (${percentage}%)`, canvas.width - 105, legendY + 9);
+             
+             legendY += 18;
+             colorIndex++;
+         });
+     }
+     
+     // 绘制转化率柱状图
+     function drawConversionChart(data) {
+         const canvas = document.getElementById('conversionChart');
+         const ctx = canvas.getContext('2d');
+         
+         // 清空画布
+         ctx.clearRect(0, 0, canvas.width, canvas.height);
+         
+         if (data.total === 0) {
+             ctx.fillStyle = '#666';
+             ctx.font = '14px Arial';
+             ctx.textAlign = 'center';
+             ctx.fillText('暂无数据', canvas.width / 2, canvas.height / 2);
+             return;
+         }
+         
+         const conversionRate = (data.converted / data.total * 100).toFixed(1);
+         const pendingRate = (100 - conversionRate).toFixed(1);
+         
+         const barWidth = 80;
+         const maxHeight = canvas.height - 60;
+         const spacing = 60;
+         
+         // 绘制已转化柱状图
+         const convertedHeight = (data.converted / data.total) * maxHeight;
+         ctx.fillStyle = '#28a745';
+         ctx.fillRect(spacing, canvas.height - 40 - convertedHeight, barWidth, convertedHeight);
+         
+         // 绘制待转化柱状图
+         const pendingCount = data.total - data.converted;
+         const pendingHeight = (pendingCount / data.total) * maxHeight;
+         ctx.fillStyle = '#ffc107';
+         ctx.fillRect(spacing + barWidth + 40, canvas.height - 40 - pendingHeight, barWidth, pendingHeight);
+         
+         // 绘制标签
+         ctx.fillStyle = '#333';
+         ctx.font = '12px Arial';
+         ctx.textAlign = 'center';
+         
+         // 已转化标签
+         ctx.fillText('已转化', spacing + barWidth / 2, canvas.height - 20);
+         ctx.fillText(`${data.converted}`, spacing + barWidth / 2, canvas.height - 45 - convertedHeight);
+         ctx.fillText(`${conversionRate}%`, spacing + barWidth / 2, canvas.height - 5);
+         
+         // 待转化标签
+         ctx.fillText('待转化', spacing + barWidth + 40 + barWidth / 2, canvas.height - 20);
+         ctx.fillText(`${pendingCount}`, spacing + barWidth + 40 + barWidth / 2, canvas.height - 45 - pendingHeight);
+         ctx.fillText(`${pendingRate}%`, spacing + barWidth + 40 + barWidth / 2, canvas.height - 5);
+         
+         // 绘制标题
+         ctx.font = 'bold 14px Arial';
+         ctx.fillText(`总转化率: ${conversionRate}%`, canvas.width / 2, 20);
+     }
 });
 </script>
 
@@ -609,6 +809,37 @@ document.addEventListener('DOMContentLoaded', function() {
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     margin-bottom: 30px;
+}
+
+.charts-section {
+    margin-bottom: 30px;
+}
+
+.charts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    gap: 20px;
+}
+
+.chart-card {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    text-align: center;
+}
+
+.chart-card h4 {
+    margin: 0 0 15px 0;
+    color: #333;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.chart-card canvas {
+    border: 1px solid #eee;
+    border-radius: 4px;
+    background: #fafafa;
 }
 
 .form-section h3 {
