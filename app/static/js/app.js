@@ -61,18 +61,28 @@ class PerformanceOptimizer {
     optimizeEventListeners() {
         // 防抖搜索
         let searchTimeout;
-        const searchInputs = document.querySelectorAll('input[type="text"]');
         
-        searchInputs.forEach(input => {
-            if (input.placeholder && input.placeholder.includes('搜索')) {
-                input.addEventListener('input', (e) => {
-                    clearTimeout(searchTimeout);
-                    searchTimeout = setTimeout(() => {
-                        this.performSearch(e.target);
-                    }, 300);
+        // 延迟执行，确保DOM完全加载
+        setTimeout(() => {
+            const searchInputs = document.querySelectorAll('input[type="text"]');
+            
+            if (searchInputs && searchInputs.length > 0) {
+                searchInputs.forEach(input => {
+                    try {
+                        if (input && input.placeholder && input.placeholder.includes('搜索')) {
+                            input.addEventListener('input', (e) => {
+                                clearTimeout(searchTimeout);
+                                searchTimeout = setTimeout(() => {
+                                    this.performSearch(e.target);
+                                }, 300);
+                            });
+                        }
+                    } catch (error) {
+                        console.warn('无法为输入元素添加事件监听器:', error);
+                    }
                 });
             }
-        });
+        }, 100);
     }
 
     performSearch(input) {

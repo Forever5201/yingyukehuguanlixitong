@@ -413,7 +413,20 @@ def manage_trial_courses():
         
         # 获取试听课成本配置
         trial_cost_config = Config.query.filter_by(key='trial_cost').first()
-        trial_cost = float(trial_cost_config.value) if trial_cost_config else 0
+        base_trial_cost = float(trial_cost_config.value) if trial_cost_config else 0
+        
+        # 计算总成本（基础成本 + 手续费）
+        total_trial_cost = base_trial_cost
+        
+        # 如果来源是淘宝，需要加上手续费
+        if source == '淘宝':
+            # 获取淘宝手续费率配置
+            taobao_fee_config = Config.query.filter_by(key='taobao_fee_rate').first()
+            taobao_fee_rate = float(taobao_fee_config.value) / 100 if taobao_fee_config else 0.006  # 转换为小数
+            
+            # 计算手续费：试听课售价 × 手续费率
+            taobao_fee = trial_price * taobao_fee_rate
+            total_trial_cost += taobao_fee
         
         # 创建试听课记录
         new_trial = Course(
@@ -422,7 +435,7 @@ def manage_trial_courses():
             is_trial=True,
             trial_price=trial_price,
             source=source,
-            cost=trial_cost
+            cost=total_trial_cost
         )
         
         db.session.add(new_trial)
@@ -450,54 +463,37 @@ def manage_trial_courses():
         db.func.coalesce(db.func.sum(Course.cost), 0).label('total_cost')
     ).filter(Course.is_trial == True).first()
     
+    # 计算手续费总额
+    trial_courses_list = Course.query.filter(Course.is_trial == True).all()
+    total_fees = 0
+    
+    # 获取淘宝手续费率配置
+    taobao_fee_config = Config.query.filter_by(key='taobao_fee_rate').first()
+    taobao_fee_rate = float(taobao_fee_config.value) / 100 if taobao_fee_config else 0.006  # 转换为小数
+    
+    for course in trial_courses_list:
+        if course.source == '淘宝':
+            fee_amount = course.trial_price * taobao_fee_rate
+            total_fees += fee_amount
+    
     # 计算利润
     total_profit = (trial_stats.total_revenue or 0) - (trial_stats.total_cost or 0)
     
     return render_template('trial_courses.html', 
                          trial_courses=trial_courses,
                          customers=customers,
+                         taobao_fee_rate=taobao_fee_rate,
                          stats={
                              'total_trials': trial_stats.total_trials or 0,
                              'total_revenue': trial_stats.total_revenue or 0,
                              'total_cost': trial_stats.total_cost or 0,
-                             'total_profit': total_profit
+                             'total_profit': total_profit,
+                             'total_fees': total_fees
                          })
 
-@app.route('/formal-courses', methods=['GET', 'POST'])
+@app.route('/formal-courses', methods=['GET'])
 def manage_formal_courses():
     """正课管理页面"""
-    if request.method == 'POST':
-        # 添加正课记录
-        customer_id = request.form['customer_id']
-        course_type = request.form['course_type']
-        sessions = int(request.form['sessions'])
-        price = float(request.form['price'])
-        gift_sessions = int(request.form.get('gift_sessions', 0))
-        other_cost = float(request.form.get('other_cost', 0))
-        
-        # 获取正课成本配置
-        course_cost_config = Config.query.filter_by(key='course_cost').first()
-        course_cost_per_session = float(course_cost_config.value) if course_cost_config else 0
-        
-        # 计算总成本（购买节数 + 赠课节数）* 单节成本 + 其他成本
-        total_cost = (sessions + gift_sessions) * course_cost_per_session + other_cost
-        
-        new_course = Course(
-            name=course_type,
-            customer_id=customer_id,
-            is_trial=False,
-            course_type=course_type,
-            sessions=sessions,
-            price=price,
-            cost=total_cost,
-            gift_sessions=gift_sessions,
-            other_cost=other_cost
-        )
-        
-        db.session.add(new_course)
-        db.session.commit()
-        flash('正课记录添加成功！', 'success')
-        return redirect(url_for('manage_formal_courses'))
     
     # 获取正课列表
     formal_courses = db.session.query(Course, Customer).join(
@@ -510,25 +506,48 @@ def manage_formal_courses():
     # 计算正课统计
     formal_stats = db.session.query(
         db.func.count(Course.id).label('total_courses'),
-        db.func.coalesce(db.func.sum(Course.price), 0).label('total_revenue'),
         db.func.coalesce(db.func.sum(Course.cost), 0).label('total_cost'),
         db.func.coalesce(db.func.sum(Course.sessions), 0).label('total_sessions'),
         db.func.coalesce(db.func.sum(Course.gift_sessions), 0).label('total_gift_sessions')
     ).filter(Course.is_trial == False).first()
     
+    # 计算实际总收入（考虑手续费）
+    courses = Course.query.filter(Course.is_trial == False).all()
+    total_revenue = 0
+    total_fees = 0
+    
+    # 获取淘宝手续费率配置
+    taobao_fee_config = Config.query.filter_by(key='taobao_fee_rate').first()
+    taobao_fee_rate = float(taobao_fee_config.value) if taobao_fee_config else 0.006  # 默认0.6%
+    
+    for course in courses:
+        # 计算基础收入：购买节数 × 单节售价
+        base_revenue = course.sessions * course.price
+        
+        # 如果是淘宝支付，扣除手续费
+        if course.payment_channel == '淘宝':
+            fee_amount = base_revenue * taobao_fee_rate
+            actual_revenue = base_revenue - fee_amount
+            total_fees += fee_amount
+        else:
+            actual_revenue = base_revenue
+            
+        total_revenue += actual_revenue
+    
     # 计算利润
-    total_profit = (formal_stats.total_revenue or 0) - (formal_stats.total_cost or 0)
+    total_profit = total_revenue - (formal_stats.total_cost or 0)
     
     return render_template('formal_courses.html', 
                          formal_courses=formal_courses,
                          customers=customers,
                          stats={
                              'total_courses': formal_stats.total_courses or 0,
-                             'total_revenue': formal_stats.total_revenue or 0,
+                             'total_revenue': total_revenue,
                              'total_cost': formal_stats.total_cost or 0,
                              'total_profit': total_profit,
                              'total_sessions': formal_stats.total_sessions or 0,
-                             'total_gift_sessions': formal_stats.total_gift_sessions or 0
+                             'total_gift_sessions': formal_stats.total_gift_sessions or 0,
+                             'total_fees': total_fees
                          })
 
 @app.route('/convert-trial/<int:trial_id>', methods=['GET', 'POST'])
@@ -540,7 +559,8 @@ def convert_trial_to_course(trial_id):
         # 创建正课记录
         course_type = request.form['course_type']
         sessions = int(request.form['sessions'])
-        price = float(request.form['price'])
+        price = float(request.form['price'])  # 单节售价
+        payment_channel = request.form['payment_channel']
         gift_sessions = int(request.form.get('gift_sessions', 0))
         other_cost = float(request.form.get('other_cost', 0))
         
@@ -558,10 +578,11 @@ def convert_trial_to_course(trial_id):
             is_trial=False,
             course_type=course_type,
             sessions=sessions,
-            price=price,
+            price=price,  # 存储单节售价
             cost=total_cost,
             gift_sessions=gift_sessions,
             other_cost=other_cost,
+            payment_channel=payment_channel,
             converted_from_trial=trial_id
         )
         
@@ -616,3 +637,96 @@ def get_course_cost_config():
             return jsonify({'value': '0'})
     except Exception as e:
         return jsonify({'value': '0'})
+
+@app.route('/api/trial-courses/<int:course_id>', methods=['PUT'])
+def update_trial_course(course_id):
+    """更新试听课记录"""
+    course = Course.query.filter_by(id=course_id, is_trial=True).first_or_404()
+    
+    try:
+        # 更新客户信息
+        customer = course.customer
+        customer.name = request.form['customer_name'].strip()
+        customer.phone = request.form['customer_phone'].strip()
+        customer.gender = request.form.get('customer_gender') or None
+        customer.grade = request.form.get('customer_grade') or None
+        customer.region = request.form.get('customer_region') or None
+        
+        # 更新试听课信息
+        course.trial_price = float(request.form['trial_price'])
+        course.source = request.form['source']
+        
+        # 重新计算成本
+        trial_cost_config = Config.query.filter_by(key='trial_cost').first()
+        base_trial_cost = float(trial_cost_config.value) if trial_cost_config else 0
+        
+        # 如果来源是淘宝，需要加上手续费
+        if course.source == '淘宝':
+            taobao_fee_rate_config = Config.query.filter_by(key='taobao_fee_rate').first()
+            taobao_fee_rate = float(taobao_fee_rate_config.value) if taobao_fee_rate_config else 0.006
+            taobao_fee = course.trial_price * taobao_fee_rate
+            total_trial_cost = base_trial_cost + taobao_fee
+        else:
+            total_trial_cost = base_trial_cost
+            
+        course.cost = total_trial_cost
+        
+        db.session.commit()
+        return jsonify({'success': True, 'message': '试听课信息更新成功'})
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'更新失败：{str(e)}'})
+
+@app.route('/api/formal-courses/<int:course_id>', methods=['PUT'])
+def update_formal_course(course_id):
+    """更新正课记录"""
+    course = Course.query.filter_by(id=course_id, is_trial=False).first_or_404()
+    
+    try:
+        # 更新客户信息
+        customer = course.customer
+        customer.name = request.form['customer_name'].strip()
+        customer.phone = request.form['customer_phone'].strip()
+        customer.gender = request.form.get('customer_gender') or None
+        customer.grade = request.form.get('customer_grade') or None
+        customer.region = request.form.get('customer_region') or None
+        
+        # 更新正课信息
+        course.course_type = request.form['course_type']
+        course.name = request.form['course_type']  # 保持name字段同步
+        course.sessions = int(request.form['sessions'])
+        course.gift_sessions = int(request.form.get('gift_sessions', 0))
+        course.price = float(request.form['price'])
+        course.payment_channel = request.form['payment_channel']
+        course.other_cost = float(request.form.get('other_cost', 0))
+        
+        # 重新计算成本
+        course_cost_config = Config.query.filter_by(key='course_cost').first()
+        course_cost_per_session = float(course_cost_config.value) if course_cost_config else 0
+        
+        # 计算总成本（购买节数 + 赠课节数）* 单节成本 + 其他成本
+        total_cost = (course.sessions + course.gift_sessions) * course_cost_per_session + course.other_cost
+        course.cost = total_cost
+        
+        # 更新来源信息
+        source = request.form.get('source')
+        if source == '试听课转化':
+            # 如果改为试听课转化但之前不是，需要处理转化关系
+            if not course.converted_from_trial:
+                # 这里可以根据需要添加逻辑来关联试听课
+                pass
+        else:
+            # 如果改为直接报名，清除转化关系
+            if course.converted_from_trial:
+                trial_course = Course.query.get(course.converted_from_trial)
+                if trial_course:
+                    trial_course.converted_to_course = None
+                course.converted_from_trial = None
+        
+        db.session.commit()
+        return jsonify({'success': True, 'message': '正课信息更新成功'})
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'更新失败：{str(e)}'})

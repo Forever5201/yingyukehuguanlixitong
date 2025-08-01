@@ -216,8 +216,8 @@
 </div>
 
 <!-- 添加/编辑刷单记录模态框 -->
-<div class="modal" id="orderModal">
-    <div class="modal-content">
+<div class="modal" id="orderModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.5); z-index: 2000; justify-content: center; align-items: center;">
+    <div class="modal-content" style="background: white; border-radius: 8px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15); max-width: 500px; width: 90%; max-height: 90vh; overflow-y: auto; margin: 0;">
         <div class="modal-header">
             <h3 id="modalTitle">添加刷单记录</h3>
             <button class="close" onclick="closeModal()">&times;</button>
@@ -677,7 +677,7 @@ function showAddModal() {
     document.getElementById('modalTitle').textContent = '添加刷单记录';
     document.getElementById('orderForm').reset();
     document.getElementById('orderId').value = '';
-    document.getElementById('orderModal').style.display = 'block';
+    document.getElementById('orderModal').style.display = 'flex';
     document.getElementById('order_time').value = new Date().toISOString().slice(0, 16);
 }
 
@@ -703,7 +703,7 @@ function editOrder(orderId) {
                 document.getElementById('order_time').value = orderTime;
             }
             
-            document.getElementById('orderModal').style.display = 'block';
+            document.getElementById('orderModal').style.display = 'flex';
         })
         .catch(error => console.error('Error:', error));
 }

@@ -68,22 +68,37 @@
             
             <div class="form-row">
                 <div class="form-group">
-                    <label for="price">课程售价 *</label>
+                    <label for="price">单节售价 *</label>
                     <input type="number" name="price" id="price" step="0.01" min="0" required>
+                    <small class="form-text">总收入 = 购买节数 × 单节售价</small>
                 </div>
                 
                 <div class="form-group">
-                    <label for="gift_sessions">赠课节数</label>
-                    <input type="number" name="gift_sessions" id="gift_sessions" min="0" value="0">
+                    <label for="payment_channel">支付渠道 *</label>
+                    <select name="payment_channel" id="payment_channel" required>
+                        <option value="">请选择支付渠道</option>
+                        <option value="淘宝">淘宝（扣除手续费）</option>
+                        <option value="微信">微信</option>
+                        <option value="支付宝">支付宝</option>
+                        <option value="现金">现金</option>
+                        <option value="银行转账">银行转账</option>
+                    </select>
                 </div>
             </div>
             
             <div class="form-row">
                 <div class="form-group">
+                    <label for="gift_sessions">赠课节数</label>
+                    <input type="number" name="gift_sessions" id="gift_sessions" min="0" value="0">
+                </div>
+                
+                <div class="form-group">
                     <label for="other_cost">其他成本</label>
                     <input type="number" name="other_cost" id="other_cost" step="0.01" min="0" value="0">
                 </div>
-                
+            </div>
+            
+            <div class="form-row">
                 <div class="form-group">
                     <label>预计成本：</label>
                     <div class="cost-preview" id="costPreview">

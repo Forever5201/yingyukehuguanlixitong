@@ -43,75 +43,28 @@
                 <p>总利润</p>
             </div>
         </div>
-    </div>
-
-    <!-- 课程节数统计 -->
-    <div class="session-stats">
-        <div class="session-card">
-            <h4>购买节数</h4>
-            <p>{{ stats.total_sessions }} 节</p>
-        </div>
-        <div class="session-card">
-            <h4>赠课节数</h4>
-            <p>{{ stats.total_gift_sessions }} 节</p>
-        </div>
-        <div class="session-card">
-            <h4>总节数</h4>
-            <p>{{ stats.total_sessions + stats.total_gift_sessions }} 节</p>
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-percentage"></i>
+            </div>
+            <div class="stat-content">
+                <h3>¥{{ "%.2f"|format(stats.total_fees) }}</h3>
+                <p>总手续费</p>
+            </div>
         </div>
     </div>
 
-    <!-- 添加正课表单 -->
-    <div class="form-section">
-        <h3><i class="fas fa-plus"></i> 添加正课记录</h3>
-        <form method="POST" class="form-grid">
-            <div class="form-group">
-                <label for="customer_id">学员姓名 *</label>
-                <select name="customer_id" id="customer_id" required>
-                    <option value="">请选择学员</option>
-                    {% for customer in customers %}
-                    <option value="{{ customer.id }}">{{ customer.name }} ({{ customer.phone }})</option>
-                    {% endfor %}
-                </select>
+    <!-- 正课说明 -->
+    <div class="info-section">
+        <div class="info-card">
+            <div class="info-icon">
+                <i class="fas fa-info-circle"></i>
             </div>
-            
-            <div class="form-group">
-                <label for="course_type">课程类型 *</label>
-                <select name="course_type" id="course_type" required>
-                    <option value="">请选择课程类型</option>
-                    <option value="单词课">单词课</option>
-                    <option value="语法课">语法课</option>
-                    <option value="阅读课">阅读课</option>
-                    <option value="拼读课">拼读课</option>
-                </select>
+            <div class="info-content">
+                <h4>正课管理说明</h4>
+                <p>正课记录只能通过试听课转化生成，不支持直接添加。请前往<a href="{{ url_for('manage_trial_courses') }}" class="link">试听课管理</a>页面进行转化操作。</p>
             </div>
-            
-            <div class="form-group">
-                <label for="sessions">购买节数 *</label>
-                <input type="number" name="sessions" id="sessions" min="1" required>
-            </div>
-            
-            <div class="form-group">
-                <label for="price">课程售价 *</label>
-                <input type="number" name="price" id="price" step="0.01" min="0" required>
-            </div>
-            
-            <div class="form-group">
-                <label for="gift_sessions">赠课节数</label>
-                <input type="number" name="gift_sessions" id="gift_sessions" min="0" value="0">
-            </div>
-            
-            <div class="form-group">
-                <label for="other_cost">其他成本</label>
-                <input type="number" name="other_cost" id="other_cost" step="0.01" min="0" value="0">
-            </div>
-            
-            <div class="form-group">
-                <button type="submit" class="btn btn-primary">
-                    <i class="fas fa-plus"></i> 添加正课
-                </button>
-            </div>
-        </form>
+        </div>
     </div>
 
     <!-- 正课列表 -->
@@ -128,7 +81,9 @@
                         <th>课程类型</th>
                         <th>购买节数</th>
                         <th>赠课节数</th>
-                        <th>课程售价</th>
+                        <th>单节售价</th>
+                        <th>支付渠道</th>
+                        <th>实际收入</th>
                         <th>课程成本</th>
                         <th>其他成本</th>
                         <th>利润</th>
@@ -145,10 +100,39 @@
                         <td>{{ course.sessions }}</td>
                         <td>{{ course.gift_sessions }}</td>
                         <td>¥{{ "%.2f"|format(course.price) }}</td>
+                        <td>
+                            {% if course.payment_channel %}
+                                <span class="payment-badge payment-{{ course.payment_channel }}">{{ course.payment_channel }}</span>
+                            {% else %}
+                                <span class="text-muted">未设置</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% set total_revenue = course.sessions * course.price %}
+                            {% if course.payment_channel == '淘宝' %}
+                                {% set taobao_fee_rate = 0.006 %}
+                                {% set fee_amount = total_revenue * taobao_fee_rate %}
+                                {% set actual_revenue = total_revenue - fee_amount %}
+                                <div>
+                                    <div>¥{{ "%.2f"|format(actual_revenue) }}</div>
+                                    <small class="text-muted">手续费: ¥{{ "%.2f"|format(fee_amount) }}</small>
+                                </div>
+                            {% else %}
+                                ¥{{ "%.2f"|format(total_revenue) }}
+                            {% endif %}
+                        </td>
                         <td>¥{{ "%.2f"|format(course.cost - course.other_cost) }}</td>
                         <td>¥{{ "%.2f"|format(course.other_cost) }}</td>
                         <td>
-                            {% set profit = course.price - course.cost %}
+                            {% set total_revenue = course.sessions * course.price %}
+                            {% if course.payment_channel == '淘宝' %}
+                                {% set taobao_fee_rate = 0.006 %}
+                                {% set fee_amount = total_revenue * taobao_fee_rate %}
+                                {% set actual_revenue = total_revenue - fee_amount %}
+                                {% set profit = actual_revenue - course.cost %}
+                            {% else %}
+                                {% set profit = total_revenue - course.cost %}
+                            {% endif %}
                             <span class="{% if profit >= 0 %}text-success{% else %}text-danger{% endif %}">
                                 ¥{{ "%.2f"|format(profit) }}
                             </span>
@@ -163,6 +147,10 @@
                         </td>
                         <td>
                             <div class="action-buttons">
+                                <button onclick="editFormalCourse({{ course.id }}, '{{ course.customer.name }}', '{{ course.customer.phone }}', '{{ course.customer.gender }}', '{{ course.customer.grade }}', '{{ course.customer.region }}', '{{ course.course_type }}', {{ course.sessions }}, {{ course.gift_sessions }}, {{ course.price }}, '{{ course.payment_channel }}', {{ course.cost }}, {{ course.other_cost }}, '{% if course.converted_from_trial %}试听课转化{% else %}直接报名{% endif %}')" 
+                                        class="btn btn-sm btn-primary me-2" title="编辑详情">
+                                    <i class="fas fa-edit"></i> 编辑详情
+                                </button>
                                 <button onclick="deleteFormalCourse({{ course.id }})" 
                                         class="btn btn-sm btn-danger" title="删除">
                                     <i class="fas fa-trash"></i>
@@ -192,6 +180,121 @@
     {% endif %}
 {% endwith %}
 
+<!-- 编辑正课模态框 -->
+<div id="editFormalModal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>编辑正课信息</h2>
+            <span class="close">&times;</span>
+        </div>
+        <form id="editFormalForm" method="POST">
+            <input type="hidden" id="edit_formal_course_id" name="course_id">
+            
+            <div class="form-section">
+                <h3>学员信息</h3>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="edit_formal_customer_name">学员姓名 *</label>
+                        <input type="text" id="edit_formal_customer_name" name="customer_name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit_formal_customer_phone">联系电话 *</label>
+                        <input type="tel" id="edit_formal_customer_phone" name="customer_phone" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit_formal_customer_gender">性别</label>
+                        <select id="edit_formal_customer_gender" name="customer_gender">
+                            <option value="">请选择</option>
+                            <option value="男">男</option>
+                            <option value="女">女</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit_formal_customer_grade">年级</label>
+                        <select id="edit_formal_customer_grade" name="customer_grade">
+                            <option value="">请选择</option>
+                            <option value="小学一年级">小学一年级</option>
+                            <option value="小学二年级">小学二年级</option>
+                            <option value="小学三年级">小学三年级</option>
+                            <option value="小学四年级">小学四年级</option>
+                            <option value="小学五年级">小学五年级</option>
+                            <option value="小学六年级">小学六年级</option>
+                            <option value="初中一年级">初中一年级</option>
+                            <option value="初中二年级">初中二年级</option>
+                            <option value="初中三年级">初中三年级</option>
+                            <option value="高中一年级">高中一年级</option>
+                            <option value="高中二年级">高中二年级</option>
+                            <option value="高中三年级">高中三年级</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit_formal_customer_region">地区</label>
+                        <input type="text" id="edit_formal_customer_region" name="customer_region">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-section">
+                <h3>正课信息</h3>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="edit_formal_course_type">课程类型 *</label>
+                        <select id="edit_formal_course_type" name="course_type" required>
+                            <option value="">请选择</option>
+                            <option value="一对一">一对一</option>
+                            <option value="一对二">一对二</option>
+                            <option value="小班课">小班课</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit_formal_sessions">购买节数 *</label>
+                        <input type="number" id="edit_formal_sessions" name="sessions" min="1" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit_formal_gift_sessions">赠送节数</label>
+                        <input type="number" id="edit_formal_gift_sessions" name="gift_sessions" min="0" value="0">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit_formal_price">单节售价 *</label>
+                        <input type="number" id="edit_formal_price" name="price" step="0.01" min="0" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit_formal_payment_channel">支付渠道 *</label>
+                        <select id="edit_formal_payment_channel" name="payment_channel" required>
+                            <option value="">请选择</option>
+                            <option value="淘宝">淘宝</option>
+                            <option value="微信">微信</option>
+                            <option value="支付宝">支付宝</option>
+                            <option value="现金">现金</option>
+                            <option value="银行转账">银行转账</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit_formal_cost">成本 *</label>
+                        <input type="number" id="edit_formal_cost" name="cost" step="0.01" min="0" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit_formal_other_cost">其他成本</label>
+                        <input type="number" id="edit_formal_other_cost" name="other_cost" step="0.01" min="0" value="0">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit_formal_source">来源</label>
+                        <select id="edit_formal_source" name="source">
+                            <option value="直接报名">直接报名</option>
+                            <option value="试听课转化">试听课转化</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="modal-footer">
+                <button type="button" id="editFormalCancelBtn" class="btn btn-secondary">取消</button>
+                <button type="submit" class="btn btn-primary">保存修改</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <script>
 // 删除正课记录
 function deleteFormalCourse(courseId) {
@@ -217,6 +320,29 @@ function deleteFormalCourse(courseId) {
     }
 }
 
+// 编辑正课记录
+function editFormalCourse(courseId, name, phone, gender, grade, region, courseType, sessions, giftSessions, price, paymentChannel, cost, otherCost, source) {
+    // 填充表单数据
+    document.getElementById('edit_formal_course_id').value = courseId;
+    document.getElementById('edit_formal_customer_name').value = name;
+    document.getElementById('edit_formal_customer_phone').value = phone;
+    document.getElementById('edit_formal_customer_gender').value = gender;
+    document.getElementById('edit_formal_customer_grade').value = grade;
+    document.getElementById('edit_formal_customer_region').value = region;
+    document.getElementById('edit_formal_course_type').value = courseType;
+    document.getElementById('edit_formal_sessions').value = sessions;
+    document.getElementById('edit_formal_gift_sessions').value = giftSessions;
+    document.getElementById('edit_formal_price').value = price;
+    document.getElementById('edit_formal_payment_channel').value = paymentChannel;
+    document.getElementById('edit_formal_cost').value = cost;
+    document.getElementById('edit_formal_other_cost').value = otherCost;
+    document.getElementById('edit_formal_source').value = source;
+    
+    // 显示编辑模态框
+    document.getElementById('editFormalModal').style.display = 'block';
+    document.body.style.overflow = 'hidden';
+}
+
 // 自动隐藏消息提示
 document.addEventListener('DOMContentLoaded', function() {
     const flashMessages = document.getElementById('flash-messages');
@@ -228,6 +354,56 @@ document.addEventListener('DOMContentLoaded', function() {
             }, 300);
         }, 3000);
     }
+    
+    // 编辑正课模态框控制
+    const editFormalModal = document.getElementById('editFormalModal');
+    const editFormalCloseModal = editFormalModal.querySelector('.close');
+    const editFormalCancelBtn = document.getElementById('editFormalCancelBtn');
+    const editFormalForm = document.getElementById('editFormalForm');
+    
+    // 关闭编辑模态框
+    function closeEditFormalModal() {
+        editFormalModal.style.display = 'none';
+        document.body.style.overflow = 'auto';
+        editFormalForm.reset(); // 重置表单
+    }
+    
+    editFormalCloseModal.addEventListener('click', closeEditFormalModal);
+    editFormalCancelBtn.addEventListener('click', closeEditFormalModal);
+    
+    // 点击编辑模态框外部关闭
+    window.addEventListener('click', function(event) {
+        if (event.target === editFormalModal) {
+            closeEditFormalModal();
+        }
+    });
+    
+    // 编辑表单提交
+    editFormalForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const courseId = document.getElementById('edit_formal_course_id').value;
+        const formData = new FormData(editFormalForm);
+        
+        fetch(`/api/formal-courses/${courseId}`, {
+            method: 'PUT',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('正课信息更新成功！');
+                closeEditFormalModal();
+                location.reload();
+            } else {
+                alert(data.message || '更新失败');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('更新失败');
+        });
+    });
 });
 </script>
 
@@ -264,6 +440,7 @@ document.addEventListener('DOMContentLoaded', function() {
 .stat-card:nth-child(2) .stat-icon { background: #28a745; }
 .stat-card:nth-child(3) .stat-icon { background: #ffc107; }
 .stat-card:nth-child(4) .stat-icon { background: #17a2b8; }
+.stat-card:nth-child(5) .stat-icon { background: #dc3545; }
 
 .stat-content h3 {
     margin: 0;
@@ -318,6 +495,55 @@ document.addEventListener('DOMContentLoaded', function() {
 .form-section h3 {
     margin: 0 0 20px 0;
     color: #333;
+}
+
+.info-section {
+    margin-bottom: 30px;
+}
+
+.info-card {
+    background: #e3f2fd;
+    border: 1px solid #bbdefb;
+    border-radius: 8px;
+    padding: 20px;
+    display: flex;
+    align-items: flex-start;
+    gap: 15px;
+}
+
+.info-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #2196f3;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 18px;
+    flex-shrink: 0;
+}
+
+.info-content h4 {
+    margin: 0 0 10px 0;
+    color: #1976d2;
+    font-size: 16px;
+}
+
+.info-content p {
+    margin: 0;
+    color: #424242;
+    line-height: 1.5;
+}
+
+.info-content .link {
+    color: #1976d2;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.info-content .link:hover {
+    text-decoration: underline;
 }
 
 .form-grid {
@@ -413,6 +639,38 @@ document.addEventListener('DOMContentLoaded', function() {
     color: #155724;
 }
 
+.payment-badge {
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.payment-淘宝 {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.payment-微信 {
+    background: #d1ecf1;
+    color: #0c5460;
+}
+
+.payment-支付宝 {
+    background: #cce5ff;
+    color: #004085;
+}
+
+.payment-现金 {
+    background: #d4edda;
+    color: #155724;
+}
+
+.payment-银行转账 {
+    background: #e2e3e5;
+    color: #383d41;
+}
+
 .text-success {
     color: #28a745 !important;
 }
@@ -491,6 +749,84 @@ document.addEventListener('DOMContentLoaded', function() {
     background: #f8d7da;
     color: #721c24;
     border: 1px solid #f5c6cb;
+}
+
+/* 模态框样式 */
+.modal {
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5);
+    overflow-y: auto;
+}
+
+.modal-content {
+    background-color: #fefefe;
+    margin: 2% auto;
+    padding: 0;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 800px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    animation: modalSlideIn 0.3s ease-out;
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-50px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.modal-header {
+    padding: 20px;
+    border-bottom: 1px solid #eee;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-header h2 {
+    margin: 0;
+    color: #333;
+}
+
+.close {
+    color: #aaa;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+    line-height: 1;
+}
+
+.close:hover,
+.close:focus {
+    color: #000;
+    text-decoration: none;
+}
+
+.modal-footer {
+    padding: 20px;
+    border-top: 1px solid #eee;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.btn-secondary {
+    background: #6c757d;
+    color: white;
+}
+
+.btn-secondary:hover {
+    background: #5a6268;
 }
 </style>
 {% endblock %}

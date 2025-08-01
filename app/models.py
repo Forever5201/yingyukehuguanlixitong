@@ -9,6 +9,7 @@ class Customer(db.Model):
     region = db.Column(db.String(100))
     phone = db.Column(db.String(20), unique=True, nullable=False)
     source = db.Column(db.String(50)) # 渠道来源
+    has_tutoring_experience = db.Column(db.String(10)) # 是否参加过英语课外辅导
     employee_id = db.Column(db.Integer, db.ForeignKey('employee.id'))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
@@ -35,6 +36,7 @@ class Course(db.Model):
     cost = db.Column(db.Float)  # 课程成本
     gift_sessions = db.Column(db.Integer, default=0)  # 赠课节数
     other_cost = db.Column(db.Float, default=0)  # 其他成本
+    payment_channel = db.Column(db.String(50))  # 支付渠道（淘宝、微信、支付宝、现金等）
     
     # 转化信息
     converted_from_trial = db.Column(db.Integer, db.ForeignKey('course.id'))  # 从哪个试听课转化而来

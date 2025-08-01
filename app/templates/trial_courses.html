@@ -43,6 +43,15 @@
                 <p>总利润</p>
             </div>
         </div>
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-percentage"></i>
+            </div>
+            <div class="stat-content">
+                <h3>¥{{ "%.2f"|format(stats.total_fees) }}</h3>
+                <p>总手续费</p>
+            </div>
+        </div>
     </div>
 
     <!-- 添加试听课按钮 -->
@@ -64,6 +73,17 @@
             </div>
             <form method="POST" class="modal-form" id="trialForm">
                 <div class="modal-body">
+                    <!-- 智能识别区域 -->
+                    <div class="form-section-modal">
+                        <h5><i class="fas fa-magic"></i> 智能识别 <small style="color: #6c757d;">(可选)</small></h5>
+                        <div class="smart-input-container">
+                            <textarea id="smartInput" placeholder="粘贴学员信息，系统将自动识别并填入表单...&#10;&#10;示例格式：&#10;学员姓名：张淼&#10;性别：女&#10;年级：新高一&#10;地区：天津&#10;英语试卷满分：120&#10;英语当前分数：100&#10;联系方式：13820863683&#10;是否参加过英语课外辅导：否" rows="6"></textarea>
+                            <button type="button" id="parseBtn" class="btn btn-info">
+                                <i class="fas fa-wand-magic-sparkles"></i> 智能解析
+                            </button>
+                        </div>
+                    </div>
+                    
                     <!-- 学员信息 -->
                     <div class="form-section-modal">
                         <h5><i class="fas fa-user"></i> 学员信息</h5>
@@ -111,6 +131,29 @@
                                 <input type="text" name="new_customer_region" id="new_customer_region" placeholder="请输入地区">
                             </div>
                         </div>
+                        
+                        <!-- 英语成绩信息 -->
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="english_full_score">英语试卷满分</label>
+                                <input type="number" name="english_full_score" id="english_full_score" placeholder="如：120" min="0">
+                            </div>
+                            <div class="form-group">
+                                <label for="english_current_score">英语当前分数</label>
+                                <input type="number" name="english_current_score" id="english_current_score" placeholder="如：100" min="0">
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="has_tutoring_experience">是否参加过英语课外辅导</label>
+                                <select name="has_tutoring_experience" id="has_tutoring_experience">
+                                    <option value="">请选择</option>
+                                    <option value="是">是</option>
+                                    <option value="否">否</option>
+                                </select>
+                            </div>
+                        </div>
                     </div>
                     
                     <!-- 试听课信息 -->
@@ -140,6 +183,106 @@
                     <button type="button" class="btn btn-secondary" id="cancelBtn">取消</button>
                     <button type="submit" class="btn btn-primary">
                         <i class="fas fa-save"></i> 保存试听课记录
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 编辑试听课模态框 -->
+    <div id="editTrialModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4><i class="fas fa-edit"></i> 编辑试听课信息</h4>
+                <span class="close-edit">&times;</span>
+            </div>
+            <form method="POST" class="modal-form" id="editTrialForm">
+                <input type="hidden" id="edit_course_id" name="course_id">
+                <div class="modal-body">
+                    <!-- 学员信息 -->
+                    <div class="form-section-modal">
+                        <h5><i class="fas fa-user"></i> 学员信息</h5>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="edit_customer_name">学员姓名 *</label>
+                                <input type="text" name="customer_name" id="edit_customer_name" placeholder="请输入学员姓名" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="edit_customer_phone">联系电话 *</label>
+                                <input type="tel" name="customer_phone" id="edit_customer_phone" placeholder="请输入联系电话" required>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="edit_customer_gender">性别</label>
+                                <select name="customer_gender" id="edit_customer_gender">
+                                    <option value="">请选择</option>
+                                    <option value="男">男</option>
+                                    <option value="女">女</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="edit_customer_grade">年级</label>
+                                <select name="customer_grade" id="edit_customer_grade">
+                                    <option value="">请选择</option>
+                                    <option value="一年级">一年级</option>
+                                    <option value="二年级">二年级</option>
+                                    <option value="三年级">三年级</option>
+                                    <option value="四年级">四年级</option>
+                                    <option value="五年级">五年级</option>
+                                    <option value="六年级">六年级</option>
+                                    <option value="初一">初一</option>
+                                    <option value="初二">初二</option>
+                                    <option value="初三">初三</option>
+                                    <option value="高一">高一</option>
+                                    <option value="高二">高二</option>
+                                    <option value="高三">高三</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="edit_customer_region">地区</label>
+                                <input type="text" name="customer_region" id="edit_customer_region" placeholder="请输入地区">
+                            </div>
+                            <div class="form-group">
+                                <label for="edit_has_tutoring_experience">是否参加过英语课外辅导</label>
+                                <select name="has_tutoring_experience" id="edit_has_tutoring_experience">
+                                    <option value="">请选择</option>
+                                    <option value="是">是</option>
+                                    <option value="否">否</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 试听课信息 -->
+                    <div class="form-section-modal">
+                        <h5><i class="fas fa-book"></i> 试听课信息</h5>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="edit_trial_price">试听课售价 *</label>
+                                <input type="number" name="trial_price" id="edit_trial_price" step="0.01" min="0" placeholder="请输入售价" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="edit_source">渠道来源 *</label>
+                                <select name="source" id="edit_source" required>
+                                    <option value="">请选择渠道</option>
+                                    <option value="淘宝">淘宝</option>
+                                    <option value="视频号">视频号</option>
+                                    <option value="抖音">抖音</option>
+                                    <option value="小红书">小红书</option>
+                                    <option value="其他">其他</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" id="editCancelBtn">取消</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> 保存修改
                     </button>
                 </div>
             </form>
@@ -191,10 +334,6 @@
                     <button id="exportBtn" class="btn btn-outline-primary">
                         <i class="fas fa-download"></i> 导出数据
                     </button>
-                    
-                    <button id="batchDeleteBtn" class="btn btn-outline-danger" style="display: none;">
-                        <i class="fas fa-trash"></i> 批量删除
-                    </button>
                 </div>
             </div>
         </div>
@@ -203,16 +342,15 @@
             <table class="data-table">
                 <thead>
                     <tr>
-                        <th>
-                            <input type="checkbox" id="selectAll" class="batch-checkbox">
-                        </th>
                         <th>学员姓名</th>
                         <th>性别</th>
                         <th>年级</th>
                         <th>地区</th>
                         <th>联系方式</th>
+                        <th>体验情况</th>
                         <th>试听课售价</th>
                         <th>渠道来源</th>
+                        <th>手续费</th>
                         <th>报名时间</th>
                         <th>状态</th>
                         <th>操作</th>
@@ -221,16 +359,30 @@
                 <tbody>
                     {% for course, customer in trial_courses %}
                     <tr>
-                        <td>
-                            <input type="checkbox" class="row-checkbox" data-course-id="{{ course.id }}">
-                        </td>
                         <td>{{ customer.name }}</td>
                         <td>{{ customer.gender or '-' }}</td>
                         <td>{{ customer.grade or '-' }}</td>
                         <td>{{ customer.region or '-' }}</td>
                         <td>{{ customer.phone }}</td>
+                        <td>
+                            {% if customer.has_tutoring_experience == '是' %}
+                                <span class="status-badge status-experience">有体验</span>
+                            {% elif customer.has_tutoring_experience == '否' %}
+                                <span class="status-badge status-no-experience">无体验</span>
+                            {% else %}
+                                <span class="text-muted">未知</span>
+                            {% endif %}
+                        </td>
                         <td>¥{{ "%.2f"|format(course.trial_price) }}</td>
                         <td>{{ course.source or '-' }}</td>
+                        <td>
+                            {% if course.source == '淘宝' %}
+                                {% set fee_amount = course.trial_price * (taobao_fee_rate or 0.006) %}
+                                ¥{{ "%.2f"|format(fee_amount) }}
+                            {% else %}
+                                ¥0.00
+                            {% endif %}
+                        </td>
                         <td>{{ course.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
                         <td>
                             {% if course.converted_to_course %}
@@ -241,15 +393,31 @@
                         </td>
                         <td>
                             <div class="action-buttons">
+                                <button onclick="editTrialCourse({{ course.id }}, '{{ customer.name }}', '{{ customer.phone }}', '{{ customer.gender or '' }}', '{{ customer.grade or '' }}', '{{ customer.region or '' }}', {{ course.trial_price }}, '{{ course.source or '' }}', '{{ customer.has_tutoring_experience or '' }}')" 
+                                        class="btn btn-sm btn-primary" title="编辑详情">
+                                    <i class="fas fa-edit"></i>
+                                </button>
                                 {% if not course.converted_to_course %}
                                 <a href="{{ url_for('convert_trial_to_course', trial_id=course.id) }}" 
                                    class="btn btn-sm btn-success" title="转正课">
                                     <i class="fas fa-arrow-right"></i>
                                 </a>
-                                <button onclick="deleteTrialCourse({{ course.id }})" 
+                                {% if customer.has_tutoring_experience == '是' %}
+                                <button onclick="deleteTrialCourse({{ course.id }}, '体验课用户')" 
+                                        class="btn btn-sm btn-warning" title="删除体验课用户">
+                                    <i class="fas fa-user-times"></i>
+                                </button>
+                                {% elif customer.has_tutoring_experience == '否' %}
+                                <button onclick="deleteTrialCourse({{ course.id }}, '试听课用户')" 
+                                        class="btn btn-sm btn-danger" title="删除试听课用户">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                                {% else %}
+                                <button onclick="deleteTrialCourse({{ course.id }}, '试听课用户')" 
                                         class="btn btn-sm btn-danger" title="删除">
                                     <i class="fas fa-trash"></i>
                                 </button>
+                                {% endif %}
                                 {% else %}
                                 <span class="text-muted">已转化</span>
                                 {% endif %}
@@ -280,8 +448,12 @@
 
 <script>
 // 删除试听课记录
-function deleteTrialCourse(courseId) {
-    if (confirm('确定要删除这条试听课记录吗？')) {
+function deleteTrialCourse(courseId, userType = '试听课用户') {
+    const confirmMessage = userType === '体验课用户' ? 
+        '确定要删除这条体验课用户记录吗？' : 
+        '确定要删除这条试听课记录吗？';
+    
+    if (confirm(confirmMessage)) {
         fetch(`/api/trial-courses/${courseId}`, {
             method: 'DELETE',
             headers: {
@@ -303,22 +475,42 @@ function deleteTrialCourse(courseId) {
     }
 }
 
+// 编辑试听课记录
+function editTrialCourse(courseId, name, phone, gender, grade, region, price, source, hasTutoringExperience) {
+    // 填充表单数据
+    document.getElementById('edit_course_id').value = courseId;
+    document.getElementById('edit_customer_name').value = name;
+    document.getElementById('edit_customer_phone').value = phone;
+    document.getElementById('edit_customer_gender').value = gender;
+    document.getElementById('edit_customer_grade').value = grade;
+    document.getElementById('edit_customer_region').value = region;
+    document.getElementById('edit_trial_price').value = price;
+    document.getElementById('edit_source').value = source;
+    document.getElementById('edit_has_tutoring_experience').value = hasTutoringExperience;
+    
+    // 显示编辑模态框
+    document.getElementById('editTrialModal').style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+}
+
 // 页面加载完成后执行
 document.addEventListener('DOMContentLoaded', function() {
     console.log('试听课管理页面加载完成');
     
     // 模态框控制
      const addTrialBtn = document.getElementById('addTrialBtn');
-     const trialModal = document.getElementById('trialModal');
+     const trialModal = document.getElementById('addTrialModal');
      const closeModal = document.querySelector('.close');
      const cancelBtn = document.getElementById('cancelBtn');
      const trialForm = document.getElementById('trialForm');
      
      // 打开模态框
-     addTrialBtn.addEventListener('click', function() {
-         trialModal.style.display = 'block';
-         document.body.style.overflow = 'hidden'; // 防止背景滚动
-     });
+     if (addTrialBtn) {
+         addTrialBtn.addEventListener('click', function() {
+             trialModal.style.display = 'block';
+             document.body.style.overflow = 'hidden'; // 防止背景滚动
+         });
+     }
      
      // 关闭模态框
      function closeTrialModal() {
@@ -327,8 +519,8 @@ document.addEventListener('DOMContentLoaded', function() {
          trialForm.reset(); // 重置表单
      }
      
-     closeModal.addEventListener('click', closeTrialModal);
-     cancelBtn.addEventListener('click', closeTrialModal);
+     if (closeModal) closeModal.addEventListener('click', closeTrialModal);
+     if (cancelBtn) cancelBtn.addEventListener('click', closeTrialModal);
      
      // 点击模态框外部关闭
      window.addEventListener('click', function(event) {
@@ -337,45 +529,244 @@ document.addEventListener('DOMContentLoaded', function() {
          }
      });
      
+     // 编辑模态框控制
+     const editTrialModal = document.getElementById('editTrialModal');
+     const editCloseModal = editTrialModal.querySelector('.close');
+     const editCancelBtn = document.getElementById('editCancelBtn');
+     const editTrialForm = document.getElementById('editTrialForm');
+     
+     // 关闭编辑模态框
+     function closeEditTrialModal() {
+         editTrialModal.style.display = 'none';
+         document.body.style.overflow = 'auto';
+         editTrialForm.reset(); // 重置表单
+     }
+     
+     if (editCloseModal) editCloseModal.addEventListener('click', closeEditTrialModal);
+     if (editCancelBtn) editCancelBtn.addEventListener('click', closeEditTrialModal);
+     
+     // 点击编辑模态框外部关闭
+     window.addEventListener('click', function(event) {
+         if (event.target === editTrialModal) {
+             closeEditTrialModal();
+         }
+     });
+     
+     // 编辑表单提交
+     if (editTrialForm) {
+         editTrialForm.addEventListener('submit', function(e) {
+         e.preventDefault();
+         
+         const courseId = document.getElementById('edit_course_id').value;
+         const formData = new FormData(editTrialForm);
+         
+         fetch(`/api/trial-courses/${courseId}`, {
+             method: 'PUT',
+             body: formData
+         })
+         .then(response => response.json())
+         .then(data => {
+             if (data.success) {
+                 alert('试听课信息更新成功！');
+                 closeEditTrialModal();
+                 location.reload();
+             } else {
+                 alert(data.message || '更新失败');
+             }
+         })
+         .catch(error => {
+             console.error('Error:', error);
+             alert('更新失败');
+         });
+     });
+     }
+     
+     // 智能识别功能
+    const smartInput = document.getElementById('smartInput');
+    const parseBtn = document.getElementById('parseBtn');
+    
+    console.log('smartInput:', smartInput);
+    console.log('parseBtn:', parseBtn);
+    
+    if (parseBtn && smartInput) {
+        parseBtn.addEventListener('click', function() {
+            const text = smartInput.value.trim();
+             if (!text) {
+                 alert('请先输入学员信息');
+                 return;
+             }
+             
+             // 解析文本并填入表单
+             parseStudentInfo(text);
+             
+             // 清空智能识别区域
+             smartInput.value = '';
+             
+             // 显示成功提示
+             showParseSuccess();
+         });
+     }
+     
+     // 解析学员信息的函数
+     function parseStudentInfo(text) {
+         // 定义匹配规则
+         const patterns = {
+             name: [
+                 /学员姓名[：:]\s*([^\n\r]+)/i,
+                 /姓名[：:]\s*([^\n\r]+)/i,
+                 /名字[：:]\s*([^\n\r]+)/i
+             ],
+             gender: [
+                 /性别[：:]\s*([男女])/i
+             ],
+             grade: [
+                 /年级[：:]\s*([^\n\r]+)/i,
+                 /学年[：:]\s*([^\n\r]+)/i
+             ],
+             region: [
+                 /地区[：:]\s*([^\n\r]+)/i,
+                 /地址[：:]\s*([^\n\r]+)/i,
+                 /城市[：:]\s*([^\n\r]+)/i
+             ],
+             phone: [
+                 /联系方式[：:]\s*([1][3-9]\d{9})/i,
+                 /电话[：:]\s*([1][3-9]\d{9})/i,
+                 /手机[：:]\s*([1][3-9]\d{9})/i,
+                 /([1][3-9]\d{9})/g
+             ],
+             englishFullScore: [
+                 /英语试卷满分[：:]\s*(\d+)/i,
+                 /满分[：:]\s*(\d+)/i
+             ],
+             englishCurrentScore: [
+                 /英语当前分数[：:]\s*(\d+)/i,
+                 /当前分数[：:]\s*(\d+)/i,
+                 /现在分数[：:]\s*(\d+)/i
+             ],
+             hasTutoring: [
+                 /是否参加过英语课外辅导[：:]\s*([是否])/i,
+                 /课外辅导[：:]\s*([是否])/i
+             ]
+         };
+         
+         // 解析各个字段
+         const results = {};
+         
+         for (const [field, regexList] of Object.entries(patterns)) {
+             for (const regex of regexList) {
+                 const match = text.match(regex);
+                 if (match && match[1]) {
+                     results[field] = match[1].trim();
+                     break;
+                 }
+             }
+         }
+         
+         // 填入表单
+         if (results.name) {
+             document.getElementById('new_customer_name').value = results.name;
+         }
+         
+         if (results.gender) {
+             document.getElementById('new_customer_gender').value = results.gender;
+         }
+         
+         if (results.grade) {
+             // 处理年级格式
+             let grade = results.grade;
+             if (grade.includes('新')) {
+                 grade = grade.replace('新', '');
+             }
+             // 尝试匹配下拉选项
+             const gradeSelect = document.getElementById('new_customer_grade');
+             const options = Array.from(gradeSelect.options);
+             const matchedOption = options.find(option => 
+                 option.value.includes(grade) || grade.includes(option.value)
+             );
+             if (matchedOption) {
+                 gradeSelect.value = matchedOption.value;
+             }
+         }
+         
+         if (results.region) {
+             document.getElementById('new_customer_region').value = results.region;
+         }
+         
+         if (results.phone) {
+             document.getElementById('new_customer_phone').value = results.phone;
+         }
+         
+         if (results.englishFullScore) {
+             document.getElementById('english_full_score').value = results.englishFullScore;
+         }
+         
+         if (results.englishCurrentScore) {
+             document.getElementById('english_current_score').value = results.englishCurrentScore;
+         }
+         
+         if (results.hasTutoring) {
+             document.getElementById('has_tutoring_experience').value = results.hasTutoring;
+         }
+         
+         console.log('解析结果:', results);
+     }
+     
+     // 显示解析成功提示
+     function showParseSuccess() {
+         const btn = document.getElementById('parseBtn');
+         if (btn) {
+             const originalText = btn.innerHTML;
+             btn.innerHTML = '<i class="fas fa-check"></i> 解析成功！';
+             btn.style.background = 'linear-gradient(135deg, #28a745 0%, #20c997 100%)';
+             
+             setTimeout(() => {
+                 btn.innerHTML = originalText;
+                 btn.style.background = 'linear-gradient(135deg, #17a2b8 0%, #138496 100%)';
+             }, 2000);
+         }
+     }
+     
      // 表单提交验证
-     trialForm.addEventListener('submit', function(e) {
-         const name = document.getElementById('customer_name').value.trim();
-         const phone = document.getElementById('customer_phone').value.trim();
-         const price = document.getElementById('trial_price').value.trim();
-         const source = document.getElementById('source').value;
-        
-        if (!name) {
-            e.preventDefault();
-            alert('请输入学员姓名');
-            return;
-        }
-        
-        if (!phone) {
-            e.preventDefault();
-            alert('请输入联系电话');
-            return;
-        }
-        
-        // 验证手机号格式
-        const phoneRegex = /^1[3-9]\d{9}$/;
-        if (!phoneRegex.test(phone)) {
-            e.preventDefault();
-            alert('请输入正确的手机号码');
-            return;
-        }
-        
-        if (!price || parseFloat(price) < 0) {
-            e.preventDefault();
-            alert('请输入正确的试听课售价');
-            return;
-        }
-        
-        if (!source) {
-            e.preventDefault();
-            alert('请选择渠道来源');
-            return;
-        }
-    });
+     if (trialForm) {
+         trialForm.addEventListener('submit', function(e) {
+             const name = document.getElementById('new_customer_name').value.trim();
+             const phone = document.getElementById('new_customer_phone').value.trim();
+             const price = document.getElementById('trial_price').value.trim();
+             const source = document.getElementById('source').value;
+            
+            if (!name) {
+                e.preventDefault();
+                alert('请输入学员姓名');
+                return;
+            }
+            
+            if (!phone) {
+                e.preventDefault();
+                alert('请输入联系电话');
+                return;
+            }
+            
+            // 验证手机号格式
+            const phoneRegex = /^1[3-9]\d{9}$/;
+            if (!phoneRegex.test(phone)) {
+                e.preventDefault();
+                alert('请输入正确的手机号码');
+                return;
+            }
+            
+            if (!price || parseFloat(price) < 0) {
+                e.preventDefault();
+                alert('请输入正确的试听课售价');
+                return;
+            }
+            
+            if (!source) {
+                e.preventDefault();
+                alert('请选择渠道来源');
+                return;
+            }
+         });
+    }
     
     // 自动隐藏消息提示
     const flashMessages = document.getElementById('flash-messages');
@@ -393,9 +784,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const sourceFilter = document.getElementById('sourceFilter');
     const statusFilter = document.getElementById('statusFilter');
     const exportBtn = document.getElementById('exportBtn');
-    const batchDeleteBtn = document.getElementById('batchDeleteBtn');
-    const selectAllCheckbox = document.getElementById('selectAll');
-    const rowCheckboxes = document.querySelectorAll('.row-checkbox');
     const tableRows = document.querySelectorAll('.data-table tbody tr');
     
     // 初始化图表
@@ -410,10 +798,10 @@ document.addEventListener('DOMContentLoaded', function() {
         tableRows.forEach(row => {
              if (row.cells.length === 1) return; // 跳过"暂无记录"行
              
-             const name = row.cells[1].textContent.toLowerCase(); // 调整索引
-             const phone = row.cells[5].textContent.toLowerCase(); // 调整索引
-             const source = row.cells[7].textContent; // 调整索引
-             const statusElement = row.cells[9].querySelector('.status-badge'); // 调整索引
+             const name = row.cells[0].textContent.toLowerCase(); // 学员姓名
+             const phone = row.cells[4].textContent.toLowerCase(); // 联系方式
+             const source = row.cells[6].textContent; // 渠道来源
+             const statusElement = row.cells[8].querySelector('.status-badge'); // 状态
              const status = statusElement ? (statusElement.classList.contains('status-converted') ? 'converted' : 'pending') : '';
             
             const matchesSearch = name.includes(searchTerm) || phone.includes(searchTerm);
@@ -440,7 +828,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         let totalPrice = 0;
         visibleRows.forEach(row => {
-             const priceText = row.cells[6].textContent.replace('¥', ''); // 调整索引
+             const priceText = row.cells[5].textContent.replace('¥', ''); // 试听课售价
              totalPrice += parseFloat(priceText) || 0;
          });
         
@@ -449,12 +837,13 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // 绑定事件
-    searchInput.addEventListener('input', filterTable);
-    sourceFilter.addEventListener('change', filterTable);
-    statusFilter.addEventListener('change', filterTable);
+    if (searchInput) searchInput.addEventListener('input', filterTable);
+    if (sourceFilter) sourceFilter.addEventListener('change', filterTable);
+    if (statusFilter) statusFilter.addEventListener('change', filterTable);
     
     // 导出功能
-    exportBtn.addEventListener('click', function() {
+    if (exportBtn) {
+        exportBtn.addEventListener('click', function() {
         const visibleRows = Array.from(tableRows).filter(row => 
             row.style.display !== 'none' && row.cells.length > 1
         );
@@ -468,7 +857,7 @@ document.addEventListener('DOMContentLoaded', function() {
         let csvContent = '学员姓名,性别,年级,地区,联系方式,试听课售价,渠道来源,报名时间,状态\n';
         
         visibleRows.forEach(row => {
-             const cells = Array.from(row.cells).slice(1, 10); // 排除复选框列和操作列
+             const cells = Array.from(row.cells).slice(0, 9); // 排除操作列
             const rowData = cells.map(cell => {
                 let text = cell.textContent.trim();
                 // 处理状态列
@@ -494,82 +883,10 @@ document.addEventListener('DOMContentLoaded', function() {
         document.body.appendChild(link);
         link.click();
          document.body.removeChild(link);
-     });
-     
-     // 批量操作功能
-     function updateBatchDeleteButton() {
-         const checkedBoxes = document.querySelectorAll('.row-checkbox:checked');
-         if (checkedBoxes.length > 0) {
-             batchDeleteBtn.style.display = 'inline-flex';
-             batchDeleteBtn.textContent = `批量删除 (${checkedBoxes.length})`;
-         } else {
-             batchDeleteBtn.style.display = 'none';
-         }
+         });
      }
      
-     // 全选/取消全选
-     selectAllCheckbox.addEventListener('change', function() {
-         const visibleCheckboxes = Array.from(rowCheckboxes).filter(checkbox => {
-             const row = checkbox.closest('tr');
-             return row.style.display !== 'none';
-         });
-         
-         visibleCheckboxes.forEach(checkbox => {
-             checkbox.checked = this.checked;
-         });
-         
-         updateBatchDeleteButton();
-     });
-     
-     // 单个复选框变化
-     rowCheckboxes.forEach(checkbox => {
-         checkbox.addEventListener('change', function() {
-             updateBatchDeleteButton();
-             
-             // 更新全选状态
-             const visibleCheckboxes = Array.from(rowCheckboxes).filter(checkbox => {
-                 const row = checkbox.closest('tr');
-                 return row.style.display !== 'none';
-             });
-             
-             const checkedCount = visibleCheckboxes.filter(cb => cb.checked).length;
-             selectAllCheckbox.checked = checkedCount === visibleCheckboxes.length && visibleCheckboxes.length > 0;
-             selectAllCheckbox.indeterminate = checkedCount > 0 && checkedCount < visibleCheckboxes.length;
-         });
-     });
-     
-     // 批量删除
-     batchDeleteBtn.addEventListener('click', function() {
-         const checkedBoxes = document.querySelectorAll('.row-checkbox:checked');
-         const courseIds = Array.from(checkedBoxes).map(checkbox => checkbox.dataset.courseId);
-         
-         if (courseIds.length === 0) {
-             alert('请选择要删除的记录');
-             return;
-         }
-         
-         if (confirm(`确定要删除选中的 ${courseIds.length} 条试听课记录吗？`)) {
-             // 批量删除API调用
-             Promise.all(courseIds.map(id => 
-                 fetch(`/api/trial-courses/${id}`, {
-                     method: 'DELETE',
-                     headers: {
-                         'Content-Type': 'application/json',
-                     }
-                 })
-             )).then(responses => {
-                 const allSuccessful = responses.every(response => response.ok);
-                 if (allSuccessful) {
-                     location.reload();
-                 } else {
-                     alert('部分删除失败，请刷新页面查看结果');
-                 }
-             }).catch(error => {
-                 console.error('Error:', error);
-                 alert('批量删除失败');
-             });
-         }
-     });
+
      
      // 根据筛选结果更新图表
       function updateChartsWithFilteredData() {
@@ -581,8 +898,8 @@ document.addEventListener('DOMContentLoaded', function() {
           const conversionData = { total: 0, converted: 0 };
           
           visibleRows.forEach(row => {
-              const source = row.cells[7].textContent.trim();
-              const statusElement = row.cells[9].querySelector('.status-badge');
+              const source = row.cells[6].textContent.trim();
+              const statusElement = row.cells[8].querySelector('.status-badge');
               const isConverted = statusElement && statusElement.classList.contains('status-converted');
               
               // 统计渠道来源
@@ -609,8 +926,8 @@ document.addEventListener('DOMContentLoaded', function() {
          tableRows.forEach(row => {
              if (row.cells.length === 1) return; // 跳过"暂无记录"行
              
-             const source = row.cells[7].textContent.trim();
-             const statusElement = row.cells[9].querySelector('.status-badge');
+             const source = row.cells[6].textContent.trim();
+             const statusElement = row.cells[8].querySelector('.status-badge');
              const isConverted = statusElement && statusElement.classList.contains('status-converted');
              
              // 统计渠道来源
@@ -1157,6 +1474,66 @@ document.addEventListener('DOMContentLoaded', function() {
     color: #007bff;
 }
 
+/* 智能识别区域样式 */
+.smart-input-container {
+    position: relative;
+}
+
+.smart-input-container textarea {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: inherit;
+    resize: vertical;
+    min-height: 120px;
+    transition: all 0.3s ease;
+    background: #fff;
+}
+
+.smart-input-container textarea:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
+.smart-input-container textarea::placeholder {
+    color: #6c757d;
+    line-height: 1.4;
+}
+
+#parseBtn {
+    margin-top: 10px;
+    background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+#parseBtn:hover {
+    background: linear-gradient(135deg, #138496 0%, #117a8b 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(23, 162, 184, 0.3);
+}
+
+#parseBtn:active {
+    transform: translateY(0);
+}
+
+.btn-info {
+    background: #17a2b8;
+    color: white;
+}
+
 .modal-form .form-row {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -1451,6 +1828,16 @@ document.addEventListener('DOMContentLoaded', function() {
     color: #856404;
 }
 
+.status-experience {
+    background: #d1ecf1;
+    color: #0c5460;
+}
+
+.status-no-experience {
+    background: #f8d7da;
+    color: #721c24;
+}
+
 .action-buttons {
     display: flex;
     gap: 5px;
@@ -1494,6 +1881,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
 .btn-danger:hover {
     background: #c82333;
+}
+
+.btn-warning {
+    background: #ffc107;
+    color: #212529;
+}
+
+.btn-warning:hover {
+    background: #e0a800;
 }
 
 .btn-sm {
