@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+
+{% block title %}客户管理{% endblock %}
+{% block page_title %}客户管理{% endblock %}
+
+{% block content %}
+<div class="customers-page">
+    <div class="page-actions">
+        <button class="btn btn-primary" onclick="showAddModal()">
+            <i class="fas fa-plus"></i> 添加客户
+        </button>
+        <div class="search-box">
+            <i class="fas fa-search"></i>
+            <input type="text" placeholder="搜索客户..." id="searchInput">
+        </div>
+    </div>
+
+    <div class="table-container">
+        <table class="modern-table">
+            <thead>
+                <tr>
+                    <th>姓名</th>
+                    <th>性别</th>
+                    <th>年级</th>
+                    <th>地区</th>
+                    <th>电话</th>
+                    <th>来源</th>
+                    <th>添加时间</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for customer in customers %}
+                <tr>
+                    <td>
+                        <div class="user-info">
+                            <i class="fas fa-user-circle"></i>
+                            <span>{{ customer.name }}</span>
+                        </div>
+                    </td>
+                    <td>
+                        <span class="badge badge-secondary">{{ customer.gender or '未设置' }}</span>
+                    </td>
+                    <td>
+                        <span class="badge badge-info">{{ customer.grade or '未设置' }}</span>
+                    </td>
+                    <td>{{ customer.region or '未设置' }}</td>
+                    <td>{{ customer.phone }}</td>
+                    <td>
+                        <span class="badge badge-light">{{ customer.source or '未设置' }}</span>
+                    </td>
+                    <td>{{ customer.created_at.strftime('%Y-%m-%d %H:%M') if customer.created_at else '未知' }}</td>
+                    <td>
+                        <div class="action-buttons">
+                            <button class="btn-icon" onclick="editCustomer('{{ customer.id }}')" title="编辑">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn-icon btn-danger" onclick="deleteCustomer('{{ customer.id }}')" title="删除">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- 添加客户模态框 -->
+<div class="modal" id="addModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>添加新客户</h3>
+            <button class="close" onclick="closeAddModal()">&times;</button>
+        </div>
+        <form action="{{ url_for('manage_customers') }}" method="post">
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="name">姓名 *</label>
+                    <input type="text" id="name" name="name" required class="form-control">
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="gender">性别</label>
+                        <select id="gender" name="gender" class="form-control">
+                            <option value="">请选择</option>
+                            <option value="男">男</option>
+                            <option value="女">女</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="grade">年级</label>
+                        <input type="text" id="grade" name="grade" placeholder="如：高一" class="form-control">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="region">地区</label>
+                    <input type="text" id="region" name="region" placeholder="如：北京" class="form-control">
+                </div>
+                
+                <div class="form-group">
+                    <label for="phone">电话 *</label>
+                    <input type="tel" id="phone" name="phone" required class="form-control">
+                </div>
+                
+                <div class="form-group">
+                    <label for="source">来源</label>
+                    <input type="text" id="source" name="source" placeholder="如：朋友介绍" class="form-control">
+                </div>
+            </div>
+            
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeAddModal()">取消</button>
+                <button type="submit" class="btn btn-primary">添加客户</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function showAddModal() {
+    document.getElementById('addModal').style.display = 'flex';
+}
+
+function closeAddModal() {
+    document.getElementById('addModal').style.display = 'none';
+}
+
+function editCustomer(id) {
+    window.location.href = `/edit_customer/${id}`;
+}
+
+function deleteCustomer(id) {
+    if (confirm('确定要删除这个客户吗？')) {
+        fetch(`/api/customers/${encodeURIComponent(id)}`, { 
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    // 立即从DOM中移除行，无需刷新页面
+                    const button = event.target;
+                    const row = button.closest('tr');
+                    if (row) {
+                        row.style.transition = 'opacity 0.3s';
+                        row.style.opacity = '0';
+                        setTimeout(() => row.remove(), 300);
+                    }
+                } else {
+                    alert('删除失败：' + (data.error || '未知错误'));
+                }
+            })
+            .catch(err => alert('网络错误：' + err));
+    }
+}
+
+function updateCustomerCount() {
+    const rows = document.querySelectorAll('.modern-table tbody tr');
+    const visibleRows = Array.from(rows).filter(row => row.style.display !== 'none');
+    // 可以在这里更新页面上的计数器显示
+}
+
+// 点击模态框外部关闭
+window.onclick = function(event) {
+    const modal = document.getElementById('addModal');
+    if (event.target == modal) {
+        closeAddModal();
+    }
+}
+
+// 搜索功能
+document.getElementById('searchInput').addEventListener('input', function(e) {
+    const searchTerm = e.target.value.toLowerCase();
+    const rows = document.querySelectorAll('.modern-table tbody tr');
+    
+    rows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        row.style.display = text.includes(searchTerm) ? '' : 'none';
+    });
+});
+</script>
+{% endblock %}

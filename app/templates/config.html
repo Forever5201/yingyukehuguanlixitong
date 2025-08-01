@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+
+{% block title %}系统配置{% endblock %}
+{% block page_title %}系统配置{% endblock %}
+
+{% block content %}
+<div class="config-page">
+    <div class="config-card">
+        <div class="config-header">
+            <h2><i class="fas fa-cog"></i> 成本配置</h2>
+            <p class="config-description">设置试听课和正课的成本价格</p>
+        </div>
+        
+        <form action="{{ url_for('manage_config') }}" method="post" class="config-form">
+            <div class="form-section">
+                <div class="form-group">
+                    <label for="trial_cost">
+                        <i class="fas fa-headphones"></i>
+                        试听课成本 (¥)
+                    </label>
+                    <div class="input-group">
+                        <span class="input-prefix">¥</span>
+                        <input type="number" 
+                               id="trial_cost" 
+                               name="trial_cost" 
+                               value="{{ config.trial_cost or 0 }}" 
+                               step="0.01" 
+                               min="0"
+                               class="form-control"
+                               placeholder="0.00">
+                    </div>
+                    <small class="form-help">试听课的单个客户成本</small>
+                </div>
+                
+                <div class="form-group">
+                    <label for="course_cost">
+                        <i class="fas fa-graduation-cap"></i>
+                        正课成本 (¥)
+                    </label>
+                    <div class="input-group">
+                        <span class="input-prefix">¥</span>
+                        <input type="number" 
+                               id="course_cost" 
+                               name="course_cost" 
+                               value="{{ config.course_cost or 0 }}" 
+                               step="0.01" 
+                               min="0"
+                               class="form-control"
+                               placeholder="0.00">
+                    </div>
+                    <small class="form-help">正课的单个客户成本</small>
+                </div>
+                
+                <div class="form-group">
+                    <label for="taobao_fee_rate">
+                        <i class="fas fa-percentage"></i>
+                        淘宝交易手续费率 (%)
+                    </label>
+                    <div class="input-group">
+                        <input type="number" 
+                               id="taobao_fee_rate" 
+                               name="taobao_fee_rate" 
+                               value="{{ config.taobao_fee_rate or 0 }}" 
+                               step="0.1" 
+                               min="0"
+                               max="100"
+                               class="form-control"
+                               placeholder="0.0">
+                        <span class="input-suffix">%</span>
+                    </div>
+                    <small class="form-help">淘宝交易时的手续费率</small>
+                </div>
+            </div>
+            
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary btn-lg">
+                    <i class="fas fa-save"></i>
+                    保存配置
+                </button>
+                <button type="button" class="btn btn-secondary" onclick="resetForm()">
+                    <i class="fas fa-undo"></i>
+                    重置
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <div class="config-summary">
+        <div class="summary-card">
+            <h3><i class="fas fa-chart-bar"></i> 成本概览</h3>
+            <div class="summary-item">
+                <span class="summary-label">试听课成本</span>
+                <span class="summary-value">¥{{ config.trial_cost or 0 }}</span>
+            </div>
+            <div class="summary-item">
+                <span class="summary-label">正课成本</span>
+                <span class="summary-value">¥{{ config.course_cost or 0 }}</span>
+            </div>
+            <div class="summary-item">
+                <span class="summary-label">淘宝手续费率</span>
+                <span class="summary-value">{{ config.taobao_fee_rate or 0 }}%</span>
+            </div>
+            <div class="summary-item total">
+                <span class="summary-label">总成本</span>
+                <span class="summary-value">¥{{ ((config.trial_cost or 0) + (config.course_cost or 0)) }}</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function resetForm() {
+    document.querySelector('.config-form').reset();
+}
+
+// 实时更新概览
+function updateSummary() {
+    const trialCost = parseFloat(document.getElementById('trial_cost').value) || 0;
+    const courseCost = parseFloat(document.getElementById('course_cost').value) || 0;
+    const taobaoFeeRate = parseFloat(document.getElementById('taobao_fee_rate').value) || 0;
+    const total = trialCost + courseCost;
+    
+    document.querySelector('.summary-item:nth-child(1) .summary-value').textContent = `¥${trialCost}`;
+    document.querySelector('.summary-item:nth-child(2) .summary-value').textContent = `¥${courseCost}`;
+    document.querySelector('.summary-item:nth-child(3) .summary-value').textContent = `${taobaoFeeRate}%`;
+    document.querySelector('.summary-item.total .summary-value').textContent = `¥${total}`;
+}
+
+// 添加输入事件监听
+document.getElementById('trial_cost').addEventListener('input', updateSummary);
+document.getElementById('course_cost').addEventListener('input', updateSummary);
+document.getElementById('taobao_fee_rate').addEventListener('input', updateSummary);
+</script>
+{% endblock %}

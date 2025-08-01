@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+
+{% block title %}首页 - 客户管理系统{% endblock %}
+{% block page_title %}控制面板{% endblock %}
+
+{% block content %}
+<div class="dashboard">
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-users"></i>
+            </div>
+            <div class="stat-info">
+                <h3>总客户数</h3>
+                <p class="stat-number">{{ total_customers }}</p>
+            </div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-user-plus"></i>
+            </div>
+            <div class="stat-info">
+                <h3>本月新增</h3>
+                <p class="stat-number">{{ new_customers }}</p>
+            </div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-dollar-sign"></i>
+            </div>
+            <div class="stat-info">
+                <h3>试听课成本</h3>
+                <p class="stat-number">¥{{ trial_cost }}</p>
+            </div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-percentage"></i>
+            </div>
+            <div class="stat-info">
+                <h3>淘宝手续费率</h3>
+                <p class="stat-number">{{ taobao_fee_rate }}%</p>
+            </div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-shopping-cart"></i>
+            </div>
+            <div class="stat-info">
+                <h3>刷单订单</h3>
+                <p class="stat-number">{{ total_orders }}</p>
+            </div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-chart-line"></i>
+            </div>
+            <div class="stat-info">
+                <h3>刷单总额</h3>
+                <p class="stat-number">¥{{ total_order_amount }}</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="recent-section">
+        <div class="section-header">
+            <h2>最近添加的客户</h2>
+            <a href="{{ url_for('manage_customers') }}" class="btn btn-primary">查看全部</a>
+        </div>
+        
+        <div class="table-container">
+            <table class="modern-table">
+                <thead>
+                    <tr>
+                        <th>姓名</th>
+                        <th>电话</th>
+                        <th>年级</th>
+                        <th>地区</th>
+                        <th>添加时间</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for customer in recent_customers %}
+                    <tr>
+                        <td>
+                            <div class="user-info">
+                                <i class="fas fa-user-circle"></i>
+                                <span>{{ customer.name }}</span>
+                            </div>
+                        </td>
+                        <td>{{ customer.phone }}</td>
+                        <td><span class="badge badge-info">{{ customer.grade or '未设置' }}</span></td>
+                        <td>{{ customer.region or '未设置' }}</td>
+                        <td>{{ customer.created_at.strftime('%Y-%m-%d') if customer.created_at else '未知' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
