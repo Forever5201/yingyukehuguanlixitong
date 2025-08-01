@@ -456,40 +456,85 @@ def manage_trial_courses():
     # 获取客户列表用于下拉选择
     customers = Customer.query.order_by(Customer.name).all()
     
-    # 计算试听课统计
-    trial_stats = db.session.query(
-        db.func.count(Course.id).label('total_trials'),
-        db.func.coalesce(db.func.sum(Course.trial_price), 0).label('total_revenue'),
-        db.func.coalesce(db.func.sum(Course.cost), 0).label('total_cost')
-    ).filter(Course.is_trial == True).first()
-    
-    # 计算手续费总额
-    trial_courses_list = Course.query.filter(Course.is_trial == True).all()
-    total_fees = 0
-    
     # 获取淘宝手续费率配置
     taobao_fee_config = Config.query.filter_by(key='taobao_fee_rate').first()
     taobao_fee_rate = float(taobao_fee_config.value) / 100 if taobao_fee_config else 0.006  # 转换为小数
     
-    for course in trial_courses_list:
-        if course.source == '淘宝':
-            fee_amount = course.trial_price * taobao_fee_rate
-            total_fees += fee_amount
+    # 按状态分组统计试听课
+    trial_courses_list = Course.query.filter(Course.is_trial == True).all()
     
-    # 计算利润
-    total_profit = (trial_stats.total_revenue or 0) - (trial_stats.total_cost or 0)
+    # 初始化各状态统计
+    status_stats = {
+        'registered': {'count': 0, 'revenue': 0, 'cost': 0, 'fees': 0, 'profit': 0},
+        'not_registered': {'count': 0, 'revenue': 0, 'cost': 0, 'fees': 0, 'profit': 0},
+        'refunded': {'count': 0, 'revenue': 0, 'cost': 0, 'fees': 0, 'profit': 0},
+        'converted': {'count': 0, 'revenue': 0, 'cost': 0, 'fees': 0, 'profit': 0},
+        'no_action': {'count': 0, 'revenue': 0, 'cost': 0, 'fees': 0, 'profit': 0}
+    }
+    
+    # 计算各状态的统计数据
+    for course in trial_courses_list:
+        status = course.trial_status or 'registered'
+        
+        # 基础统计
+        status_stats[status]['count'] += 1
+        
+        if status == 'registered':
+            # 已报名试听课：收入 - 成本 - 手续费
+            revenue = course.trial_price or 0
+            cost = course.cost or 0
+            fees = revenue * taobao_fee_rate if course.source == '淘宝' else 0
+            profit = revenue - cost - fees
+            
+        elif status == 'not_registered':
+            # 未报名试听课：无收入，只有成本
+            revenue = 0
+            cost = course.cost or 0
+            fees = 0
+            profit = -cost
+            
+        elif status == 'refunded':
+            # 试听后退费：退费金额 + 退费手续费 + 成本
+            revenue = 0  # 退费后无净收入
+            cost = (course.cost or 0) + (course.refund_amount or 0) + (course.refund_fee or 0)
+            fees = 0
+            profit = -cost
+            
+        elif status == 'converted':
+            # 试听后转正课：收入 - 成本 - 手续费
+            revenue = course.trial_price or 0
+            cost = course.cost or 0
+            fees = revenue * taobao_fee_rate if course.source == '淘宝' else 0
+            profit = revenue - cost - fees
+            
+        elif status == 'no_action':
+            # 试听后无操作：收入 - 成本 - 手续费
+            revenue = course.trial_price or 0
+            cost = course.cost or 0
+            fees = revenue * taobao_fee_rate if course.source == '淘宝' else 0
+            profit = revenue - cost - fees
+        
+        # 累加到对应状态
+        status_stats[status]['revenue'] += revenue
+        status_stats[status]['cost'] += cost
+        status_stats[status]['fees'] += fees
+        status_stats[status]['profit'] += profit
+    
+    # 计算总统计
+    total_stats = {
+        'total_trials': sum(stats['count'] for stats in status_stats.values()),
+        'total_revenue': sum(stats['revenue'] for stats in status_stats.values()),
+        'total_cost': sum(stats['cost'] for stats in status_stats.values()),
+        'total_fees': sum(stats['fees'] for stats in status_stats.values()),
+        'total_profit': sum(stats['profit'] for stats in status_stats.values())
+    }
     
     return render_template('trial_courses.html', 
                          trial_courses=trial_courses,
                          customers=customers,
                          taobao_fee_rate=taobao_fee_rate,
-                         stats={
-                             'total_trials': trial_stats.total_trials or 0,
-                             'total_revenue': trial_stats.total_revenue or 0,
-                             'total_cost': trial_stats.total_cost or 0,
-                             'total_profit': total_profit,
-                             'total_fees': total_fees
-                         })
+                         stats=total_stats,
+                         status_stats=status_stats)
 
 @app.route('/formal-courses', methods=['GET'])
 def manage_formal_courses():
@@ -591,6 +636,7 @@ def convert_trial_to_course(trial_id):
         
         # 更新试听课记录，标记已转化
         trial_course.converted_to_course = formal_course.id
+        trial_course.trial_status = 'converted'  # 同步更新状态
         db.session.commit()
         
         flash(f'试听课已成功转化为正课：{course_type}', 'success')
@@ -726,6 +772,44 @@ def update_formal_course(course_id):
         
         db.session.commit()
         return jsonify({'success': True, 'message': '正课信息更新成功'})
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'更新失败：{str(e)}'})
+
+@app.route('/api/trial-courses/<int:course_id>/status', methods=['PUT'])
+def update_trial_status(course_id):
+    """更新试听课状态"""
+    course = Course.query.filter_by(id=course_id, is_trial=True).first_or_404()
+    
+    try:
+        data = request.get_json()
+        new_status = data.get('status')
+        
+        # 验证状态值
+        valid_statuses = ['registered', 'not_registered', 'refunded', 'converted', 'no_action']
+        if new_status not in valid_statuses:
+            return jsonify({'success': False, 'message': '无效的状态值'})
+        
+        # 更新状态
+        course.trial_status = new_status
+        
+        # 如果是退费状态，更新退费相关信息
+        if new_status == 'refunded':
+            course.refund_amount = float(data.get('refund_amount', 0))
+            course.refund_fee = float(data.get('refund_fee', 0))
+        else:
+            # 非退费状态清空退费信息
+            course.refund_amount = 0
+            course.refund_fee = 0
+        
+        # 如果状态改为已转化，需要检查是否有对应的正课记录
+        if new_status == 'converted' and not course.converted_to_course:
+            # 可以在这里添加逻辑来处理转化关系
+            pass
+        
+        db.session.commit()
+        return jsonify({'success': True, 'message': '试听课状态更新成功'})
         
     except Exception as e:
         db.session.rollback()

@@ -54,6 +54,167 @@
         </div>
     </div>
 
+    <!-- 状态统计详情 -->
+    <div class="status-stats-section">
+        <h3><i class="fas fa-chart-pie"></i> 状态统计详情</h3>
+        <div class="status-stats-grid">
+            <div class="status-stat-card registered">
+                <div class="status-stat-header">
+                    <i class="fas fa-user-check"></i>
+                    <span>已报名试听课</span>
+                </div>
+                <div class="status-stat-content">
+                    <div class="stat-row">
+                        <span>数量：</span>
+                        <span>{{ status_stats.registered.count }}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span>收入：</span>
+                        <span>¥{{ "%.2f"|format(status_stats.registered.revenue) }}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span>成本：</span>
+                        <span>¥{{ "%.2f"|format(status_stats.registered.cost) }}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span>手续费：</span>
+                        <span>¥{{ "%.2f"|format(status_stats.registered.fees) }}</span>
+                    </div>
+                    <div class="stat-row profit">
+                        <span>利润：</span>
+                        <span class="{% if status_stats.registered.profit >= 0 %}profit-positive{% else %}profit-negative{% endif %}">
+                            ¥{{ "%.2f"|format(status_stats.registered.profit) }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="status-stat-card not-registered">
+                <div class="status-stat-header">
+                    <i class="fas fa-user-times"></i>
+                    <span>未报名试听课</span>
+                </div>
+                <div class="status-stat-content">
+                    <div class="stat-row">
+                        <span>数量：</span>
+                        <span>{{ status_stats.not_registered.count }}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span>收入：</span>
+                        <span>¥{{ "%.2f"|format(status_stats.not_registered.revenue) }}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span>成本：</span>
+                        <span>¥{{ "%.2f"|format(status_stats.not_registered.cost) }}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span>手续费：</span>
+                        <span>¥{{ "%.2f"|format(status_stats.not_registered.fees) }}</span>
+                    </div>
+                    <div class="stat-row profit">
+                        <span>利润：</span>
+                        <span class="{% if status_stats.not_registered.profit >= 0 %}profit-positive{% else %}profit-negative{% endif %}">
+                            ¥{{ "%.2f"|format(status_stats.not_registered.profit) }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="status-stat-card refunded">
+                <div class="status-stat-header">
+                    <i class="fas fa-undo"></i>
+                    <span>试听后退费</span>
+                </div>
+                <div class="status-stat-content">
+                    <div class="stat-row">
+                        <span>数量：</span>
+                        <span>{{ status_stats.refunded.count }}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span>收入：</span>
+                        <span>¥{{ "%.2f"|format(status_stats.refunded.revenue) }}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span>成本：</span>
+                        <span>¥{{ "%.2f"|format(status_stats.refunded.cost) }}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span>手续费：</span>
+                        <span>¥{{ "%.2f"|format(status_stats.refunded.fees) }}</span>
+                    </div>
+                    <div class="stat-row profit">
+                        <span>利润：</span>
+                        <span class="{% if status_stats.refunded.profit >= 0 %}profit-positive{% else %}profit-negative{% endif %}">
+                            ¥{{ "%.2f"|format(status_stats.refunded.profit) }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="status-stat-card converted">
+                <div class="status-stat-header">
+                    <i class="fas fa-arrow-right"></i>
+                    <span>试听后转正课</span>
+                </div>
+                <div class="status-stat-content">
+                    <div class="stat-row">
+                        <span>数量：</span>
+                        <span>{{ status_stats.converted.count }}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span>收入：</span>
+                        <span>¥{{ "%.2f"|format(status_stats.converted.revenue) }}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span>成本：</span>
+                        <span>¥{{ "%.2f"|format(status_stats.converted.cost) }}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span>手续费：</span>
+                        <span>¥{{ "%.2f"|format(status_stats.converted.fees) }}</span>
+                    </div>
+                    <div class="stat-row profit">
+                        <span>利润：</span>
+                        <span class="{% if status_stats.converted.profit >= 0 %}profit-positive{% else %}profit-negative{% endif %}">
+                            ¥{{ "%.2f"|format(status_stats.converted.profit) }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="status-stat-card no-action">
+                <div class="status-stat-header">
+                    <i class="fas fa-clock"></i>
+                    <span>试听后无操作</span>
+                </div>
+                <div class="status-stat-content">
+                    <div class="stat-row">
+                        <span>数量：</span>
+                        <span>{{ status_stats.no_action.count }}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span>收入：</span>
+                        <span>¥{{ "%.2f"|format(status_stats.no_action.revenue) }}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span>成本：</span>
+                        <span>¥{{ "%.2f"|format(status_stats.no_action.cost) }}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span>手续费：</span>
+                        <span>¥{{ "%.2f"|format(status_stats.no_action.fees) }}</span>
+                    </div>
+                    <div class="stat-row profit">
+                        <span>利润：</span>
+                        <span class="{% if status_stats.no_action.profit >= 0 %}profit-positive{% else %}profit-negative{% endif %}">
+                            ¥{{ "%.2f"|format(status_stats.no_action.profit) }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- 添加试听课按钮 -->
     <div class="form-section">
         <div class="add-trial-header">
@@ -289,6 +450,47 @@
         </div>
     </div>
 
+    <!-- 退费信息模态框 -->
+    <div id="refundModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4><i class="fas fa-money-bill-wave"></i> 退费信息</h4>
+                <span class="close" onclick="closeRefundModal()">&times;</span>
+            </div>
+            <form id="refundForm" class="modal-form">
+                <input type="hidden" id="refund_course_id">
+                <div class="modal-body">
+                    <div class="form-section-modal">
+                        <h5><i class="fas fa-calculator"></i> 退费详情</h5>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="refund_amount">退费金额 *</label>
+                                <input type="number" id="refund_amount" step="0.01" min="0" placeholder="请输入退费金额" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="refund_fee">退费手续费 *</label>
+                                <input type="number" id="refund_fee" step="0.01" min="0" placeholder="请输入退费手续费" required>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group full-width">
+                                <label for="refund_note">退费说明</label>
+                                <textarea id="refund_note" rows="3" placeholder="请输入退费原因或说明（可选）"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeRefundModal()">取消</button>
+                    <button type="button" class="btn btn-warning" onclick="submitRefund()">
+                        <i class="fas fa-check"></i> 确认退费
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- 数据统计图表 -->
     <div class="charts-section">
         <div class="charts-grid">
@@ -327,8 +529,11 @@
                     
                     <select id="statusFilter" class="filter-select">
                         <option value="">全部状态</option>
-                        <option value="pending">待转化</option>
-                        <option value="converted">已转正课</option>
+                        <option value="registered">已报名试听课</option>
+                        <option value="not_registered">未报名试听课</option>
+                        <option value="refunded">试听后退费</option>
+                        <option value="converted">试听后转正课</option>
+                        <option value="no_action">试听后无操作</option>
                     </select>
                     
                     <button id="exportBtn" class="btn btn-outline-primary">
@@ -352,7 +557,7 @@
                         <th>渠道来源</th>
                         <th>手续费</th>
                         <th>报名时间</th>
-                        <th>状态</th>
+                        <th>试听课状态</th>
                         <th>操作</th>
                     </tr>
                 </thead>
@@ -385,11 +590,22 @@
                         </td>
                         <td>{{ course.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
                         <td>
-                            {% if course.converted_to_course %}
-                                <span class="status-badge status-converted">已转正课</span>
-                            {% else %}
-                                <span class="status-badge status-pending">待转化</span>
-                            {% endif %}
+                            <div class="status-management">
+                                {% set current_status = course.trial_status or 'registered' %}
+                                <select class="status-select" data-course-id="{{ course.id }}" onchange="updateTrialStatus({{ course.id }}, this.value)">
+                                    <option value="registered" {% if current_status == 'registered' %}selected{% endif %}>已报名试听课</option>
+                                    <option value="not_registered" {% if current_status == 'not_registered' %}selected{% endif %}>未报名试听课</option>
+                                    <option value="refunded" {% if current_status == 'refunded' %}selected{% endif %}>试听后退费</option>
+                                    <option value="converted" {% if current_status == 'converted' %}selected{% endif %}>试听后转正课</option>
+                                    <option value="no_action" {% if current_status == 'no_action' %}selected{% endif %}>试听后无操作</option>
+                                </select>
+                                {% if current_status == 'refunded' %}
+                                <div class="refund-info">
+                                    <small>退费：¥{{ "%.2f"|format(course.refund_amount or 0) }}</small>
+                                    <small>手续费：¥{{ "%.2f"|format(course.refund_fee or 0) }}</small>
+                                </div>
+                                {% endif %}
+                            </div>
                         </td>
                         <td>
                             <div class="action-buttons">
@@ -402,25 +618,11 @@
                                    class="btn btn-sm btn-success" title="转正课">
                                     <i class="fas fa-arrow-right"></i>
                                 </a>
-                                {% if customer.has_tutoring_experience == '是' %}
-                                <button onclick="deleteTrialCourse({{ course.id }}, '体验课用户')" 
-                                        class="btn btn-sm btn-warning" title="删除体验课用户">
-                                    <i class="fas fa-user-times"></i>
-                                </button>
-                                {% elif customer.has_tutoring_experience == '否' %}
-                                <button onclick="deleteTrialCourse({{ course.id }}, '试听课用户')" 
-                                        class="btn btn-sm btn-danger" title="删除试听课用户">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                                {% else %}
+                                {% endif %}
                                 <button onclick="deleteTrialCourse({{ course.id }}, '试听课用户')" 
                                         class="btn btn-sm btn-danger" title="删除">
                                     <i class="fas fa-trash"></i>
                                 </button>
-                                {% endif %}
-                                {% else %}
-                                <span class="text-muted">已转化</span>
-                                {% endif %}
                             </div>
                         </td>
                     </tr>
@@ -473,6 +675,85 @@ function deleteTrialCourse(courseId, userType = '试听课用户') {
             alert('删除失败');
         });
     }
+}
+
+// 更新试听课状态
+function updateTrialStatus(courseId, newStatus) {
+    // 如果是退费状态，需要弹出退费信息输入框
+    if (newStatus === 'refunded') {
+        showRefundModal(courseId);
+        return;
+    }
+    
+    // 其他状态直接更新
+    updateStatusAPI(courseId, newStatus);
+}
+
+// 显示退费信息模态框
+function showRefundModal(courseId) {
+    document.getElementById('refund_course_id').value = courseId;
+    document.getElementById('refundModal').style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+}
+
+// 关闭退费信息模态框
+function closeRefundModal() {
+    document.getElementById('refundModal').style.display = 'none';
+    document.body.style.overflow = 'auto';
+    document.getElementById('refundForm').reset();
+}
+
+// 提交退费信息
+function submitRefund() {
+    const courseId = document.getElementById('refund_course_id').value;
+    const refundAmount = document.getElementById('refund_amount').value;
+    const refundFee = document.getElementById('refund_fee').value;
+    
+    if (!refundAmount || refundAmount <= 0) {
+        alert('请输入有效的退费金额');
+        return;
+    }
+    
+    if (!refundFee || refundFee < 0) {
+        alert('请输入有效的退费手续费');
+        return;
+    }
+    
+    updateStatusAPI(courseId, 'refunded', {
+        refund_amount: parseFloat(refundAmount),
+        refund_fee: parseFloat(refundFee)
+    });
+}
+
+// 调用API更新状态
+function updateStatusAPI(courseId, status, extraData = {}) {
+    const requestData = {
+        status: status,
+        ...extraData
+    };
+    
+    fetch(`/api/trial-courses/${courseId}/status`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            if (status === 'refunded') {
+                closeRefundModal();
+            }
+            location.reload();
+        } else {
+            alert(data.message || '状态更新失败');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('状态更新失败');
+    });
 }
 
 // 编辑试听课记录
@@ -1930,6 +2211,146 @@ document.addEventListener('DOMContentLoaded', function() {
     background: #f8d7da;
     color: #721c24;
     border: 1px solid #f5c6cb;
+}
+
+/* 状态管理样式 */
+.status-management {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.status-select {
+    padding: 6px 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 13px;
+    background: white;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.status-select:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 2px rgba(0,123,255,0.25);
+}
+
+.status-select:hover {
+    border-color: #007bff;
+}
+
+.refund-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-top: 5px;
+    padding: 5px;
+    background: #fff3cd;
+    border-radius: 3px;
+    border-left: 3px solid #ffc107;
+}
+
+.refund-info small {
+    font-size: 11px;
+    color: #856404;
+    font-weight: 500;
+}
+
+/* 状态统计详情样式 */
+.status-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin-top: 20px;
+}
+
+.status-stat-card {
+    background: white;
+    border-radius: 8px;
+    padding: 15px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    border-left: 4px solid #007bff;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.status-stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.status-stat-card.registered {
+    border-left-color: #28a745;
+}
+
+.status-stat-card.not-registered {
+    border-left-color: #6c757d;
+}
+
+.status-stat-card.refunded {
+    border-left-color: #dc3545;
+}
+
+.status-stat-card.converted {
+    border-left-color: #007bff;
+}
+
+.status-stat-card.no-action {
+    border-left-color: #ffc107;
+}
+
+.status-stat-card h4 {
+    margin: 0 0 10px 0;
+    font-size: 14px;
+    color: #666;
+    font-weight: 600;
+}
+
+.status-stat-card .stat-value {
+    font-size: 18px;
+    font-weight: bold;
+    color: #333;
+    margin-bottom: 5px;
+}
+
+.status-stat-card .stat-details {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.status-stat-card .stat-details span {
+    font-size: 12px;
+    color: #666;
+}
+
+.status-stat-card .stat-details .positive {
+    color: #28a745;
+}
+
+.status-stat-card .stat-details .negative {
+    color: #dc3545;
+}
+
+/* 全宽表单组样式 */
+.form-group.full-width {
+    grid-column: 1 / -1;
+}
+
+.form-group textarea {
+    padding: 10px 12px;
+    border: 2px solid #e9ecef;
+    border-radius: 6px;
+    font-size: 14px;
+    font-family: inherit;
+    resize: vertical;
+    transition: all 0.3s ease;
+}
+
+.form-group textarea:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
 }
 </style>
 {% endblock %}
