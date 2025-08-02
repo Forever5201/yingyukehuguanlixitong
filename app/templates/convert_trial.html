@@ -100,9 +100,9 @@
             
             <div class="form-row">
                 <div class="form-group">
-                    <label>预计成本：</label>
-                    <div class="cost-preview" id="costPreview">
-                        <span>请填写购买节数和赠课节数</span>
+                    <label>净利润预览：</label>
+                    <div class="profit-preview" id="profitPreview">
+                        <span>请填写购买节数、单节售价和其他信息</span>
                     </div>
                 </div>
             </div>
@@ -120,47 +120,90 @@
 </div>
 
 <script>
-// 获取正课成本配置
+// 获取配置参数
 let courseCostPerSession = 0;
+let taobaoFeeRate = 0;
 
 // 页面加载时获取配置
 document.addEventListener('DOMContentLoaded', function() {
+    // 获取正课成本配置
     fetch('/api/config/course_cost')
         .then(response => response.json())
         .then(data => {
             courseCostPerSession = parseFloat(data.value) || 0;
-            updateCostPreview();
+            updateProfitPreview();
         })
         .catch(error => {
-            console.error('Error fetching config:', error);
+            console.error('Error fetching course cost config:', error);
+        });
+    
+    // 获取淘宝手续费率配置
+    fetch('/api/config/taobao_fee_rate')
+        .then(response => response.json())
+        .then(data => {
+            taobaoFeeRate = parseFloat(data.value) || 0.6; // 默认0.6%
+            updateProfitPreview();
+        })
+        .catch(error => {
+            console.error('Error fetching taobao fee rate config:', error);
         });
     
     // 监听输入变化
-    document.getElementById('sessions').addEventListener('input', updateCostPreview);
-    document.getElementById('gift_sessions').addEventListener('input', updateCostPreview);
-    document.getElementById('other_cost').addEventListener('input', updateCostPreview);
+    document.getElementById('sessions').addEventListener('input', updateProfitPreview);
+    document.getElementById('gift_sessions').addEventListener('input', updateProfitPreview);
+    document.getElementById('other_cost').addEventListener('input', updateProfitPreview);
+    document.getElementById('price').addEventListener('input', updateProfitPreview);
+    document.getElementById('payment_channel').addEventListener('change', updateProfitPreview);
 });
 
-function updateCostPreview() {
+function updateProfitPreview() {
     const sessions = parseInt(document.getElementById('sessions').value) || 0;
     const giftSessions = parseInt(document.getElementById('gift_sessions').value) || 0;
     const otherCost = parseFloat(document.getElementById('other_cost').value) || 0;
+    const price = parseFloat(document.getElementById('price').value) || 0;
+    const paymentChannel = document.getElementById('payment_channel').value;
     
-    const totalSessions = sessions + giftSessions;
-    const sessionCost = totalSessions * courseCostPerSession;
-    const totalCost = sessionCost + otherCost;
+    const preview = document.getElementById('profitPreview');
     
-    const preview = document.getElementById('costPreview');
-    if (totalSessions > 0) {
+    if (sessions > 0 && price > 0) {
+        // 计算总收入
+        const totalRevenue = sessions * price;
+        
+        // 计算手续费
+        let feeAmount = 0;
+        if (paymentChannel === '淘宝') {
+            feeAmount = totalRevenue * (taobaoFeeRate / 100);
+        }
+        
+        // 计算总成本
+        const totalSessions = sessions + giftSessions;
+        const sessionCost = totalSessions * courseCostPerSession;
+        const totalCost = sessionCost + otherCost;
+        
+        // 计算净利润
+        const netProfit = totalRevenue - totalCost - feeAmount;
+        
         preview.innerHTML = `
-            <div class="cost-breakdown">
-                <div>课程成本：${totalSessions} 节 × ¥${courseCostPerSession.toFixed(2)} = ¥${sessionCost.toFixed(2)}</div>
-                <div>其他成本：¥${otherCost.toFixed(2)}</div>
-                <div class="total-cost">总成本：¥${totalCost.toFixed(2)}</div>
+            <div class="profit-breakdown">
+                <div class="revenue-section">
+                    <div><strong>收入明细：</strong></div>
+                    <div>购买节数：${sessions} 节 × ¥${price.toFixed(2)} = ¥${totalRevenue.toFixed(2)}</div>
+                    ${paymentChannel === '淘宝' ? `<div>手续费：¥${totalRevenue.toFixed(2)} × ${taobaoFeeRate}% = ¥${feeAmount.toFixed(2)}</div>` : ''}
+                </div>
+                <div class="cost-section">
+                    <div><strong>成本明细：</strong></div>
+                    <div>课程成本：${totalSessions} 节 × ¥${courseCostPerSession.toFixed(2)} = ¥${sessionCost.toFixed(2)}</div>
+                    <div>其他成本：¥${otherCost.toFixed(2)}</div>
+                    <div>总成本：¥${totalCost.toFixed(2)}</div>
+                </div>
+                <div class="profit-section ${netProfit >= 0 ? 'profit-positive' : 'profit-negative'}">
+                    <div><strong>净利润：¥${netProfit.toFixed(2)}</strong></div>
+                    <small>净利润 = 总收入 - 总成本 - 手续费</small>
+                </div>
             </div>
         `;
     } else {
-        preview.innerHTML = '<span>请填写购买节数和赠课节数</span>';
+        preview.innerHTML = '<span>请填写购买节数、单节售价和其他信息</span>';
     }
 }
 </script>
@@ -260,35 +303,65 @@ function updateCostPreview() {
     box-shadow: 0 0 0 2px rgba(0,123,255,0.25);
 }
 
-.cost-preview {
-    padding: 10px 12px;
+.profit-preview {
+    padding: 15px;
     background: #f8f9fa;
     border: 1px solid #ddd;
     border-radius: 4px;
     font-size: 14px;
     min-height: 38px;
-    display: flex;
-    align-items: center;
 }
 
-.cost-breakdown {
+.profit-breakdown {
     width: 100%;
 }
 
-.cost-breakdown div {
+.profit-breakdown .revenue-section,
+.profit-breakdown .cost-section {
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #eee;
+}
+
+.profit-breakdown .revenue-section div,
+.profit-breakdown .cost-section div {
     margin-bottom: 5px;
     color: #666;
 }
 
-.cost-breakdown div:last-child {
-    margin-bottom: 0;
+.profit-breakdown .revenue-section div:first-child,
+.profit-breakdown .cost-section div:first-child {
+    color: #333;
+    margin-bottom: 8px;
 }
 
-.total-cost {
+.profit-section {
+    padding: 10px;
+    border-radius: 4px;
+    text-align: center;
+}
+
+.profit-positive {
+    background: #d4edda;
+    border: 1px solid #c3e6cb;
+    color: #155724;
+}
+
+.profit-negative {
+    background: #f8d7da;
+    border: 1px solid #f5c6cb;
+    color: #721c24;
+}
+
+.profit-section div {
+    font-size: 16px;
     font-weight: bold;
-    color: #333 !important;
-    padding-top: 5px;
-    border-top: 1px solid #ddd;
+    margin-bottom: 5px;
+}
+
+.profit-section small {
+    font-size: 12px;
+    opacity: 0.8;
 }
 
 .form-actions {

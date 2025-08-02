@@ -134,30 +134,41 @@ function editCustomer(id) {
 }
 
 function deleteCustomer(id) {
-    if (confirm('确定要删除这个客户吗？')) {
-        fetch(`/api/customers/${encodeURIComponent(id)}`, { 
-            method: 'DELETE',
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        })
-            .then(res => res.json())
-            .then(data => {
-                if (data.success) {
-                    // 立即从DOM中移除行，无需刷新页面
-                    const button = event.target;
-                    const row = button.closest('tr');
-                    if (row) {
-                        row.style.transition = 'opacity 0.3s';
-                        row.style.opacity = '0';
-                        setTimeout(() => row.remove(), 300);
-                    }
-                } else {
-                    alert('删除失败：' + (data.error || '未知错误'));
-                }
-            })
-            .catch(err => alert('网络错误：' + err));
+    if (!confirm('确定要删除这个客户吗？此操作将同时删除该客户的所有课程记录！')) {
+        return;
     }
+
+    // 显示loading状态
+    const button = event.target.closest('button');
+    const originalHTML = button.innerHTML;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    button.disabled = true;
+
+    fetch(`/api/customers/${encodeURIComponent(id)}`, { 
+        method: 'DELETE',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message || '客户删除成功！');
+            // 强制刷新页面以更新所有数据和统计
+            window.location.reload();
+        } else {
+            alert('删除失败：' + (data.message || data.error || '未知错误'));
+            // 恢复按钮状态
+            button.innerHTML = originalHTML;
+            button.disabled = false;
+        }
+    })
+    .catch(err => {
+        alert('网络错误：' + err);
+        // 恢复按钮状态
+        button.innerHTML = originalHTML;
+        button.disabled = false;
+    });
 }
 
 function updateCustomerCount() {
