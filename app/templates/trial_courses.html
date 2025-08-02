@@ -219,9 +219,14 @@
     <div class="form-section">
         <div class="add-trial-header">
             <h3><i class="fas fa-plus"></i> 试听课管理</h3>
-            <button type="button" class="btn btn-primary" id="addTrialBtn">
-                <i class="fas fa-user-plus"></i> 录入新学员
-            </button>
+            <div class="header-actions">
+                <button type="button" class="btn btn-info" onclick="exportTrialData()">
+                    <i class="fas fa-download"></i> 导出数据
+                </button>
+                <button type="button" class="btn btn-primary" id="addTrialBtn">
+                    <i class="fas fa-user-plus"></i> 录入新学员
+                </button>
+            </div>
         </div>
     </div>
 
@@ -337,6 +342,7 @@
                                 </select>
                             </div>
                         </div>
+
                     </div>
                 </div>
                 
@@ -358,33 +364,33 @@
                 <span class="close-edit">&times;</span>
             </div>
             <form method="POST" class="modal-form" id="editTrialForm">
-                <input type="hidden" id="edit_course_id" name="course_id">
+                <input type="hidden" id="edit_trial_course_id" name="course_id">
                 <div class="modal-body">
                     <!-- 学员信息 -->
                     <div class="form-section-modal">
                         <h5><i class="fas fa-user"></i> 学员信息</h5>
                         <div class="form-row">
                             <div class="form-group">
-                                <label for="edit_customer_name">学员姓名 *</label>
-                                <input type="text" name="customer_name" id="edit_customer_name" placeholder="请输入学员姓名" required>
+                                <label for="edit_trial_customer_name">学员姓名 *</label>
+                                <input type="text" name="customer_name" id="edit_trial_customer_name" placeholder="请输入学员姓名" required>
                             </div>
                             <div class="form-group">
-                                <label for="edit_customer_phone">联系电话 *</label>
-                                <input type="tel" name="customer_phone" id="edit_customer_phone" placeholder="请输入联系电话" required>
+                                <label for="edit_trial_customer_phone">联系电话 *</label>
+                                <input type="tel" name="customer_phone" id="edit_trial_customer_phone" placeholder="请输入联系电话" required>
                             </div>
                         </div>
                         <div class="form-row">
                             <div class="form-group">
-                                <label for="edit_customer_gender">性别</label>
-                                <select name="customer_gender" id="edit_customer_gender">
+                                <label for="edit_trial_customer_gender">性别</label>
+                                <select name="customer_gender" id="edit_trial_customer_gender">
                                     <option value="">请选择</option>
                                     <option value="男">男</option>
                                     <option value="女">女</option>
                                 </select>
                             </div>
                             <div class="form-group">
-                                <label for="edit_customer_grade">年级</label>
-                                <select name="customer_grade" id="edit_customer_grade">
+                                <label for="edit_trial_customer_grade">年级</label>
+                                <select name="customer_grade" id="edit_trial_customer_grade">
                                     <option value="">请选择</option>
                                     <option value="一年级">一年级</option>
                                     <option value="二年级">二年级</option>
@@ -403,12 +409,12 @@
                         </div>
                         <div class="form-row">
                             <div class="form-group">
-                                <label for="edit_customer_region">地区</label>
-                                <input type="text" name="customer_region" id="edit_customer_region" placeholder="请输入地区">
+                                <label for="edit_trial_customer_region">地区</label>
+                                <input type="text" name="customer_region" id="edit_trial_customer_region" placeholder="请输入地区">
                             </div>
                             <div class="form-group">
-                                <label for="edit_has_tutoring_experience">是否参加过英语课外辅导</label>
-                                <select name="has_tutoring_experience" id="edit_has_tutoring_experience">
+                                <label for="edit_trial_has_tutoring_experience">是否参加过英语课外辅导</label>
+                                <select name="has_tutoring_experience" id="edit_trial_has_tutoring_experience">
                                     <option value="">请选择</option>
                                     <option value="是">是</option>
                                     <option value="否">否</option>
@@ -426,8 +432,8 @@
                                 <input type="number" name="trial_price" id="edit_trial_price" step="0.01" min="0" placeholder="请输入售价" required>
                             </div>
                             <div class="form-group">
-                                <label for="edit_source">渠道来源 *</label>
-                                <select name="source" id="edit_source" required>
+                                <label for="edit_trial_source">渠道来源 *</label>
+                                <select name="source" id="edit_trial_source" required>
                                     <option value="">请选择渠道</option>
                                     <option value="淘宝">淘宝</option>
                                     <option value="视频号">视频号</option>
@@ -557,8 +563,8 @@
                         <th>渠道来源</th>
                         <th>手续费</th>
                         <th>报名时间</th>
-                        <th>试听课状态</th>
-                        <th>操作</th>
+                                <th>试听课状态</th>
+                                <th>操作</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -588,6 +594,7 @@
                                 ¥0.00
                             {% endif %}
                         </td>
+
                         <td>{{ course.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
                         <td>
                             <div class="status-management">
@@ -609,7 +616,7 @@
                         </td>
                         <td>
                             <div class="action-buttons">
-                                <button onclick="editTrialCourse({{ course.id }}, '{{ customer.name }}', '{{ customer.phone }}', '{{ customer.gender or '' }}', '{{ customer.grade or '' }}', '{{ customer.region or '' }}', {{ course.trial_price }}, '{{ course.source or '' }}', '{{ customer.has_tutoring_experience or '' }}')" 
+                                <button onclick="editTrialCourse({{ course.id }})" 
                                         class="btn btn-sm btn-primary" title="编辑详情">
                                     <i class="fas fa-edit"></i>
                                 </button>
@@ -651,30 +658,8 @@
 <script>
 // 删除试听课记录
 function deleteTrialCourse(courseId, userType = '试听课用户') {
-    const confirmMessage = userType === '体验课用户' ? 
-        '确定要删除这条体验课用户记录吗？' : 
-        '确定要删除这条试听课记录吗？';
-    
-    if (confirm(confirmMessage)) {
-        fetch(`/api/trial-courses/${courseId}`, {
-            method: 'DELETE',
-            headers: {
-                'Content-Type': 'application/json',
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                location.reload();
-            } else {
-                alert(data.message || '删除失败');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('删除失败');
-        });
-    }
+    // 使用公共模块进行删除
+    CourseManager.deleteTrialCourse(courseId, userType);
 }
 
 // 更新试听课状态
@@ -756,22 +741,79 @@ function updateStatusAPI(courseId, status, extraData = {}) {
     });
 }
 
-// 编辑试听课记录
-function editTrialCourse(courseId, name, phone, gender, grade, region, price, source, hasTutoringExperience) {
-    // 填充表单数据
-    document.getElementById('edit_course_id').value = courseId;
-    document.getElementById('edit_customer_name').value = name;
-    document.getElementById('edit_customer_phone').value = phone;
-    document.getElementById('edit_customer_gender').value = gender;
-    document.getElementById('edit_customer_grade').value = grade;
-    document.getElementById('edit_customer_region').value = region;
-    document.getElementById('edit_trial_price').value = price;
-    document.getElementById('edit_source').value = source;
-    document.getElementById('edit_has_tutoring_experience').value = hasTutoringExperience;
+// 编辑试听课记录 - 参考刷单管理的简化实现
+function editTrialCourse(courseId) {
+    console.log('=== 试听课编辑函数被调用 ===');
+    console.log('courseId:', courseId);
     
-    // 显示编辑模态框
-    document.getElementById('editTrialModal').style.display = 'flex';
-    document.body.style.overflow = 'hidden';
+    // 直接通过API获取最新数据，而不是使用传递的参数
+    fetch(`/api/trial-courses/${encodeURIComponent(courseId)}`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('获取到的试听课数据:', data);
+            
+            if (data.success && data.course) {
+                const course = data.course;
+                const customer = data.customer || {};
+                
+                // 显示编辑模态框标题
+                const modalTitle = document.querySelector('#editTrialModal .modal-header h4');
+                if (modalTitle) {
+                    modalTitle.textContent = '编辑试听课记录';
+                }
+                
+                // 设置隐藏的课程ID
+                const courseIdField = document.getElementById('edit_trial_course_id');
+                if (courseIdField) {
+                    courseIdField.value = course.id;
+                }
+                
+                // 填充表单字段
+                const fields = {
+                    'edit_trial_customer_name': customer.name || '',
+                    'edit_trial_customer_phone': customer.phone || '',
+                    'edit_trial_customer_gender': customer.gender || '',
+                    'edit_trial_customer_grade': customer.grade || '',
+                    'edit_trial_customer_region': customer.region || '',
+                    'edit_trial_price': course.trial_price || course.price || '',
+                    'edit_trial_source': course.source || '',
+                    'edit_trial_has_tutoring_experience': customer.has_tutoring_experience || ''
+                };
+                
+                // 逐个填充字段
+                for (const [fieldId, value] of Object.entries(fields)) {
+                    const field = document.getElementById(fieldId);
+                    if (field) {
+                        field.value = value;
+                        console.log(`填充字段 ${fieldId}:`, value);
+                    } else {
+                        console.warn(`字段 ${fieldId} 未找到`);
+                    }
+                }
+                
+                // 显示模态框
+                const modal = document.getElementById('editTrialModal');
+                if (modal) {
+                    modal.style.display = 'flex';
+                    document.body.style.overflow = 'hidden';
+                    console.log('编辑模态框已显示');
+                } else {
+                    console.error('编辑模态框未找到');
+                }
+            } else {
+                console.error('API返回失败:', data);
+                alert('获取课程信息失败: ' + (data.message || '未知错误'));
+            }
+        })
+        .catch(error => {
+            console.error('获取试听课数据失败:', error);
+            alert('获取课程信息失败: ' + error.message);
+        });
 }
 
 // 页面加载完成后执行
@@ -810,57 +852,54 @@ document.addEventListener('DOMContentLoaded', function() {
          }
      });
      
-     // 编辑模态框控制
-     const editTrialModal = document.getElementById('editTrialModal');
-     const editCloseModal = editTrialModal.querySelector('.close');
-     const editCancelBtn = document.getElementById('editCancelBtn');
-     const editTrialForm = document.getElementById('editTrialForm');
+     // 初始化公共模态框事件（试听课编辑）
+     CourseManager.initModalEvents();
      
-     // 关闭编辑模态框
-     function closeEditTrialModal() {
-         editTrialModal.style.display = 'none';
-         document.body.style.overflow = 'auto';
-         editTrialForm.reset(); // 重置表单
-     }
-     
-     if (editCloseModal) editCloseModal.addEventListener('click', closeEditTrialModal);
-     if (editCancelBtn) editCancelBtn.addEventListener('click', closeEditTrialModal);
-     
-     // 点击编辑模态框外部关闭
-     window.addEventListener('click', function(event) {
-         if (event.target === editTrialModal) {
-             closeEditTrialModal();
-         }
-     });
-     
-     // 编辑表单提交
-     if (editTrialForm) {
-         editTrialForm.addEventListener('submit', function(e) {
-         e.preventDefault();
+     // 监听来自组件的编辑事件
+     document.addEventListener('editTrialCourse', function(event) {
+         const { courseId, tableId } = event.detail;
+         console.log('编辑试听课事件触发，课程ID:', courseId);
          
-         const courseId = document.getElementById('edit_course_id').value;
-         const formData = new FormData(editTrialForm);
-         
-         fetch(`/api/trial-courses/${courseId}`, {
-             method: 'PUT',
-             body: formData
-         })
-         .then(response => response.json())
-         .then(data => {
-             if (data.success) {
-                 alert('试听课信息更新成功！');
-                 closeEditTrialModal();
-                 location.reload();
-             } else {
-                 alert(data.message || '更新失败');
-             }
-         })
-         .catch(error => {
-             console.error('Error:', error);
-             alert('更新失败');
-         });
+         // 通过API获取课程详细信息
+         fetch(`/api/trial-courses/${courseId}`)
+             .then(response => response.json())
+             .then(data => {
+                 console.log('API返回数据:', data);
+                 
+                 if (data.success && data.course) {
+                     const course = data.course;
+                     const customer = data.customer || {};
+                     
+                     console.log('课程数据:', course);
+                     console.log('客户数据:', customer);
+                     
+                     // 构造课程数据对象
+                     const courseData = {
+                         customer_name: customer.name || '',
+                         customer_phone: customer.phone || '',
+                         customer_gender: customer.gender || '',
+                         customer_grade: customer.grade || '',
+                         customer_region: customer.region || '',
+                         trial_price: course.trial_price || course.price || '',
+                         price: course.trial_price || course.price || '',
+                         source: course.source || '',
+                         has_tutoring_experience: customer.has_tutoring_experience || ''
+                     };
+                     
+                     console.log('构造的课程数据对象:', courseData);
+                     
+                     // 使用公共模块进行编辑
+                     CourseManager.editTrialCourse(courseId, courseData);
+                 } else {
+                     console.error('API返回失败:', data);
+                     alert('获取课程信息失败');
+                 }
+             })
+             .catch(error => {
+                 console.error('API请求错误:', error);
+                 alert('获取课程信息失败');
+             });
      });
-     }
      
      // 智能识别功能
     const smartInput = document.getElementById('smartInput');
@@ -1059,6 +1098,30 @@ document.addEventListener('DOMContentLoaded', function() {
             }, 300);
         }, 3000);
     }
+    
+    // 导出数据功能
+    window.exportTrialData = function() {
+        const button = event.target;
+        const originalText = button.innerHTML;
+        
+        // 显示加载状态
+        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 导出中...';
+        button.disabled = true;
+        
+        // 创建一个隐藏的链接来下载文件
+        const link = document.createElement('a');
+        link.href = '/api/export/trial-courses';
+        link.download = '';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        // 恢复按钮状态
+        setTimeout(() => {
+            button.innerHTML = originalText;
+            button.disabled = false;
+        }, 2000);
+    };
     
     // 搜索和筛选功能
     const searchInput = document.getElementById('searchInput');
@@ -1673,7 +1736,7 @@ document.addEventListener('DOMContentLoaded', function() {
 .modal {
     display: none;
     position: fixed;
-    z-index: 1000;
+    z-index: 2000;
     left: 0;
     top: 0;
     width: 100%;
@@ -1681,11 +1744,13 @@ document.addEventListener('DOMContentLoaded', function() {
     background-color: rgba(0, 0, 0, 0.5);
     backdrop-filter: blur(3px);
     animation: modalFadeIn 0.3s ease;
+    align-items: center;
+    justify-content: center;
 }
 
 .modal-content {
     background-color: #fff;
-    margin: 3% auto;
+    margin: 0;
     border-radius: 12px;
     width: 90%;
     max-width: 600px;
@@ -2117,6 +2182,16 @@ document.addEventListener('DOMContentLoaded', function() {
 .status-no-experience {
     background: #f8d7da;
     color: #721c24;
+}
+
+.employee-badge {
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+    background: #e3f2fd;
+    color: #1565c0;
+    border: 1px solid #bbdefb;
 }
 
 .action-buttons {
