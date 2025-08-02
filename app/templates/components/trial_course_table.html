@@ -1,0 +1,420 @@
+<!-- 可复用的试听课表格组件 -->
+<!-- 参数说明：
+     - courses: 试听课数据列表
+     - table_id: 表格ID（可选，默认为trial-courses-table）
+     - enable_filters: 是否启用筛选功能（默认true）
+-->
+
+{% set table_id = table_id or 'trial-courses-table' %}
+{% set enable_filters = enable_filters if enable_filters is defined else true %}
+
+<!-- 搜索和筛选区域 -->
+{% if enable_filters %}
+<div class="search-filter-section mb-3">
+    <div class="row">
+        <div class="col-md-4">
+            <div class="search-box">
+                <input type="text" id="{{ table_id }}-search" placeholder="搜索学员姓名或电话..." class="form-control">
+                <i class="fas fa-search search-icon"></i>
+            </div>
+        </div>
+        <div class="col-md-8">
+            <div class="filter-controls d-flex gap-2">
+                <select id="{{ table_id }}-source-filter" class="form-select">
+                    <option value="">全部渠道</option>
+                    <option value="淘宝">淘宝</option>
+                    <option value="视频号">视频号</option>
+                    <option value="抖音">抖音</option>
+                    <option value="小红书">小红书</option>
+                    <option value="其他">其他</option>
+                </select>
+                
+                <select id="{{ table_id }}-status-filter" class="form-select">
+                    <option value="">全部状态</option>
+                    <option value="registered">已报名试听课</option>
+                    <option value="not_registered">未报名试听课</option>
+                    <option value="refunded">试听后退费</option>
+                    <option value="converted">试听后转正课</option>
+                    <option value="no_action">试听后无操作</option>
+                </select>
+                
+                <button id="{{ table_id }}-export-btn" class="btn btn-outline-primary">
+                    <i class="fas fa-download"></i> 导出
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- 试听课表格 -->
+<div class="table-responsive">
+    <table class="table table-hover customer-table">
+        <thead class="table-light">
+            <tr>
+                <th>学员姓名</th>
+                <th>性别</th>
+                <th>年级</th>
+                <th>地区</th>
+                <th>联系方式</th>
+                <th>体验情况</th>
+                <th>试听课售价</th>
+                <th>渠道来源</th>
+                <th>手续费</th>
+
+                <th>报名时间</th>
+                <th>试听课状态</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody id="{{ table_id }}-tbody">
+            {% if courses %}
+                {% for course_data in courses %}
+                    {% if course_data is mapping and course_data.course %}
+                        {% set course = course_data.course %}
+                        {% set customer = course_data.customer %}
+                    {% else %}
+                        {% set course = course_data %}
+                        {% set customer = course_data %}
+                    {% endif %}
+                    <tr data-course-id="{{ course.id }}">
+                        <td>{{ customer.name or customer.customer_name or course.customer_name }}</td>
+                        <td>{{ customer.gender or customer.customer_gender or course.customer_gender or '-' }}</td>
+                        <td>{{ customer.grade or customer.customer_grade or course.customer_grade or '-' }}</td>
+                        <td>{{ customer.region or customer.customer_region or course.customer_region or '-' }}</td>
+                        <td>{{ customer.phone or customer.customer_phone or course.customer_phone }}</td>
+                        <td>
+                            {% set has_experience = customer.has_tutoring_experience or course.has_tutoring_experience %}
+                            {% if has_experience == '是' %}
+                                <span class="badge bg-success">有体验</span>
+                            {% elif has_experience == '否' %}
+                                <span class="badge bg-secondary">无体验</span>
+                            {% else %}
+                                <span class="text-muted">未知</span>
+                            {% endif %}
+                        </td>
+                        <td>¥{{ "%.2f"|format(course.trial_price or course.price or 0) }}</td>
+                        <td>{{ course.source or '-' }}</td>
+                        <td>
+                            {% if course.source == '淘宝' %}
+                                {% set fee_amount = (course.trial_price or course.price or 0) * (taobao_fee_rate or 0.006) %}
+                                ¥{{ "%.2f"|format(fee_amount) }}
+                            {% else %}
+                                ¥0.00
+                            {% endif %}
+                        </td>
+
+                        <td>{{ (course.created_at or course.registration_time or '').strftime('%Y-%m-%d %H:%M') if course.created_at or course.registration_time else '-' }}</td>
+                        <td>
+                            <div class="status-management">
+                                {% set current_status = course.trial_status or course.status_key or 'registered' %}
+                                <select class="form-select form-select-sm status-select" 
+                                        data-course-id="{{ course.id }}" 
+                                        onchange="updateTrialStatus({{ course.id }}, this.value, '{{ table_id }}')">
+                                    <option value="registered" {% if current_status == 'registered' %}selected{% endif %}>已报名试听课</option>
+                                    <option value="not_registered" {% if current_status == 'not_registered' %}selected{% endif %}>未报名试听课</option>
+                                    <option value="refunded" {% if current_status == 'refunded' %}selected{% endif %}>试听后退费</option>
+                                    <option value="converted" {% if current_status == 'converted' %}selected{% endif %}>试听后转正课</option>
+                                    <option value="no_action" {% if current_status == 'no_action' %}selected{% endif %}>试听后无操作</option>
+                                </select>
+                                {% if current_status == 'refunded' %}
+                                <div class="refund-info mt-1">
+                                    <small class="text-muted">退费：¥{{ "%.2f"|format(course.refund_amount or 0) }}</small><br>
+                                    <small class="text-muted">手续费：¥{{ "%.2f"|format(course.refund_fee or 0) }}</small>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <button onclick="editTrialCourse({{ course.id }}, '{{ table_id }}')" 
+                                        class="btn btn-outline-primary btn-sm" title="编辑详情">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                {% if not course.converted_to_course and current_status != 'converted' %}
+                                <button onclick="convertTrialToCourse({{ course.id }}, '{{ table_id }}')" 
+                                        class="btn btn-outline-success btn-sm" title="转正课">
+                                    <i class="fas fa-arrow-right"></i>
+                                </button>
+                                {% endif %}
+                                <button onclick="deleteTrialCourse({{ course.id }}, '试听课用户', '{{ table_id }}')" 
+                                        class="btn btn-outline-danger btn-sm" title="删除">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                {% endfor %}
+            {% else %}
+                <tr>
+                    <td colspan="12" class="text-center text-muted">暂无试听课记录</td>
+                </tr>
+            {% endif %}
+        </tbody>
+    </table>
+</div>
+
+<!-- 退费信息模态框 -->
+<div id="{{ table_id }}-refund-modal" class="modal fade" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-money-bill-wave"></i> 退费信息</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="{{ table_id }}-refund-form">
+                <input type="hidden" id="{{ table_id }}-refund-course-id">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="{{ table_id }}-refund-amount" class="form-label">退费金额 *</label>
+                        <input type="number" id="{{ table_id }}-refund-amount" class="form-control" 
+                               step="0.01" min="0" placeholder="请输入退费金额" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="{{ table_id }}-refund-fee" class="form-label">退费手续费 *</label>
+                        <input type="number" id="{{ table_id }}-refund-fee" class="form-control" 
+                               step="0.01" min="0" placeholder="请输入退费手续费" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="{{ table_id }}-refund-note" class="form-label">退费说明</label>
+                        <textarea id="{{ table_id }}-refund-note" class="form-control" rows="3" 
+                                  placeholder="请输入退费原因或说明（可选）"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-warning" onclick="submitRefund('{{ table_id }}')">
+                        <i class="fas fa-check"></i> 确认退费
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// 试听课组件的JavaScript函数
+(function() {
+    // 确保全局函数存在
+    window.trialCourseComponents = window.trialCourseComponents || {};
+    
+    // 更新试听课状态
+    window.updateTrialStatus = function(courseId, newStatus, tableId) {
+        tableId = tableId || 'trial-courses-table';
+        
+        // 如果是退费状态，需要弹出退费信息输入框
+        if (newStatus === 'refunded') {
+            showRefundModal(courseId, tableId);
+            return;
+        }
+        
+        // 其他状态直接更新
+        updateStatusAPI(courseId, newStatus, {}, tableId);
+    };
+    
+    // 显示退费信息模态框
+    function showRefundModal(courseId, tableId) {
+        document.getElementById(`${tableId}-refund-course-id`).value = courseId;
+        const modal = new bootstrap.Modal(document.getElementById(`${tableId}-refund-modal`));
+        modal.show();
+    }
+    
+    // 提交退费信息
+    window.submitRefund = function(tableId) {
+        const courseId = document.getElementById(`${tableId}-refund-course-id`).value;
+        const refundAmount = document.getElementById(`${tableId}-refund-amount`).value;
+        const refundFee = document.getElementById(`${tableId}-refund-fee`).value;
+        const refundNote = document.getElementById(`${tableId}-refund-note`).value;
+        
+        if (!refundAmount || refundAmount <= 0) {
+            alert('请输入有效的退费金额');
+            return;
+        }
+        
+        if (!refundFee || refundFee < 0) {
+            alert('请输入有效的退费手续费');
+            return;
+        }
+        
+        updateStatusAPI(courseId, 'refunded', {
+            refund_amount: parseFloat(refundAmount),
+            refund_fee: parseFloat(refundFee),
+            refund_note: refundNote
+        }, tableId);
+    };
+    
+    // 调用API更新状态
+    function updateStatusAPI(courseId, status, extraData, tableId) {
+        const requestData = {
+            status: status,
+            ...extraData
+        };
+        
+        fetch(`/api/trial-courses/${courseId}/status`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(requestData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                if (status === 'refunded') {
+                    const modal = bootstrap.Modal.getInstance(document.getElementById(`${tableId}-refund-modal`));
+                    modal.hide();
+                    document.getElementById(`${tableId}-refund-form`).reset();
+                }
+                
+                // 触发自定义事件，通知页面刷新数据
+                const event = new CustomEvent('trialStatusUpdated', {
+                    detail: { courseId, status, tableId }
+                });
+                document.dispatchEvent(event);
+                
+                // 如果有页面级别的刷新函数，调用它
+                if (typeof refreshTrialData === 'function') {
+                    refreshTrialData();
+                } else {
+                    location.reload();
+                }
+            } else {
+                alert(data.message || '状态更新失败');
+                // 恢复下拉框的原始值
+                const select = document.querySelector(`[data-course-id="${courseId}"]`);
+                if (select) {
+                    select.selectedIndex = 0; // 或者恢复到之前的值
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('状态更新失败');
+            // 恢复下拉框的原始值
+            const select = document.querySelector(`[data-course-id="${courseId}"]`);
+            if (select) {
+                select.selectedIndex = 0;
+            }
+        });
+    }
+    
+    // 编辑试听课记录
+    window.editTrialCourse = function(courseId, tableId) {
+        // 触发自定义事件，让页面处理编辑逻辑
+        const event = new CustomEvent('editTrialCourse', {
+            detail: { courseId, tableId }
+        });
+        document.dispatchEvent(event);
+    };
+    
+    // 试听课转正课
+    window.convertTrialToCourse = function(courseId, tableId) {
+        if (confirm('确定要将此试听课转为正课吗？')) {
+            window.location.href = `/convert-trial-to-course/${courseId}`;
+        }
+    };
+    
+    // 删除试听课记录
+    window.deleteTrialCourse = function(courseId, userType, tableId) {
+        userType = userType || '试听课用户';
+        const confirmMessage = userType === '体验课用户' ? 
+            '确定要删除这条体验课用户记录吗？' : 
+            '确定要删除这条试听课记录吗？';
+        
+        if (confirm(confirmMessage)) {
+            fetch(`/api/trial-courses/${courseId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // 触发自定义事件，通知页面刷新数据
+                    const event = new CustomEvent('trialCourseDeleted', {
+                        detail: { courseId, tableId }
+                    });
+                    document.dispatchEvent(event);
+                    
+                    // 如果有页面级别的刷新函数，调用它
+                    if (typeof refreshTrialData === 'function') {
+                        refreshTrialData();
+                    } else {
+                        location.reload();
+                    }
+                } else {
+                    alert(data.message || '删除失败');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('删除失败');
+            });
+        }
+    };
+    
+    // 设置筛选功能
+    window.setupTrialFilters = function(tableId, courses) {
+        const searchInput = document.getElementById(`${tableId}-search`);
+        const sourceFilter = document.getElementById(`${tableId}-source-filter`);
+        const statusFilter = document.getElementById(`${tableId}-status-filter`);
+        
+        if (!searchInput || !sourceFilter || !statusFilter) {
+            return; // 如果筛选元素不存在，直接返回
+        }
+        
+        function filterCourses() {
+            const searchTerm = searchInput.value.toLowerCase();
+            const selectedSource = sourceFilter.value;
+            const selectedStatus = statusFilter.value;
+            
+            const rows = document.querySelectorAll(`#${tableId}-tbody tr[data-course-id]`);
+            
+            rows.forEach(row => {
+                const courseId = row.getAttribute('data-course-id');
+                const course = courses.find(c => c.id == courseId || c.course?.id == courseId);
+                
+                if (!course) {
+                    row.style.display = 'none';
+                    return;
+                }
+                
+                const customerName = (course.customer_name || course.name || '').toLowerCase();
+                const customerPhone = course.customer_phone || course.phone || '';
+                const courseSource = course.source || '';
+                const courseStatus = course.trial_status || course.status_key || 'registered';
+                
+                const matchesSearch = !searchTerm || 
+                    customerName.includes(searchTerm) ||
+                    customerPhone.includes(searchTerm);
+                
+                const matchesSource = !selectedSource || courseSource === selectedSource;
+                const matchesStatus = !selectedStatus || courseStatus === selectedStatus;
+                
+                if (matchesSearch && matchesSource && matchesStatus) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        }
+        
+        searchInput.addEventListener('input', filterCourses);
+        sourceFilter.addEventListener('change', filterCourses);
+        statusFilter.addEventListener('change', filterCourses);
+        
+        // 导出功能
+        const exportBtn = document.getElementById(`${tableId}-export-btn`);
+        if (exportBtn) {
+            exportBtn.addEventListener('click', function() {
+                // 触发导出事件
+                const event = new CustomEvent('exportTrialData', {
+                    detail: { tableId, courses }
+                });
+                document.dispatchEvent(event);
+            });
+        }
+    };
+})();
+</script>
