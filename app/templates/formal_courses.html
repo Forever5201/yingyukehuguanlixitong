@@ -71,6 +71,11 @@
     <div class="table-section">
         <div class="table-header">
             <h3><i class="fas fa-list"></i> 正课记录</h3>
+            <div class="page-actions">
+                <button onclick="exportFormalData()" class="btn btn-success">
+                    <i class="fas fa-download"></i> 导出数据
+                </button>
+            </div>
         </div>
         
         <div class="table-container">
@@ -110,7 +115,6 @@
                         <td>
                             {% set total_revenue = course.sessions * course.price %}
                             {% if course.payment_channel == '淘宝' %}
-                                {% set taobao_fee_rate = 0.006 %}
                                 {% set fee_amount = total_revenue * taobao_fee_rate %}
                                 {% set actual_revenue = total_revenue - fee_amount %}
                                 <div>
@@ -126,7 +130,6 @@
                         <td>
                             {% set total_revenue = course.sessions * course.price %}
                             {% if course.payment_channel == '淘宝' %}
-                                {% set taobao_fee_rate = 0.006 %}
                                 {% set fee_amount = total_revenue * taobao_fee_rate %}
                                 {% set actual_revenue = total_revenue - fee_amount %}
                                 {% set profit = actual_revenue - course.cost %}
@@ -147,7 +150,7 @@
                         </td>
                         <td>
                             <div class="action-buttons">
-                                <button onclick="editFormalCourse({{ course.id }}, '{{ course.customer.name }}', '{{ course.customer.phone }}', '{{ course.customer.gender }}', '{{ course.customer.grade }}', '{{ course.customer.region }}', '{{ course.course_type }}', {{ course.sessions }}, {{ course.gift_sessions }}, {{ course.price }}, '{{ course.payment_channel }}', {{ course.cost }}, {{ course.other_cost }}, '{% if course.converted_from_trial %}试听课转化{% else %}直接报名{% endif %}')" 
+                                <button onclick="editFormalCourse({{ course.id }}, '{{ course.customer.name|replace("'", "\\'") }}', '{{ course.customer.phone|replace("'", "\\'") }}', '{{ course.customer.gender|default('', true)|replace("'", "\\'") }}', '{{ course.customer.grade|default('', true)|replace("'", "\\'") }}', '{{ course.customer.region|default('', true)|replace("'", "\\'") }}', '{{ course.course_type|default('', true)|replace("'", "\\'") }}', {{ course.sessions or 0 }}, {{ course.gift_sessions or 0 }}, {{ course.price or 0 }}, '{{ course.payment_channel|default('', true)|replace("'", "\\'") }}', {{ course.cost or 0 }}, {{ course.other_cost or 0 }}, '{% if course.converted_from_trial %}试听课转化{% else %}直接报名{% endif %}')" 
                                         class="btn btn-sm btn-primary me-2" title="编辑详情">
                                     <i class="fas fa-edit"></i> 编辑详情
                                 </button>
@@ -160,7 +163,7 @@
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="11" class="text-center">暂无正课记录</td>
+                        <td colspan="12" class="text-center">暂无正课记录</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -284,6 +287,7 @@
                             <option value="试听课转化">试听课转化</option>
                         </select>
                     </div>
+
                 </div>
             </div>
             
@@ -296,51 +300,57 @@
 </div>
 
 <script>
+// 导出数据功能
+function exportFormalData() {
+    const button = event.target;
+    const originalText = button.innerHTML;
+    
+    // 显示加载状态
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 导出中...';
+    button.disabled = true;
+    
+    // 创建一个隐藏的链接来下载文件
+    const link = document.createElement('a');
+    link.href = '/api/export/formal-courses';
+    link.download = '';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    // 恢复按钮状态
+    setTimeout(() => {
+        button.innerHTML = originalText;
+        button.disabled = false;
+    }, 2000);
+}
+
 // 删除正课记录
 function deleteFormalCourse(courseId) {
-    if (confirm('确定要删除这条正课记录吗？')) {
-        fetch(`/api/formal-courses/${courseId}`, {
-            method: 'DELETE',
-            headers: {
-                'Content-Type': 'application/json',
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                location.reload();
-            } else {
-                alert(data.message || '删除失败');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('删除失败');
-        });
-    }
+    // 使用公共模块进行删除
+    CourseManager.deleteFormalCourse(courseId);
 }
 
 // 编辑正课记录
 function editFormalCourse(courseId, name, phone, gender, grade, region, courseType, sessions, giftSessions, price, paymentChannel, cost, otherCost, source) {
-    // 填充表单数据
-    document.getElementById('edit_formal_course_id').value = courseId;
-    document.getElementById('edit_formal_customer_name').value = name;
-    document.getElementById('edit_formal_customer_phone').value = phone;
-    document.getElementById('edit_formal_customer_gender').value = gender;
-    document.getElementById('edit_formal_customer_grade').value = grade;
-    document.getElementById('edit_formal_customer_region').value = region;
-    document.getElementById('edit_formal_course_type').value = courseType;
-    document.getElementById('edit_formal_sessions').value = sessions;
-    document.getElementById('edit_formal_gift_sessions').value = giftSessions;
-    document.getElementById('edit_formal_price').value = price;
-    document.getElementById('edit_formal_payment_channel').value = paymentChannel;
-    document.getElementById('edit_formal_cost').value = cost;
-    document.getElementById('edit_formal_other_cost').value = otherCost;
-    document.getElementById('edit_formal_source').value = source;
+    // 构造课程数据对象
+    const courseData = {
+        customer_name: name,
+        customer_phone: phone,
+        customer_gender: gender,
+        customer_grade: grade,
+        customer_region: region,
+        course_type: courseType,
+        sessions: sessions,
+        gift_sessions: giftSessions,
+        price: price,
+        payment_channel: paymentChannel,
+        cost: cost,
+        other_cost: otherCost,
+        source: source
+    };
     
-    // 显示编辑模态框
-    document.getElementById('editFormalModal').style.display = 'block';
-    document.body.style.overflow = 'hidden';
+    // 使用公共模块进行编辑
+    CourseManager.editFormalCourse(courseId, courseData);
 }
 
 // 自动隐藏消息提示
@@ -355,55 +365,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 3000);
     }
     
-    // 编辑正课模态框控制
-    const editFormalModal = document.getElementById('editFormalModal');
-    const editFormalCloseModal = editFormalModal.querySelector('.close');
-    const editFormalCancelBtn = document.getElementById('editFormalCancelBtn');
-    const editFormalForm = document.getElementById('editFormalForm');
-    
-    // 关闭编辑模态框
-    function closeEditFormalModal() {
-        editFormalModal.style.display = 'none';
-        document.body.style.overflow = 'auto';
-        editFormalForm.reset(); // 重置表单
-    }
-    
-    editFormalCloseModal.addEventListener('click', closeEditFormalModal);
-    editFormalCancelBtn.addEventListener('click', closeEditFormalModal);
-    
-    // 点击编辑模态框外部关闭
-    window.addEventListener('click', function(event) {
-        if (event.target === editFormalModal) {
-            closeEditFormalModal();
-        }
-    });
-    
-    // 编辑表单提交
-    editFormalForm.addEventListener('submit', function(e) {
-        e.preventDefault();
-        
-        const courseId = document.getElementById('edit_formal_course_id').value;
-        const formData = new FormData(editFormalForm);
-        
-        fetch(`/api/formal-courses/${courseId}`, {
-            method: 'PUT',
-            body: formData
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                alert('正课信息更新成功！');
-                closeEditFormalModal();
-                location.reload();
-            } else {
-                alert(data.message || '更新失败');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('更新失败');
-        });
-    });
+    // 初始化公共模块的模态框事件处理
+    CourseManager.initModalEvents();
 });
 </script>
 
@@ -671,6 +634,8 @@ document.addEventListener('DOMContentLoaded', function() {
     color: #383d41;
 }
 
+
+
 .text-success {
     color: #28a745 !important;
 }
@@ -753,19 +718,22 @@ document.addEventListener('DOMContentLoaded', function() {
 
 /* 模态框样式 */
 .modal {
+    display: none;
     position: fixed;
-    z-index: 1000;
+    z-index: 2000;
     left: 0;
     top: 0;
     width: 100%;
     height: 100%;
     background-color: rgba(0,0,0,0.5);
     overflow-y: auto;
+    align-items: center;
+    justify-content: center;
 }
 
 .modal-content {
     background-color: #fefefe;
-    margin: 2% auto;
+    margin: 0;
     padding: 0;
     border-radius: 8px;
     width: 90%;
