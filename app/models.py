@@ -10,13 +10,7 @@ class Customer(db.Model):
     phone = db.Column(db.String(20), unique=True, nullable=False)
     source = db.Column(db.String(50)) # 渠道来源
     has_tutoring_experience = db.Column(db.String(10)) # 是否参加过英语课外辅导
-    employee_id = db.Column(db.Integer, db.ForeignKey('employee.id'))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
-class Employee(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False, unique=True)
-    customers = db.relationship('Customer', backref='employee', lazy=True)
 
 class Course(db.Model):
     id = db.Column(db.Integer, primary_key=True)
