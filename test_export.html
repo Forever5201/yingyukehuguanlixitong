@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>测试Excel导出</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+        .btn {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 10px;
+        }
+        .btn:hover {
+            background-color: #0056b3;
+        }
+        .btn:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        .log {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 10px;
+            margin-top: 20px;
+            border-radius: 4px;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <h1>Excel导出功能测试</h1>
+    
+    <button class="btn" onclick="testExport()">测试刷单数据导出</button>
+    <button class="btn" onclick="testDirectDownload()">直接下载测试</button>
+    <button class="btn" onclick="testFetch()">使用Fetch测试</button>
+    
+    <div id="log" class="log">点击按钮开始测试...</div>
+
+    <script>
+        function log(message) {
+            const logDiv = document.getElementById('log');
+            logDiv.textContent += new Date().toLocaleTimeString() + ': ' + message + '\n';
+        }
+
+        function testExport() {
+            log('开始测试导出功能...');
+            const button = event.target;
+            const originalText = button.innerHTML;
+            
+            // 显示加载状态
+            button.innerHTML = '导出中...';
+            button.disabled = true;
+            
+            try {
+                // 创建一个隐藏的链接来下载文件
+                const link = document.createElement('a');
+                link.href = '/api/export/taobao-orders';
+                link.download = '';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                log('导出链接已点击');
+            } catch (error) {
+                log('导出失败: ' + error.message);
+            }
+            
+            // 恢复按钮状态
+            setTimeout(() => {
+                button.innerHTML = originalText;
+                button.disabled = false;
+                log('按钮状态已恢复');
+            }, 2000);
+        }
+
+        function testDirectDownload() {
+            log('测试直接下载...');
+            window.location.href = '/api/export/taobao-orders';
+        }
+
+        function testFetch() {
+            log('使用Fetch API测试...');
+            
+            fetch('/api/export/taobao-orders')
+                .then(response => {
+                    log('响应状态: ' + response.status);
+                    log('响应头: ' + JSON.stringify(Object.fromEntries(response.headers.entries())));
+                    
+                    if (response.ok) {
+                        return response.blob();
+                    } else {
+                        throw new Error('响应状态不正常: ' + response.status);
+                    }
+                })
+                .then(blob => {
+                    log('收到Blob数据，大小: ' + blob.size + ' bytes');
+                    
+                    // 创建下载链接
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = '刷单数据_测试.xlsx';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    window.URL.revokeObjectURL(url);
+                    
+                    log('文件下载已触发');
+                })
+                .catch(error => {
+                    log('Fetch测试失败: ' + error.message);
+                });
+        }
+    </script>
+</body>
+</html>

@@ -150,7 +150,7 @@
                         </td>
                         <td>
                             <div class="action-buttons">
-                                <button onclick="editFormalCourse({{ course.id }}, '{{ course.customer.name|replace("'", "\\'") }}', '{{ course.customer.phone|replace("'", "\\'") }}', '{{ course.customer.gender|default('', true)|replace("'", "\\'") }}', '{{ course.customer.grade|default('', true)|replace("'", "\\'") }}', '{{ course.customer.region|default('', true)|replace("'", "\\'") }}', '{{ course.course_type|default('', true)|replace("'", "\\'") }}', {{ course.sessions or 0 }}, {{ course.gift_sessions or 0 }}, {{ course.price or 0 }}, '{{ course.payment_channel|default('', true)|replace("'", "\\'") }}', {{ course.cost or 0 }}, {{ course.other_cost or 0 }}, '{% if course.converted_from_trial %}试听课转化{% else %}直接报名{% endif %}')" 
+                                <button onclick="editFormalCourse({{ course.id }})" 
                                         class="btn btn-sm btn-primary me-2" title="编辑详情">
                                     <i class="fas fa-edit"></i> 编辑详情
                                 </button>
@@ -331,26 +331,29 @@ function deleteFormalCourse(courseId) {
 }
 
 // 编辑正课记录
-function editFormalCourse(courseId, name, phone, gender, grade, region, courseType, sessions, giftSessions, price, paymentChannel, cost, otherCost, source) {
-    // 构造课程数据对象
-    const courseData = {
-        customer_name: name,
-        customer_phone: phone,
-        customer_gender: gender,
-        customer_grade: grade,
-        customer_region: region,
-        course_type: courseType,
-        sessions: sessions,
-        gift_sessions: giftSessions,
-        price: price,
-        payment_channel: paymentChannel,
-        cost: cost,
-        other_cost: otherCost,
-        source: source
-    };
+function editFormalCourse(courseId) {
+    console.log('正课编辑按钮被点击，课程ID:', courseId);
     
-    // 使用公共模块进行编辑
-    CourseManager.editFormalCourse(courseId, courseData);
+    // 通过API获取课程详细信息
+    fetch(`/api/formal-courses/${courseId}`)
+        .then(response => {
+            console.log('API响应状态:', response.status);
+            return response.json();
+        })
+        .then(data => {
+            console.log('获取到的课程数据:', data);
+            if (data.success) {
+                // 使用公共模块进行编辑
+                CourseManager.editFormalCourse(courseId, data.course);
+            } else {
+                console.error('获取课程数据失败:', data.message);
+                alert('获取课程信息失败：' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('获取课程数据时发生错误:', error);
+            alert('获取课程信息失败，请重试');
+        });
 }
 
 // 自动隐藏消息提示

@@ -274,10 +274,10 @@
                     </td>
                     <td>
                         <div class="action-buttons">
-                            <button class="btn-icon" onclick="editOrder('{{ order.id }}')" title="编辑">
+                            <button class="btn-icon" onclick="editOrder({{ order.id|tojson }})" title="编辑">
                                 <i class="fas fa-edit"></i>
                             </button>
-                            <button class="btn-icon btn-danger" onclick="deleteOrder('{{ order.id }}')" title="删除">
+                            <button class="btn-icon btn-danger" onclick="deleteOrder({{ order.id|tojson }})" title="删除">
                                 <i class="fas fa-trash"></i>
                             </button>
                         </div>
@@ -848,7 +848,6 @@ function editOrder(orderId) {
             return response.json();
         })
         .then(order => {
-            console.log('获取到的订单数据:', order);
             
             document.getElementById('modalTitle').textContent = '编辑刷单记录';
             document.getElementById('orderId').value = order.id;
@@ -877,24 +876,18 @@ function editOrder(orderId) {
             document.getElementById('orderModal').style.display = 'flex';
         })
         .catch(error => {
-            console.error('获取订单数据失败:', error);
             alert('获取订单数据失败: ' + error.message);
         });
 }
 
 function deleteOrder(orderId) {
-    console.log('deleteOrder called with orderId:', orderId);
-    
     if (!orderId) {
         alert('订单ID无效');
         return;
     }
     
     if (confirm('确定要删除这条刷单记录吗？')) {
-        console.log('User confirmed deletion');
-        
         const url = `/api/taobao-orders/${encodeURIComponent(orderId)}`;
-        console.log('Sending DELETE request to:', url);
         
         fetch(url, { 
             method: 'DELETE',
@@ -903,14 +896,12 @@ function deleteOrder(orderId) {
             }
         })
         .then(response => {
-            console.log('Response status:', response.status);
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
             return response.json();
         })
         .then(data => {
-            console.log('Response data:', data);
             if (data.success) {
                 alert('删除成功！');
                 // 直接刷新页面，避免复杂的DOM操作
@@ -920,11 +911,8 @@ function deleteOrder(orderId) {
             }
         })
         .catch(err => {
-            console.error('删除错误:', err);
             alert('删除失败：' + err.message);
         });
-    } else {
-        console.log('User cancelled deletion');
     }
 }
 
@@ -1041,19 +1029,58 @@ function exportData() {
     button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 导出中...';
     button.disabled = true;
     
-    // 创建一个隐藏的链接来下载文件
-    const link = document.createElement('a');
-    link.href = '/api/export/taobao-orders';
-    link.download = '';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    
-    // 恢复按钮状态
-    setTimeout(() => {
-        button.innerHTML = originalText;
-        button.disabled = false;
-    }, 2000);
+    // 使用简单的fetch请求
+    fetch('/api/export/taobao-orders', {
+        method: 'GET',
+        headers: {
+            'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        }
+    })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            return response.blob();
+        })
+        .then(blob => {
+            if (blob.size === 0) {
+                throw new Error('下载的文件为空');
+            }
+            
+            // 创建下载链接
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            
+            // 生成文件名
+            const now = new Date();
+            const timestamp = now.getFullYear() + 
+                            String(now.getMonth() + 1).padStart(2, '0') + 
+                            String(now.getDate()).padStart(2, '0') + '_' +
+                            String(now.getHours()).padStart(2, '0') + 
+                            String(now.getMinutes()).padStart(2, '0') + 
+                            String(now.getSeconds()).padStart(2, '0');
+            link.download = `taobao_orders_${timestamp}.xlsx`;
+            
+            // 触发下载
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            // 清理URL对象
+            window.URL.revokeObjectURL(url);
+            
+            alert(`导出成功！文件已下载到您的下载文件夹。\n文件大小: ${(blob.size / 1024).toFixed(1)} KB`);
+        })
+        .catch(error => {
+            alert(`导出失败: ${error.message}`);
+        })
+        .finally(() => {
+            // 恢复按钮状态
+            button.innerHTML = originalText;
+            button.disabled = false;
+        });
 }
 
 // 确认结算
@@ -1086,7 +1113,6 @@ function confirmSettle() {
         }
     })
     .catch(error => {
-        console.error('Error:', error);
         alert('结算失败，请重试');
     });
 }
@@ -1265,7 +1291,6 @@ function saveEdit(input, orderId, field, originalValue) {
         }
     })
     .catch(error => {
-        console.error('Error:', error);
         alert('更新失败，请重试');
         cancelEdit(input, originalValue, field);
     });
@@ -1273,10 +1298,7 @@ function saveEdit(input, orderId, field, originalValue) {
 
 // 切换结算状态
 function toggleSettlement(element) {
-    console.log('toggleSettlement called with element:', element);
-    
     const orderId = element.getAttribute('data-order-id');
-    console.log('Order ID:', orderId);
     
     if (!orderId) {
         alert('订单ID无效');
@@ -1286,11 +1308,8 @@ function toggleSettlement(element) {
     const currentSettled = element.querySelector('.badge-success') !== null;
     const newSettled = !currentSettled;
     
-    console.log('Current settled status:', currentSettled, 'New status:', newSettled);
-    
     // 如果是已结算状态，显示详情而不是直接切换
     if (currentSettled) {
-        console.log('Showing settlement detail for settled order');
         showSettlementDetail(orderId);
         return;
     }
@@ -1298,25 +1317,20 @@ function toggleSettlement(element) {
     // 确认切换
     const action = newSettled ? '结算' : '取消结算';
     if (!confirm(`确定要${action}这个订单吗？`)) {
-        console.log('User cancelled settlement toggle');
         return;
     }
     
-    console.log('User confirmed settlement toggle');
     updateSettlementStatus(orderId, newSettled, element);
 }
 
 // 更新结算状态
 function updateSettlementStatus(orderId, settled, element) {
-    console.log('updateSettlementStatus called with:', orderId, settled);
-    
     const updateData = {
         field: 'settled',
         value: settled
     };
     
     const url = `/api/taobao-orders/${orderId}`;
-    console.log('Sending PUT request to:', url, 'with data:', updateData);
     
     fetch(url, {
         method: 'PUT',
@@ -1326,14 +1340,12 @@ function updateSettlementStatus(orderId, settled, element) {
         body: JSON.stringify(updateData)
     })
     .then(response => {
-        console.log('Response status:', response.status);
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         return response.json();
     })
     .then(data => {
-        console.log('Response data:', data);
         if (data.success) {
             alert(settled ? '结算成功！' : '取消结算成功！');
             // 直接刷新页面，避免复杂的DOM操作
@@ -1343,7 +1355,6 @@ function updateSettlementStatus(orderId, settled, element) {
         }
     })
     .catch(error => {
-        console.error('更新结算状态错误:', error);
         alert('更新失败：' + error.message);
     });
 }
@@ -1389,7 +1400,6 @@ function showSettlementDetail(orderId) {
         }
     })
     .catch(error => {
-        console.error('Error:', error);
         alert('获取订单详情失败，请重试');
     });
 }
@@ -1457,7 +1467,7 @@ function applyFiltersAndSort() {
     const sortBy = document.getElementById('sortBy').value;
     const sortOrder = document.getElementById('sortOrder').value;
     
-    console.log('排序参数:', { sortBy, sortOrder, rowsCount: rows.length });
+
     
     // 筛选行
     const filteredRows = rows.filter(row => {
@@ -1504,7 +1514,7 @@ function applyFiltersAndSort() {
     
     // 排序
     if (sortBy && filteredRows.length > 0) {
-        console.log('开始排序，排序字段:', sortBy, '排序顺序:', sortOrder);
+
         
         filteredRows.sort((a, b) => {
             let valueA, valueB;
@@ -1558,7 +1568,6 @@ function applyFiltersAndSort() {
                     valueB = b.cells[1] ? b.cells[1].textContent.trim().toLowerCase() : '';
                     break;
                 default:
-                    console.log('未知的排序字段:', sortBy);
                     return 0;
             }
             
@@ -1575,14 +1584,13 @@ function applyFiltersAndSort() {
             return result;
         });
         
-        console.log('排序完成，排序后的行数:', filteredRows.length);
+
     }
     
     // 获取表格的tbody元素
     const tbody = document.querySelector('tbody');
     
     if (!tbody) {
-        console.error('找不到tbody元素');
         return;
     }
     
@@ -1591,12 +1599,8 @@ function applyFiltersAndSort() {
         row.style.display = 'none';
     });
     
-    console.log('筛选后的行数:', filteredRows.length);
-    
     // 如果有排序，重新排列DOM元素
     if (sortBy && filteredRows.length > 0) {
-        console.log('重新排列DOM元素，排序字段:', sortBy);
-        
         // 创建一个文档片段来批量操作DOM
         const fragment = document.createDocumentFragment();
         
@@ -1614,14 +1618,11 @@ function applyFiltersAndSort() {
         
         // 一次性将所有行添加到tbody
         tbody.appendChild(fragment);
-        
-        console.log('DOM重新排列完成');
     } else {
         // 没有排序时，只显示筛选后的行
         filteredRows.forEach(row => {
             row.style.display = '';
         });
-        console.log('只显示筛选后的行，不排序');
     }
     
     // 更新结算按钮状态
@@ -1697,7 +1698,6 @@ function loadCurrentFeeRate() {
             document.getElementById('currentFeeRate').textContent = feeRate;
         })
         .catch(error => {
-            console.error('获取手续费率失败:', error);
             document.getElementById('currentFeeRate').textContent = '12.5';
         });
 }

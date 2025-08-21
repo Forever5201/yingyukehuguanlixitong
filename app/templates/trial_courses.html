@@ -243,7 +243,7 @@
                     <div class="form-section-modal">
                         <h5><i class="fas fa-magic"></i> 智能识别 <small style="color: #6c757d;">(可选)</small></h5>
                         <div class="smart-input-container">
-                            <textarea id="smartInput" placeholder="粘贴学员信息，系统将自动识别并填入表单...&#10;&#10;示例格式：&#10;学员姓名：张淼&#10;性别：女&#10;年级：新高一&#10;地区：天津&#10;英语试卷满分：120&#10;英语当前分数：100&#10;联系方式：13820863683&#10;是否参加过英语课外辅导：否" rows="6"></textarea>
+                            <textarea id="smartInput" placeholder="智能识别学员信息，系统将自动识别并填入表单...&#10;&#10;支持格式：&#10;1. 完整信息：张三 男 初中 成都 13812345678&#10;2. 单独输入：手机号、姓名、地区、年级、性别等任意信息&#10;3. 组合输入：张三 13812345678、成都 初中、李四 女等&#10;4. 年级支持：小学、初中、高中、大学&#10;5. 地区支持：全国主要城市自动识别&#10;&#10;注：只有联系方式是必填项，其他信息可选" rows="6"></textarea>
                             <button type="button" id="parseBtn" class="btn btn-info">
                                 <i class="fas fa-wand-magic-sparkles"></i> 智能解析
                             </button>
@@ -255,8 +255,8 @@
                         <h5><i class="fas fa-user"></i> 学员信息</h5>
                         <div class="form-row">
                             <div class="form-group">
-                                <label for="new_customer_name">学员姓名 *</label>
-                                <input type="text" name="new_customer_name" id="new_customer_name" placeholder="请输入学员姓名" required>
+                                <label for="new_customer_name">学员姓名</label>
+                                <input type="text" name="new_customer_name" id="new_customer_name" placeholder="请输入学员姓名">
                             </div>
                             <div class="form-group">
                                 <label for="new_customer_phone">联系电话 *</label>
@@ -276,18 +276,10 @@
                                 <label for="new_customer_grade">年级</label>
                                 <select name="new_customer_grade" id="new_customer_grade">
                                     <option value="">请选择</option>
-                                    <option value="一年级">一年级</option>
-                                    <option value="二年级">二年级</option>
-                                    <option value="三年级">三年级</option>
-                                    <option value="四年级">四年级</option>
-                                    <option value="五年级">五年级</option>
-                                    <option value="六年级">六年级</option>
-                                    <option value="初一">初一</option>
-                                    <option value="初二">初二</option>
-                                    <option value="初三">初三</option>
-                                    <option value="高一">高一</option>
-                                    <option value="高二">高二</option>
-                                    <option value="高三">高三</option>
+                                    <option value="小学">小学</option>
+                                    <option value="初中">初中</option>
+                                    <option value="高中">高中</option>
+                                    <option value="大学">大学</option>
                                 </select>
                             </div>
                         </div>
@@ -392,18 +384,10 @@
                                 <label for="edit_trial_customer_grade">年级</label>
                                 <select name="customer_grade" id="edit_trial_customer_grade">
                                     <option value="">请选择</option>
-                                    <option value="一年级">一年级</option>
-                                    <option value="二年级">二年级</option>
-                                    <option value="三年级">三年级</option>
-                                    <option value="四年级">四年级</option>
-                                    <option value="五年级">五年级</option>
-                                    <option value="六年级">六年级</option>
-                                    <option value="初一">初一</option>
-                                    <option value="初二">初二</option>
-                                    <option value="初三">初三</option>
-                                    <option value="高一">高一</option>
-                                    <option value="高二">高二</option>
-                                    <option value="高三">高三</option>
+                                    <option value="小学">小学</option>
+                                    <option value="初中">初中</option>
+                                    <option value="高中">高中</option>
+                                    <option value="大学">大学</option>
                                 </select>
                             </div>
                         </div>
@@ -929,6 +913,8 @@ document.addEventListener('DOMContentLoaded', function() {
      
      // 解析学员信息的函数
      function parseStudentInfo(text) {
+         console.log('开始解析文本:', text);
+         
          // 定义匹配规则
          const patterns = {
              name: [
@@ -972,12 +958,115 @@ document.addEventListener('DOMContentLoaded', function() {
          // 解析各个字段
          const results = {};
          
+         // 先尝试标准格式解析
          for (const [field, regexList] of Object.entries(patterns)) {
              for (const regex of regexList) {
                  const match = text.match(regex);
                  if (match && match[1]) {
                      results[field] = match[1].trim();
+                     console.log(`匹配到${field}:`, results[field]);
                      break;
+                 }
+             }
+         }
+         
+         // 智能识别：如果没有匹配到任何标准格式，尝试智能识别
+         if (Object.keys(results).length === 0) {
+             console.log('标准格式解析失败，尝试智能识别...');
+             
+             // 去除空白字符，获取纯文本
+             const cleanText = text.trim();
+             
+             // 定义常见地区、年级等关键词
+             const regions = ['北京', '上海', '广州', '深圳', '杭州', '南京', '苏州', '成都', '重庆', '武汉', '西安', '天津', '青岛', '大连', '宁波', '厦门', '长沙', '郑州', '济南', '哈尔滨', '沈阳', '长春', '石家庄', '太原', '呼和浩特', '兰州', '西宁', '银川', '乌鲁木齐', '拉萨', '昆明', '贵阳', '南宁', '海口', '三亚', '福州', '合肥', '南昌', '温州', '无锡', '常州', '徐州', '扬州', '镇江', '泰州', '盐城', '淮安', '连云港', '宿迁'];
+             const grades = ['小学', '初中', '高中', '大学', '幼儿园'];
+             const genders = ['男', '女'];
+             
+             // 检查是否只是手机号
+             const phoneMatch = cleanText.match(/^([1][3-9]\d{9})$/);
+             if (phoneMatch) {
+                 results.phone = phoneMatch[1];
+                 console.log('识别为纯手机号:', results.phone);
+             }
+             // 检查是否是年级
+             else if (grades.includes(cleanText)) {
+                 results.grade = cleanText;
+                 console.log('识别为年级:', results.grade);
+             }
+             // 检查是否是地区
+             else if (regions.includes(cleanText)) {
+                 results.region = cleanText;
+                 console.log('识别为地区:', results.region);
+             }
+             // 检查是否是性别
+             else if (genders.includes(cleanText)) {
+                 results.gender = cleanText;
+                 console.log('识别为性别:', results.gender);
+             }
+             // 检查是否只是姓名（2-4个中文字符，不包含数字，且不是地区、年级、性别）
+             else if (/^[\u4e00-\u9fa5]{2,4}$/.test(cleanText) && 
+                      !regions.includes(cleanText) && 
+                      !grades.includes(cleanText) && 
+                      !genders.includes(cleanText)) {
+                 results.name = cleanText;
+                 console.log('识别为纯姓名:', results.name);
+             }
+             // 检查是否包含多种信息的组合
+             else {
+                 // 提取手机号
+                 const phoneInText = cleanText.match(/([1][3-9]\d{9})/);
+                 if (phoneInText) {
+                     results.phone = phoneInText[1];
+                     console.log('从文本中提取手机号:', results.phone);
+                 }
+                 
+                 // 提取地区
+                 for (const region of regions) {
+                     if (cleanText.includes(region)) {
+                         results.region = region;
+                         console.log('从文本中提取地区:', results.region);
+                         break;
+                     }
+                 }
+                 
+                 // 提取年级
+                 for (const grade of grades) {
+                     if (cleanText.includes(grade)) {
+                         results.grade = grade;
+                         console.log('从文本中提取年级:', results.grade);
+                         break;
+                     }
+                 }
+                 
+                 // 提取性别
+                 for (const gender of genders) {
+                     if (cleanText.includes(gender)) {
+                         results.gender = gender;
+                         console.log('从文本中提取性别:', results.gender);
+                         break;
+                     }
+                 }
+                 
+                 // 提取姓名（移除已识别的信息后）
+                 let textForName = cleanText;
+                 if (results.phone) {
+                     textForName = textForName.replace(/([1][3-9]\d{9})/, '').trim();
+                 }
+                 if (results.region) {
+                     textForName = textForName.replace(results.region, '').trim();
+                 }
+                 if (results.grade) {
+                     textForName = textForName.replace(results.grade, '').trim();
+                 }
+                 if (results.gender) {
+                     textForName = textForName.replace(results.gender, '').trim();
+                 }
+                 
+                 // 从剩余文本中提取姓名
+                 const nameMatch = textForName.match(/[\u4e00-\u9fa5]{2,4}/);
+                 if (nameMatch) {
+                     results.name = nameMatch[0];
+                     console.log('从文本中提取姓名:', results.name);
                  }
              }
          }
@@ -1054,12 +1143,7 @@ document.addEventListener('DOMContentLoaded', function() {
              const price = document.getElementById('trial_price').value.trim();
              const source = document.getElementById('source').value;
             
-            if (!name) {
-                e.preventDefault();
-                alert('请输入学员姓名');
-                return;
-            }
-            
+            // 只验证联系电话为必填项
             if (!phone) {
                 e.preventDefault();
                 alert('请输入联系电话');

@@ -110,7 +110,7 @@
                                 {% set current_status = course.trial_status or course.status_key or 'registered' %}
                                 <select class="form-select form-select-sm status-select" 
                                         data-course-id="{{ course.id }}" 
-                                        onchange="updateTrialStatus({{ course.id }}, this.value, '{{ table_id }}')">
+                                        onchange="updateTrialStatus({{ course.id }}, this.value, {{ table_id|tojson }})">
                                     <option value="registered" {% if current_status == 'registered' %}selected{% endif %}>已报名试听课</option>
                                     <option value="not_registered" {% if current_status == 'not_registered' %}selected{% endif %}>未报名试听课</option>
                                     <option value="refunded" {% if current_status == 'refunded' %}selected{% endif %}>试听后退费</option>
@@ -127,17 +127,17 @@
                         </td>
                         <td>
                             <div class="btn-group btn-group-sm" role="group">
-                                <button onclick="editTrialCourse({{ course.id }}, '{{ table_id }}')" 
+                                <button onclick="editTrialCourse({{ course.id }}, {{ table_id|tojson }})" 
                                         class="btn btn-outline-primary btn-sm" title="编辑详情">
                                     <i class="fas fa-edit"></i>
                                 </button>
                                 {% if not course.converted_to_course and current_status != 'converted' %}
-                                <button onclick="convertTrialToCourse({{ course.id }}, '{{ table_id }}')" 
+                                <button onclick="convertTrialToCourse({{ course.id }}, {{ table_id|tojson }})" 
                                         class="btn btn-outline-success btn-sm" title="转正课">
                                     <i class="fas fa-arrow-right"></i>
                                 </button>
                                 {% endif %}
-                                <button onclick="deleteTrialCourse({{ course.id }}, '试听课用户', '{{ table_id }}')" 
+                                <button onclick="deleteTrialCourse({{ course.id }}, '试听课用户', {{ table_id|tojson }})" 
                                         class="btn btn-outline-danger btn-sm" title="删除">
                                     <i class="fas fa-trash"></i>
                                 </button>
@@ -183,7 +183,7 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                    <button type="button" class="btn btn-warning" onclick="submitRefund('{{ table_id }}')">
+                    <button type="button" class="btn btn-warning" onclick="submitRefund({{ table_id|tojson }})">
                         <i class="fas fa-check"></i> 确认退费
                     </button>
                 </div>

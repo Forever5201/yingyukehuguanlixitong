@@ -1,50 +1,12 @@
-from flask import render_template, request, redirect, url_for, jsonify, flash, make_response, send_from_directory
+from flask import render_template, request, redirect, url_for, jsonify, flash
 from flask import current_app as app
 from .models import db, Customer, Config, TaobaoOrder, Course
 from datetime import datetime
-import csv
-from io import StringIO, BytesIO
-import pandas as pd
 
 @app.route('/test-js')
 def test_js():
     """JavaScript测试页面"""
     return render_template('test_js.html')
-
-@app.route('/api/test')
-def test_api():
-    """简单的测试API"""
-    return jsonify({'status': 'ok', 'message': '服务器正常工作'})
-
-@app.route('/api/test-excel')
-def test_excel_export():
-    """测试Excel导出功能"""
-    try:
-        # 创建简单的测试数据
-        data = [
-            {'订单ID': 1, '客户姓名': '测试客户1', '金额': 100},
-            {'订单ID': 2, '客户姓名': '测试客户2', '金额': 200}
-        ]
-        
-        # 创建DataFrame
-        df = pd.DataFrame(data)
-        
-        # 创建Excel文件
-        output = BytesIO()
-        with pd.ExcelWriter(output, engine='openpyxl') as writer:
-            df.to_excel(writer, sheet_name='测试数据', index=False)
-        
-        output.seek(0)
-        
-        # 创建响应
-        response = make_response(output.getvalue())
-        response.headers['Content-Type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-        response.headers['Content-Disposition'] = 'attachment; filename="test.xlsx"'
-        
-        return response
-        
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
 
 @app.route('/')
 def home():
@@ -77,7 +39,7 @@ def home():
     
     # 获取最近客户（使用索引）
     recent_customers = Customer.query.with_entities(
-        Customer.name, Customer.phone, Customer.grade, Customer.region, Customer.created_at
+        Customer.name, Customer.created_at
     ).order_by(Customer.created_at.desc()).limit(5).all()
     
     return render_template('index.html', 
@@ -93,35 +55,23 @@ def home():
 @app.route('/customers', methods=['GET', 'POST'])
 def manage_customers():
     if request.method == 'POST':
-        name = request.form['name'].strip()
+        name = request.form['name']
         gender = request.form['gender']
         grade = request.form['grade']
         region = request.form['region']
-        phone = request.form['phone'].strip()
+        phone = request.form['phone']
         source = request.form['source']
-        
-        # 验证必填字段
-        if not name or not phone:
-            flash('请填写客户姓名和联系电话！', 'error')
-            return redirect(url_for('manage_customers'))
-        
-        # 检查手机号是否已存在
-        existing_customer = Customer.query.filter_by(phone=phone).first()
-        if existing_customer:
-            flash(f'手机号 {phone} 已存在，客户：{existing_customer.name}', 'error')
-            return redirect(url_for('manage_customers'))
         
         new_customer = Customer(
             name=name, 
-            gender=gender if gender else None, 
-            grade=grade if grade else None, 
-            region=region if region else None, 
+            gender=gender, 
+            grade=grade, 
+            region=region, 
             phone=phone, 
-            source=source if source else None
+            source=source
         )
         db.session.add(new_customer)
         db.session.commit()
-        flash(f'客户 {name} 添加成功！', 'success')
         return redirect(url_for('manage_customers'))
 
     # 使用分页和选择性字段查询
@@ -187,7 +137,6 @@ def manage_taobao_orders():
                 order.level = level
                 order.amount = amount
                 order.commission = commission
-                # 重新计算手续费
                 order.taobao_fee = taobao_fee
                 order.evaluated = evaluated
                 order.order_time = order_time
@@ -209,7 +158,6 @@ def manage_taobao_orders():
     # 计算统计数据
     from sqlalchemy import case
     stats = db.session.query(
-        db.func.count(TaobaoOrder.id).label('total_count'),
         db.func.coalesce(db.func.sum(TaobaoOrder.amount), 0).label('total_amount'),
         db.func.coalesce(db.func.sum(TaobaoOrder.commission), 0).label('total_commission'),
         db.func.coalesce(db.func.sum(TaobaoOrder.taobao_fee), 0).label('total_taobao_fee'),
@@ -237,7 +185,6 @@ def manage_taobao_orders():
     return render_template('taobao_orders.html', 
                          orders=orders,
                          stats={
-                             'total_count': stats.total_count or 0,
                              'total_amount': stats.total_amount or 0,
                              'total_commission': stats.total_commission or 0,
                              'total_taobao_fee': stats.total_taobao_fee or 0,
@@ -257,17 +204,20 @@ def get_taobao_order(order_id):
     """获取单个淘宝订单详情"""
     order = TaobaoOrder.query.get_or_404(order_id)
     return jsonify({
-        'id': order.id,
-        'customer_name': order.name,  # 修正字段名匹配前端期望
-        'level': order.level,
-        'amount': order.amount,
-        'commission': order.commission,
-        'taobao_fee': order.taobao_fee,
-        'evaluated': order.evaluated,
-        'order_time': order.order_time.isoformat() if order.order_time else None,
-        'settled': order.settled,
-        'settled_at': order.settled_at.isoformat() if order.settled_at else None,
-        'created_at': order.created_at.isoformat() if order.created_at else None
+        'success': True,
+        'order': {
+            'id': order.id,
+            'name': order.name,
+            'level': order.level,
+            'amount': order.amount,
+            'commission': order.commission,
+            'taobao_fee': order.taobao_fee,
+            'evaluated': order.evaluated,
+            'order_time': order.order_time.isoformat() if order.order_time else None,
+            'settled': order.settled,
+            'settled_at': order.settled_at.isoformat() if order.settled_at else None,
+            'created_at': order.created_at.isoformat() if order.created_at else None
+        }
     })
 
 @app.route('/api/taobao-orders/<int:order_id>', methods=['PUT'])
@@ -289,10 +239,6 @@ def update_taobao_order(order_id):
         order.level = value
     elif field == 'amount':
         order.amount = float(value)
-        # 当修改刷单金额时，自动重新计算淘宝手续费
-        taobao_fee_rate_config = Config.query.filter_by(key='taobao_fee_rate').first()
-        taobao_fee_rate = float(taobao_fee_rate_config.value) if taobao_fee_rate_config else 0.6
-        order.taobao_fee = order.amount * taobao_fee_rate / 100
     elif field == 'commission':
         order.commission = float(value)
     elif field == 'taobao_fee':
@@ -330,201 +276,12 @@ def delete_taobao_order(order_id):
     db.session.delete(order)
     db.session.commit()
     return jsonify({'success': True, 'message': '订单删除成功'})
-
-@app.route('/api/export/taobao-orders')
-def export_taobao_orders():
-    """导出刷单数据为Excel"""
-    try:
-        app.logger.info("开始导出刷单数据")
-        
-        # 查询所有订单数据，与UI界面保持一致
-        try:
-            orders = TaobaoOrder.query.order_by(TaobaoOrder.order_time.desc()).all()
-            app.logger.info(f"成功查询到 {len(orders)} 条订单")
-        except Exception as query_error:
-            app.logger.error(f"订单查询失败: {str(query_error)}")
-            return jsonify({'error': f'订单查询失败: {str(query_error)}'}), 500
-        
-        if not orders:
-            app.logger.info("没有找到订单数据")
-            return jsonify({'error': '没有找到订单数据'}), 404
-        
-        # 准备完整的数据，与UI界面显示的字段保持一致
-        data = []
-        for i, order in enumerate(orders):
-            try:
-                data.append({
-                    '序号': i + 1,
-                    '订单ID': order.id,
-                    '客户姓名': order.name or '',
-                    '等级': order.level or '',
-                    '刷单金额': order.amount or 0,
-                    '佣金': order.commission or 0,
-                    '淘宝手续费': order.taobao_fee or 0,
-                    '本金': (order.amount or 0) + (order.commission or 0),
-                    '是否已评价': '是' if order.evaluated else '否',
-                    '订单时间': order.order_time.strftime('%Y-%m-%d %H:%M:%S') if order.order_time else '',
-                    '结算状态': '已结算' if order.settled else '未结算',
-                    '结算时间': order.settled_at.strftime('%Y-%m-%d %H:%M:%S') if order.settled_at else '',
-                    '创建时间': order.created_at.strftime('%Y-%m-%d %H:%M:%S') if order.created_at else ''
-                })
-            except Exception as data_error:
-                app.logger.error(f"处理第{i+1}条订单数据时出错: {str(data_error)}")
-                continue
-        
-        app.logger.info(f"准备了 {len(data)} 条数据")
-        
-        if not data:
-            return jsonify({'error': '没有有效的数据可导出'}), 404
-        
-        # 创建DataFrame
-        try:
-            df = pd.DataFrame(data)
-            app.logger.info("创建DataFrame成功")
-        except Exception as df_error:
-            app.logger.error(f"创建DataFrame失败: {str(df_error)}")
-            return jsonify({'error': f'创建DataFrame失败: {str(df_error)}'}), 500
-        
-        # 创建Excel文件
-        try:
-            output = BytesIO()
-            with pd.ExcelWriter(output, engine='openpyxl') as writer:
-                df.to_excel(writer, sheet_name='刷单数据', index=False)
-            
-            output.seek(0)
-            app.logger.info("Excel文件创建成功")
-        except Exception as excel_error:
-            app.logger.error(f"创建Excel文件失败: {str(excel_error)}")
-            return jsonify({'error': f'创建Excel文件失败: {str(excel_error)}'}), 500
-        
-        # 生成文件名（使用英文避免编码问题）
-        filename = f"taobao_orders_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
-        
-        # 创建响应
-        response = make_response(output.getvalue())
-        response.headers['Content-Type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-        response.headers['Content-Disposition'] = f'attachment; filename="{filename}"'
-        
-        app.logger.info("导出完成")
-        return response
-        
-    except Exception as e:
-        app.logger.error(f"导出刷单数据时出错: {str(e)}")
-        return jsonify({'error': f'导出失败: {str(e)}'}), 500
-
-@app.route('/api/export/trial-courses')
-def export_trial_courses():
-    """导出试听课数据为Excel"""
-    courses = Course.query.filter_by(course_type='trial').order_by(Course.created_at.desc()).all()
-    
-    # 准备数据
-    data = []
-    for course in courses:
-        customer = Customer.query.get(course.customer_id)
-        data.append({
-            '课程ID': course.id,
-            '客户姓名': customer.name if customer else '',
-            '客户电话': customer.phone if customer else '',
-            '课程类型': course.course_type,
-            '购买节数': course.sessions,
-            '单节售价': course.price_per_session,
-            '总金额': course.total_amount,
-            '支付渠道': course.payment_channel,
-            '赠课节数': course.gift_sessions or 0,
-            '其他成本': course.other_costs or 0,
-            '总成本': course.total_cost or 0,
-            '状态': course.status,
-            '创建时间': course.created_at.strftime('%Y-%m-%d %H:%M:%S') if course.created_at else ''
-        })
-    
-    # 创建DataFrame
-    df = pd.DataFrame(data)
-    
-    # 创建Excel文件
-    output = BytesIO()
-    with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        df.to_excel(writer, sheet_name='试听课数据', index=False)
-    
-    output.seek(0)
-    response = make_response(output.getvalue())
-    response.headers['Content-Type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    response.headers['Content-Disposition'] = f'attachment; filename=试听课数据_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
-    
-    return response
-
-@app.route('/api/export/formal-courses')
-def export_formal_courses():
-    """导出正课数据为Excel"""
-    courses = Course.query.filter_by(course_type='formal').order_by(Course.created_at.desc()).all()
-    
-    # 准备数据
-    data = []
-    for course in courses:
-        customer = Customer.query.get(course.customer_id)
-        data.append({
-            '课程ID': course.id,
-            '客户姓名': customer.name if customer else '',
-            '客户电话': customer.phone if customer else '',
-            '课程类型': course.course_type,
-            '购买节数': course.sessions,
-            '赠课节数': course.gift_sessions or 0,
-            '单节售价': course.price_per_session,
-            '支付渠道': course.payment_channel,
-            '实际收入': course.total_amount,
-            '课程成本': course.total_cost or 0,
-            '其他成本': course.other_costs or 0,
-            '利润': (course.total_amount or 0) - (course.total_cost or 0) - (course.other_costs or 0),
-            '创建时间': course.created_at.strftime('%Y-%m-%d %H:%M:%S') if course.created_at else '',
-            '来源': course.source or ''
-        })
-    
-    # 创建DataFrame
-    df = pd.DataFrame(data)
-    
-    # 创建Excel文件
-    output = BytesIO()
-    with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        df.to_excel(writer, sheet_name='正课数据', index=False)
-    
-    output.seek(0)
-    response = make_response(output.getvalue())
-    response.headers['Content-Type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    response.headers['Content-Disposition'] = f'attachment; filename=正课数据_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
-    
-    return response
 @app.route('/api/customers/<int:customer_id>', methods=['DELETE'])
 def delete_customer_api(customer_id):
-    try:
-        customer = Customer.query.get_or_404(customer_id)
-        
-        # 记录删除信息用于日志
-        customer_name = customer.name
-        customer_phone = customer.phone
-        
-        # 查找并删除关联的课程记录
-        related_courses = Course.query.filter_by(customer_id=customer_id).all()
-        course_count = len(related_courses)
-        
-        # 删除关联的课程记录
-        for course in related_courses:
-            db.session.delete(course)
-        
-        # 删除客户记录
-        db.session.delete(customer)
-        db.session.commit()
-        
-        # 记录删除日志
-        app.logger.info(f"客户删除成功: {customer_name}({customer_phone}), 同时删除了 {course_count} 条关联课程记录")
-        
-        return jsonify({
-            'success': True, 
-            'message': f'删除成功，同时清理了 {course_count} 条关联记录'
-        })
-        
-    except Exception as e:
-        db.session.rollback()
-        app.logger.error(f"客户删除失败: {str(e)}")
-        return jsonify({'success': False, 'message': f'删除失败: {str(e)}'}), 500
+    customer = Customer.query.get_or_404(customer_id)
+    db.session.delete(customer)
+    db.session.commit()
+    return jsonify({'success': True, 'message': '删除成功'})
 
 @app.route('/api/taobao-orders/settle', methods=['POST'])
 def settle_orders():
@@ -565,10 +322,6 @@ def quick_edit_order(order_id):
         order.level = data['level']
     if 'amount' in data:
         order.amount = float(data['amount'])
-        # 当刷单金额更新时，自动重新计算淘宝手续费
-        taobao_fee_config = Config.query.filter_by(key='taobao_fee_rate').first()
-        taobao_fee_rate = float(taobao_fee_config.value) if taobao_fee_config else 0.6
-        order.taobao_fee = order.amount * taobao_fee_rate / 100
     if 'commission' in data:
         order.commission = float(data['commission'])
     if 'taobao_fee' in data:
@@ -634,14 +387,10 @@ def manage_trial_courses():
             new_customer_grade = request.form.get('new_customer_grade', '').strip()
             new_customer_region = request.form.get('new_customer_region', '').strip()
             
-            # 验证必填字段（只验证联系电话）
-            if not new_customer_phone:
-                flash('请填写联系电话！', 'error')
+            # 验证必填字段
+            if not new_customer_name or not new_customer_phone:
+                flash('请填写学员姓名和联系电话！', 'error')
                 return redirect(url_for('manage_trial_courses'))
-            
-            # 如果姓名为空，使用手机号作为临时姓名
-            if not new_customer_name:
-                new_customer_name = f"学员{new_customer_phone[-4:]}"  # 使用手机号后4位作为临时姓名
             
             # 检查手机号是否已存在
             existing_customer = Customer.query.filter_by(phone=new_customer_phone).first()
@@ -835,7 +584,7 @@ def manage_formal_courses():
     
     # 获取淘宝手续费率配置
     taobao_fee_config = Config.query.filter_by(key='taobao_fee_rate').first()
-    taobao_fee_rate = float(taobao_fee_config.value) / 100 if taobao_fee_config else 0.006  # 转换为小数
+    taobao_fee_rate = float(taobao_fee_config.value) if taobao_fee_config else 0.006  # 默认0.6%
     
     for course in courses:
         # 计算基础收入：购买节数 × 单节售价
@@ -918,43 +667,6 @@ def convert_trial_to_course(trial_id):
     
     return render_template('convert_trial.html', trial_course=trial_course)
 
-@app.route('/api/trial-courses/<int:course_id>', methods=['GET'])
-def get_trial_course(course_id):
-    """获取单个试听课的详细信息"""
-    course = Course.query.filter_by(id=course_id, is_trial=True).first_or_404()
-    
-    try:
-        course_data = {
-            'id': course.id,
-            'trial_price': course.trial_price,
-            'price': course.trial_price,
-            'source': course.source,
-            'trial_status': course.trial_status,
-            'refund_amount': course.refund_amount,
-            'refund_fee': course.refund_fee,
-            'converted_to_course': course.converted_to_course,
-            'created_at': course.created_at.isoformat() if course.created_at else None
-        }
-        
-        customer_data = {
-            'id': course.customer.id,
-            'name': course.customer.name,
-            'phone': course.customer.phone,
-            'gender': course.customer.gender,
-            'grade': course.customer.grade,
-            'region': course.customer.region,
-            'has_tutoring_experience': course.customer.has_tutoring_experience
-        }
-        
-        return jsonify({
-            'success': True,
-            'course': course_data,
-            'customer': customer_data
-        })
-        
-    except Exception as e:
-        return jsonify({'success': False, 'message': f'获取课程信息失败：{str(e)}'})
-
 @app.route('/api/trial-courses/<int:course_id>', methods=['DELETE'])
 def delete_trial_course(course_id):
     """删除试听课记录"""
@@ -967,39 +679,6 @@ def delete_trial_course(course_id):
     db.session.delete(course)
     db.session.commit()
     return jsonify({'success': True, 'message': '试听课记录删除成功'})
-
-@app.route('/api/formal-courses/<int:course_id>', methods=['GET'])
-def get_formal_course(course_id):
-    """获取单个正课信息"""
-    try:
-        course = Course.query.filter_by(id=course_id, is_trial=False).first_or_404()
-        
-        course_data = {
-            'id': course.id,
-            'customer_name': course.customer.name,
-            'customer_phone': course.customer.phone,
-            'customer_gender': course.customer.gender,
-            'customer_grade': course.customer.grade,
-            'customer_region': course.customer.region,
-            'course_type': course.course_type,
-            'sessions': course.sessions,
-            'gift_sessions': course.gift_sessions,
-            'price': course.price,
-            'payment_channel': course.payment_channel,
-            'cost': course.cost,
-            'other_cost': course.other_cost,
-            'source': '试听课转化' if course.converted_from_trial else '直接报名',
-            'converted_from_trial': course.converted_from_trial,
-            'created_at': course.created_at.isoformat() if course.created_at else None
-        }
-        
-        return jsonify({
-            'success': True,
-            'course': course_data
-        })
-        
-    except Exception as e:
-        return jsonify({'success': False, 'message': f'获取课程信息失败：{str(e)}'})
 
 @app.route('/api/formal-courses/<int:course_id>', methods=['DELETE'])
 def delete_formal_course(course_id):
@@ -1164,8 +843,3 @@ def update_trial_status(course_id):
 
 
 # 课程管理API
-
-@app.route('/test-export')
-def test_export():
-    """测试导出功能页面"""
-    return render_template('test_export.html')
