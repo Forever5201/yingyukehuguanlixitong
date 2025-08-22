@@ -90,19 +90,19 @@
             <h3><i class="fas fa-chart-bar"></i> 成本概览</h3>
             <div class="summary-item">
                 <span class="summary-label">试听课成本</span>
-                <span class="summary-value">¥{{ config.trial_cost or 0 }}</span>
+                <span class="summary-value" id="summary_trial_cost">¥{{ config.trial_cost or 0 }}</span>
             </div>
             <div class="summary-item">
                 <span class="summary-label">正课成本</span>
-                <span class="summary-value">¥{{ config.course_cost or 0 }}</span>
+                <span class="summary-value" id="summary_course_cost">¥{{ config.course_cost or 0 }}</span>
             </div>
             <div class="summary-item">
                 <span class="summary-label">淘宝手续费率</span>
-                <span class="summary-value">{{ config.taobao_fee_rate or 0 }}%</span>
+                <span class="summary-value" id="summary_taobao_fee">{{ config.taobao_fee_rate or 0 }}%</span>
             </div>
             <div class="summary-item total">
                 <span class="summary-label">总成本</span>
-                <span class="summary-value">¥{{ ((config.trial_cost or 0) + (config.course_cost or 0)) }}</span>
+                <span class="summary-value" id="summary_total">¥{{ ((config.trial_cost or 0) + (config.course_cost or 0)) }}</span>
             </div>
         </div>
     </div>
@@ -111,6 +111,10 @@
 <script>
 function resetForm() {
     document.querySelector('.config-form').reset();
+    // 重置后同步更新概览
+    if (typeof updateSummary === 'function') {
+        updateSummary();
+    }
 }
 
 // 实时更新概览
@@ -120,15 +124,24 @@ function updateSummary() {
     const taobaoFeeRate = parseFloat(document.getElementById('taobao_fee_rate').value) || 0;
     const total = trialCost + courseCost;
     
-    document.querySelector('.summary-item:nth-child(1) .summary-value').textContent = `¥${trialCost}`;
-    document.querySelector('.summary-item:nth-child(2) .summary-value').textContent = `¥${courseCost}`;
-    document.querySelector('.summary-item:nth-child(3) .summary-value').textContent = `${taobaoFeeRate}%`;
-    document.querySelector('.summary-item.total .summary-value').textContent = `¥${total}`;
+    const elTrial = document.getElementById('summary_trial_cost');
+    const elCourse = document.getElementById('summary_course_cost');
+    const elFee = document.getElementById('summary_taobao_fee');
+    const elTotal = document.getElementById('summary_total');
+
+    if (elTrial) elTrial.textContent = `¥${trialCost}`;
+    if (elCourse) elCourse.textContent = `¥${courseCost}`;
+    if (elFee) elFee.textContent = `${taobaoFeeRate}%`;
+    if (elTotal) elTotal.textContent = `¥${total}`;
 }
 
 // 添加输入事件监听
-document.getElementById('trial_cost').addEventListener('input', updateSummary);
-document.getElementById('course_cost').addEventListener('input', updateSummary);
-document.getElementById('taobao_fee_rate').addEventListener('input', updateSummary);
+document.getElementById('trial_cost')?.addEventListener('input', updateSummary);
+document.getElementById('course_cost')?.addEventListener('input', updateSummary);
+document.getElementById('taobao_fee_rate')?.addEventListener('input', updateSummary);
+// 页面加载后先刷新一次概览，确保与初始表单值一致
+window.addEventListener('DOMContentLoaded', () => {
+    updateSummary();
+});
 </script>
 {% endblock %}

@@ -468,6 +468,21 @@
                                 <textarea id="refund_note" rows="3" placeholder="请输入退费原因或说明（可选）"></textarea>
                             </div>
                         </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="refund_channel">退款渠道 *</label>
+                                <select id="refund_channel" required>
+                                    <option value="">请选择渠道</option>
+                                    <option value="微信">微信</option>
+                                    <option value="淘宝">淘宝</option>
+                                    <option value="支付宝">支付宝</option>
+                                    <option value="视频号">视频号</option>
+                                    <option value="抖音">抖音</option>
+                                    <option value="小红书">小红书</option>
+                                    <option value="其他">其他</option>
+                                </select>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 
@@ -571,7 +586,19 @@
                         <td>¥{{ "%.2f"|format(course.trial_price) }}</td>
                         <td>{{ course.source or '-' }}</td>
                         <td>
-                            {% if course.source == '淘宝' %}
+                            {% if course.trial_status == 'refunded' %}
+                                {% if (course.refund_channel or '') == '淘宝' %}
+                                    ¥0.00
+                                {% else %}
+                                    {% set recorded_fee = (course.refund_fee or 0) %}
+                                    {% if recorded_fee > 0 %}
+                                        ¥{{ "%.2f"|format(recorded_fee) }}
+                                    {% else %}
+                                        {% set fee_amount = (course.trial_price or 0) * (taobao_fee_rate or 0.006) %}
+                                        ¥{{ "%.2f"|format(fee_amount) }}
+                                    {% endif %}
+                                {% endif %}
+                            {% elif course.source == '淘宝' %}
                                 {% set fee_amount = course.trial_price * (taobao_fee_rate or 0.006) %}
                                 ¥{{ "%.2f"|format(fee_amount) }}
                             {% else %}
@@ -583,7 +610,7 @@
                         <td>
                             <div class="status-management">
                                 {% set current_status = course.trial_status or 'registered' %}
-                                <select class="status-select" data-course-id="{{ course.id }}" onchange="updateTrialStatus({{ course.id }}, this.value)">
+                                <select class="status-select" data-course-id="{{ course.id }}" data-trial-price="{{ "%.2f"|format(course.trial_price or 0) }}" onchange="updateTrialStatus({{ course.id }}, this.value)">
                                     <option value="registered" {% if current_status == 'registered' %}selected{% endif %}>已报名试听课</option>
                                     <option value="not_registered" {% if current_status == 'not_registered' %}selected{% endif %}>未报名试听课</option>
                                     <option value="refunded" {% if current_status == 'refunded' %}selected{% endif %}>试听后退费</option>
@@ -594,6 +621,7 @@
                                 <div class="refund-info">
                                     <small>退费：¥{{ "%.2f"|format(course.refund_amount or 0) }}</small>
                                     <small>手续费：¥{{ "%.2f"|format(course.refund_fee or 0) }}</small>
+                                    <small>退款渠道：{{ course.refund_channel or '-' }}</small>
                                 </div>
                                 {% endif %}
                             </div>
@@ -661,6 +689,25 @@ function updateTrialStatus(courseId, newStatus) {
 // 显示退费信息模态框
 function showRefundModal(courseId) {
     document.getElementById('refund_course_id').value = courseId;
+
+    // 从当前行的状态下拉读取试听售价，自动填入退费金额；手续费固定为0
+    const selectEl = document.querySelector(`select.status-select[data-course-id="${courseId}"]`);
+    const amountInput = document.getElementById('refund_amount');
+    const feeInput = document.getElementById('refund_fee');
+    let trialPrice = 0;
+    if (selectEl && selectEl.dataset.trialPrice) {
+        const p = parseFloat(selectEl.dataset.trialPrice);
+        trialPrice = isNaN(p) ? 0 : p;
+    }
+    if (amountInput) {
+        amountInput.value = trialPrice.toFixed(2);
+        amountInput.readOnly = true;
+    }
+    if (feeInput) {
+        feeInput.value = '0.00';
+        feeInput.readOnly = true;
+    }
+
     document.getElementById('refundModal').style.display = 'flex';
     document.body.style.overflow = 'hidden';
 }
@@ -677,6 +724,7 @@ function submitRefund() {
     const courseId = document.getElementById('refund_course_id').value;
     const refundAmount = document.getElementById('refund_amount').value;
     const refundFee = document.getElementById('refund_fee').value;
+    const refundChannel = document.getElementById('refund_channel').value;
     
     if (!refundAmount || refundAmount <= 0) {
         alert('请输入有效的退费金额');
@@ -688,9 +736,15 @@ function submitRefund() {
         return;
     }
     
+    if (!refundChannel) {
+        alert('请选择退款渠道');
+        return;
+    }
+    
     updateStatusAPI(courseId, 'refunded', {
         refund_amount: parseFloat(refundAmount),
-        refund_fee: parseFloat(refundFee)
+        refund_fee: parseFloat(refundFee),
+        refund_channel: refundChannel
     });
 }
 
@@ -1228,9 +1282,9 @@ document.addEventListener('DOMContentLoaded', function() {
              
              const name = row.cells[0].textContent.toLowerCase(); // 学员姓名
              const phone = row.cells[4].textContent.toLowerCase(); // 联系方式
-             const source = row.cells[6].textContent; // 渠道来源
-             const statusElement = row.cells[8].querySelector('.status-badge'); // 状态
-             const status = statusElement ? (statusElement.classList.contains('status-converted') ? 'converted' : 'pending') : '';
+             const source = row.cells[7].textContent.trim(); // 渠道来源（第8列）
+             const statusSelect = row.cells[10].querySelector('.status-select'); // 状态下拉（第11列）
+             const status = statusSelect ? statusSelect.value : '';
             
             const matchesSearch = name.includes(searchTerm) || phone.includes(searchTerm);
             const matchesSource = !sourceValue || source === sourceValue;
@@ -1256,7 +1310,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         let totalPrice = 0;
         visibleRows.forEach(row => {
-             const priceText = row.cells[5].textContent.replace('¥', ''); // 试听课售价
+             const priceText = row.cells[6].textContent.replace('¥', '').replace(/,/g, '').trim(); // 试听课售价（第7列）
              totalPrice += parseFloat(priceText) || 0;
          });
         
@@ -1281,24 +1335,38 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        // 构建CSV数据
+        // 构建CSV数据（按指定列顺序输出）
         let csvContent = '学员姓名,性别,年级,地区,联系方式,试听课售价,渠道来源,报名时间,状态\n';
         
         visibleRows.forEach(row => {
-             const cells = Array.from(row.cells).slice(0, 9); // 排除操作列
-            const rowData = cells.map(cell => {
-                let text = cell.textContent.trim();
-                // 处理状态列
-                if (cell.querySelector('.status-badge')) {
-                    text = cell.querySelector('.status-badge').textContent.trim();
+            const pick = idx => (row.cells[idx]?.textContent || '').trim();
+            const statusSelect = row.cells[10].querySelector('.status-select');
+            const statusTextMap = {
+                registered: '已报名试听课',
+                not_registered: '未报名试听课',
+                refunded: '试听后退费',
+                converted: '试听后转正课',
+                no_action: '试听后无操作'
+            };
+            const data = [
+                pick(0), // 姓名
+                pick(1), // 性别
+                pick(2), // 年级
+                pick(3), // 地区
+                pick(4), // 联系方式
+                pick(6).replace(/^¥/, ''), // 售价（去¥）
+                pick(7), // 渠道来源
+                pick(9), // 报名时间
+                statusTextMap[statusSelect ? statusSelect.value : ''] || '' // 状态
+            ];
+            const escaped = data.map(text => {
+                let t = (text || '').toString();
+                if (t.includes(',') || t.includes('"') || t.includes('\n')) {
+                    t = '"' + t.replace(/"/g, '""') + '"';
                 }
-                // 转义CSV特殊字符
-                if (text.includes(',') || text.includes('"') || text.includes('\n')) {
-                    text = '"' + text.replace(/"/g, '""') + '"';
-                }
-                return text;
+                return t;
             });
-            csvContent += rowData.join(',') + '\n';
+            csvContent += escaped.join(',') + '\n';
         });
         
         // 下载文件
@@ -1314,49 +1382,19 @@ document.addEventListener('DOMContentLoaded', function() {
          });
      }
      
-
-     
      // 根据筛选结果更新图表
-      function updateChartsWithFilteredData() {
-          const visibleRows = Array.from(tableRows).filter(row => 
-              row.style.display !== 'none' && row.cells.length > 1
-          );
-          
-          const sourceData = {};
-          const conversionData = { total: 0, converted: 0 };
-          
-          visibleRows.forEach(row => {
-              const source = row.cells[6].textContent.trim();
-              const statusElement = row.cells[8].querySelector('.status-badge');
-              const isConverted = statusElement && statusElement.classList.contains('status-converted');
-              
-              // 统计渠道来源
-              sourceData[source] = (sourceData[source] || 0) + 1;
-              
-              // 统计转化率
-              conversionData.total++;
-              if (isConverted) {
-                  conversionData.converted++;
-              }
-          });
-          
-          // 重新绘制图表
-          drawSourceChart(sourceData);
-          drawConversionChart(conversionData);
-      }
-      
-      // 图表初始化函数
-      function initCharts() {
-         // 统计数据
+     function updateChartsWithFilteredData() {
+         const visibleRows = Array.from(tableRows).filter(row => 
+             row.style.display !== 'none' && row.cells.length > 1
+         );
+         
          const sourceData = {};
          const conversionData = { total: 0, converted: 0 };
          
-         tableRows.forEach(row => {
-             if (row.cells.length === 1) return; // 跳过"暂无记录"行
-             
-             const source = row.cells[6].textContent.trim();
-             const statusElement = row.cells[8].querySelector('.status-badge');
-             const isConverted = statusElement && statusElement.classList.contains('status-converted');
+         visibleRows.forEach(row => {
+             const source = row.cells[7].textContent.trim(); // 渠道来源（第8列）
+             const statusSelect = row.cells[10].querySelector('.status-select'); // 状态（第11列）
+             const isConverted = statusSelect && statusSelect.value === 'converted';
              
              // 统计渠道来源
              sourceData[source] = (sourceData[source] || 0) + 1;
@@ -1367,6 +1405,34 @@ document.addEventListener('DOMContentLoaded', function() {
                  conversionData.converted++;
              }
          });
+         
+         // 重新绘制图表
+         drawSourceChart(sourceData);
+         drawConversionChart(conversionData);
+     }
+     
+     // 图表初始化函数
+     function initCharts() {
+        // 统计数据
+        const sourceData = {};
+        const conversionData = { total: 0, converted: 0 };
+        
+        tableRows.forEach(row => {
+            if (row.cells.length === 1) return; // 跳过"暂无记录"行
+            
+            const source = row.cells[7].textContent.trim(); // 渠道来源（第8列）
+            const statusSelect = row.cells[10].querySelector('.status-select'); // 状态（第11列）
+            const isConverted = statusSelect && statusSelect.value === 'converted';
+            
+            // 统计渠道来源
+            sourceData[source] = (sourceData[source] || 0) + 1;
+            
+            // 统计转化率
+            conversionData.total++;
+            if (isConverted) {
+                conversionData.converted++;
+            }
+        });
          
          // 绘制渠道来源饼图
          drawSourceChart(sourceData);

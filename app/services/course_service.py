@@ -142,7 +142,7 @@ class CourseService:
             'total_revenue': total_revenue,
             'total_cost': total_cost,
             'total_fees': total_fees,
-            'total_profit': total_revenue - total_cost - total_fees
+            'total_profit': total_revenue - total_cost
         }
     
     @staticmethod
@@ -165,18 +165,27 @@ class CourseService:
             else:
                 formal_courses.append(item)
         
+        # 分别计算试听课和正式课的业绩
         trial_performance = CourseService._calculate_total_performance(trial_courses, fee_rate)
         formal_performance = CourseService._calculate_total_performance(formal_courses, fee_rate)
+        
+        # 直接计算总收入和总成本
+        total_revenue = trial_performance['total_revenue'] + formal_performance['total_revenue']
+        total_cost = trial_performance['total_cost'] + formal_performance['total_cost']
+        
+        # 更新试听课和正式课的利润计算（不扣除手续费）
+        trial_performance['total_profit'] = trial_performance['total_revenue'] - trial_performance['total_cost']
+        formal_performance['total_profit'] = formal_performance['total_revenue'] - formal_performance['total_cost']
         
         return {
             'trial': trial_performance,
             'formal': formal_performance,
             'total': {
                 'total_count': len(courses),
-                'total_revenue': trial_performance['total_revenue'] + formal_performance['total_revenue'],
-                'total_cost': trial_performance['total_cost'] + formal_performance['total_cost'],
+                'total_revenue': total_revenue,
+                'total_cost': total_cost,
                 'total_fees': trial_performance['total_fees'] + formal_performance['total_fees'],
-                'total_profit': trial_performance['total_profit'] + formal_performance['total_profit']
+                'total_profit': total_revenue - total_cost
             }
         }
     

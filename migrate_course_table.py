@@ -26,7 +26,8 @@ def migrate_course_table():
             ('converted_from_trial', 'INTEGER'),
             ('converted_to_course', 'INTEGER'),
             ('created_at', 'DATETIME'),
-            ('updated_at', 'DATETIME')
+            ('updated_at', 'DATETIME'),
+            ('refund_channel', 'VARCHAR(50)')
         ]
         
         # 添加缺失的字段

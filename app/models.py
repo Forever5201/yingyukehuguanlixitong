@@ -25,6 +25,7 @@ class Course(db.Model):
     trial_status = db.Column(db.String(20), default='registered')  # 试听课状态
     refund_amount = db.Column(db.Float, default=0)  # 退费金额
     refund_fee = db.Column(db.Float, default=0)  # 退费手续费
+    refund_channel = db.Column(db.String(50))  # 退款渠道（微信、淘宝、支付宝等）
     
     # 正课信息
     course_type = db.Column(db.String(50))  # 课程类型（单词课、语法课、阅读课、拼读课）

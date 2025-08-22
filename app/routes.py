@@ -414,84 +414,85 @@ def export_taobao_orders():
 
 @app.route('/api/export/trial-courses')
 def export_trial_courses():
-    """导出试听课数据为Excel"""
-    courses = Course.query.filter_by(course_type='trial').order_by(Course.created_at.desc()).all()
-    
-    # 准备数据
-    data = []
-    for course in courses:
-        customer = Customer.query.get(course.customer_id)
-        data.append({
-            '课程ID': course.id,
-            '客户姓名': customer.name if customer else '',
-            '客户电话': customer.phone if customer else '',
-            '课程类型': course.course_type,
-            '购买节数': course.sessions,
-            '单节售价': course.price_per_session,
-            '总金额': course.total_amount,
-            '支付渠道': course.payment_channel,
-            '赠课节数': course.gift_sessions or 0,
-            '其他成本': course.other_costs or 0,
-            '总成本': course.total_cost or 0,
-            '状态': course.status,
-            '创建时间': course.created_at.strftime('%Y-%m-%d %H:%M:%S') if course.created_at else ''
-        })
-    
-    # 创建DataFrame
-    df = pd.DataFrame(data)
-    
-    # 创建Excel文件
-    output = BytesIO()
-    with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        df.to_excel(writer, sheet_name='试听课数据', index=False)
-    
-    output.seek(0)
-    response = make_response(output.getvalue())
-    response.headers['Content-Type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    response.headers['Content-Disposition'] = f'attachment; filename=试听课数据_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
-    
-    return response
+    """导出试听课数据为Excel（使用现有模型字段）"""
+    try:
+        courses = Course.query.filter_by(is_trial=True).order_by(Course.created_at.desc()).all()
+
+        data = []
+        for course in courses:
+            customer = db.session.get(Customer, course.customer_id)
+            data.append({
+                '课程ID': course.id,
+                '客户姓名': customer.name if customer else '',
+                '客户电话': customer.phone if customer else '',
+                '课程类型': '试听课',
+                '试听售价': course.trial_price or 0,
+                '渠道来源': course.source or '',
+                '状态': course.trial_status or '',
+                '基础成本': course.cost or 0,
+                '退款金额': course.refund_amount or 0,
+                '退款手续费': course.refund_fee or 0,
+                '退款渠道': course.refund_channel or '',
+                '创建时间': course.created_at.strftime('%Y-%m-%d %H:%M:%S') if course.created_at else ''
+            })
+
+        df = pd.DataFrame(data)
+
+        output = BytesIO()
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            df.to_excel(writer, sheet_name='试听课数据', index=False)
+
+        output.seek(0)
+        response = make_response(output.getvalue())
+        response.headers['Content-Type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        response.headers['Content-Disposition'] = f"attachment; filename=trial_courses_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+        return response
+    except Exception as e:
+        return jsonify({'error': f'导出失败: {str(e)}'}), 500
 
 @app.route('/api/export/formal-courses')
 def export_formal_courses():
-    """导出正课数据为Excel"""
-    courses = Course.query.filter_by(course_type='formal').order_by(Course.created_at.desc()).all()
-    
-    # 准备数据
-    data = []
-    for course in courses:
-        customer = Customer.query.get(course.customer_id)
-        data.append({
-            '课程ID': course.id,
-            '客户姓名': customer.name if customer else '',
-            '客户电话': customer.phone if customer else '',
-            '课程类型': course.course_type,
-            '购买节数': course.sessions,
-            '赠课节数': course.gift_sessions or 0,
-            '单节售价': course.price_per_session,
-            '支付渠道': course.payment_channel,
-            '实际收入': course.total_amount,
-            '课程成本': course.total_cost or 0,
-            '其他成本': course.other_costs or 0,
-            '利润': (course.total_amount or 0) - (course.total_cost or 0) - (course.other_costs or 0),
-            '创建时间': course.created_at.strftime('%Y-%m-%d %H:%M:%S') if course.created_at else '',
-            '来源': course.source or ''
-        })
-    
-    # 创建DataFrame
-    df = pd.DataFrame(data)
-    
-    # 创建Excel文件
-    output = BytesIO()
-    with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        df.to_excel(writer, sheet_name='正课数据', index=False)
-    
-    output.seek(0)
-    response = make_response(output.getvalue())
-    response.headers['Content-Type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    response.headers['Content-Disposition'] = f'attachment; filename=正课数据_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
-    
-    return response
+    """导出正课数据为Excel（使用现有模型字段）"""
+    try:
+        courses = Course.query.filter_by(is_trial=False).order_by(Course.created_at.desc()).all()
+
+        data = []
+        for course in courses:
+            customer = db.session.get(Customer, course.customer_id)
+            price = float(course.price or 0)
+            base_cost = float(course.cost or 0)
+            other_cost = float(course.other_cost or 0)
+            profit = price - base_cost - other_cost
+            data.append({
+                '课程ID': course.id,
+                '客户姓名': customer.name if customer else '',
+                '客户电话': customer.phone if customer else '',
+                '课程类型': course.course_type or '',
+                '购买节数': course.sessions or 0,
+                '赠课节数': course.gift_sessions or 0,
+                '课程售价': price,
+                '课程成本': base_cost,
+                '其他成本': other_cost,
+                '利润': profit,
+                '支付渠道': course.payment_channel or '',
+                '来源': course.source or '',
+                '创建时间': course.created_at.strftime('%Y-%m-%d %H:%M:%S') if course.created_at else ''
+            })
+
+        df = pd.DataFrame(data)
+
+        output = BytesIO()
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            df.to_excel(writer, sheet_name='正课数据', index=False)
+
+        output.seek(0)
+        response = make_response(output.getvalue())
+        response.headers['Content-Type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        response.headers['Content-Disposition'] = f"attachment; filename=formal_courses_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+        return response
+    except Exception as e:
+        return jsonify({'error': f'导出失败: {str(e)}'}), 500
+
 @app.route('/api/customers/<int:customer_id>', methods=['DELETE'])
 def delete_customer_api(customer_id):
     try:
@@ -674,18 +675,8 @@ def manage_trial_courses():
         trial_cost_config = Config.query.filter_by(key='trial_cost').first()
         base_trial_cost = float(trial_cost_config.value) if trial_cost_config else 0
         
-        # 计算总成本（基础成本 + 手续费）
+        # 统一规则：试听课成本仅为基础成本，不包含任何渠道手续费
         total_trial_cost = base_trial_cost
-        
-        # 如果来源是淘宝，需要加上手续费
-        if source == '淘宝':
-            # 获取淘宝手续费率配置
-            taobao_fee_config = Config.query.filter_by(key='taobao_fee_rate').first()
-            taobao_fee_rate = float(taobao_fee_config.value) / 100 if taobao_fee_config else 0.006  # 转换为小数
-            
-            # 计算手续费：试听课售价 × 手续费率
-            taobao_fee = trial_price * taobao_fee_rate
-            total_trial_cost += taobao_fee
         
         # 创建试听课记录
         new_trial = Course(
@@ -694,7 +685,8 @@ def manage_trial_courses():
             is_trial=True,
             trial_price=trial_price,
             source=source,
-            cost=total_trial_cost
+            cost=total_trial_cost,
+            trial_status='registered'
         )
         
         db.session.add(new_trial)
@@ -708,6 +700,7 @@ def manage_trial_courses():
         return redirect(url_for('manage_trial_courses'))
     
     embedded = request.args.get('embedded', 'false').lower() == 'true'
+    debug_mode = request.args.get('debug', '0') in ('1', 'true', 'True')
     
     # 构建试听课查询
     query = db.session.query(Course, Customer).join(
@@ -719,13 +712,30 @@ def manage_trial_courses():
     # 获取客户列表用于下拉选择
     customers = Customer.query.order_by(Customer.name).all()
     
-    # 获取淘宝手续费率配置
-    taobao_fee_config = Config.query.filter_by(key='taobao_fee_rate').first()
-    taobao_fee_rate = float(taobao_fee_config.value) / 100 if taobao_fee_config else 0.006  # 转换为小数
+    # 获取多渠道手续费率配置（默认0）
+    fee_keys = ['taobao_fee_rate', 'xiaohongshu_fee_rate', 'douyin_fee_rate', 'referral_fee_rate']
+    fee_configs = {c.key: c.value for c in Config.query.filter(Config.key.in_(fee_keys)).all()}
+    taobao_fee_rate = float(fee_configs.get('taobao_fee_rate', 0)) / 100
+    xhs_fee_rate = float(fee_configs.get('xiaohongshu_fee_rate', 0)) / 100
+    douyin_fee_rate = float(fee_configs.get('douyin_fee_rate', 0)) / 100
+    referral_fee_rate = float(fee_configs.get('referral_fee_rate', 0)) / 100
+
+    def calc_channel_fee_rate(source_name: str) -> float:
+        if source_name == '淘宝':
+            return taobao_fee_rate
+        if source_name == '小红书':
+            return xhs_fee_rate
+        if source_name == '抖音':
+            return douyin_fee_rate
+        if source_name == '转介绍':
+            return referral_fee_rate
+        return 0.0
     
-    # 按状态分组统计试听课
-    trial_query = Course.query.filter(Course.is_trial == True)
-    trial_courses_list = trial_query.all()
+    # 按状态分组统计试听课（使用与页面相同的数据集，确保前后端一致）
+    # 注意：页面表格数据 trial_courses 来源于 Course INNER JOIN Customer 的结果，
+    # 若存在“孤儿”试听课（缺失客户记录），页面不会显示该条，但此前统计会包含，导致不一致。
+    # 这里改为直接使用同一数据源中的 Course 对象集合，保证一致性。
+    trial_courses_list = [course for (course, _) in trial_courses]
     
     # 初始化各状态统计
     status_stats = {
@@ -735,62 +745,113 @@ def manage_trial_courses():
         'converted': {'count': 0, 'revenue': 0, 'cost': 0, 'fees': 0, 'profit': 0},
         'no_action': {'count': 0, 'revenue': 0, 'cost': 0, 'fees': 0, 'profit': 0}
     }
+    # 调试用明细
+    calc_rows = []
     
     # 计算各状态的统计数据
     for course in trial_courses_list:
+        # 默认状态为空时按“已报名试听课”处理，避免被错误排除
         status = course.trial_status or 'registered'
-        
-        # 基础统计
-        status_stats[status]['count'] += 1
-        
+
+        # 未报名：完全不参与统计（不计数、不计收入/成本/费用/利润）
+        if status == 'not_registered':
+            # 调试记录
+            if debug_mode:
+                calc_rows.append({
+                    'id': course.id,
+                    'status': status,
+                    'source': course.source or '',
+                    'trial_price': float(course.trial_price or 0),
+                    'included': False,
+                    'revenue': 0.0,
+                    'cost': float(course.cost or 0),
+                    'fees': 0.0,
+                })
+            continue
+
+        # 每个状态都需要按来源计算渠道费率
+        channel_rate = calc_channel_fee_rate(course.source or '')
+
+        # 按状态计算
         if status == 'registered':
-            # 已报名试听课：收入 - 成本 - 手续费
             revenue = course.trial_price or 0
             cost = course.cost or 0
-            fees = revenue * taobao_fee_rate if course.source == '淘宝' else 0
-            profit = revenue - cost - fees
-            
-        elif status == 'not_registered':
-            # 未报名试听课：无收入，只有成本
+            fees = (revenue * channel_rate) if revenue else 0
+            profit = revenue - cost  # 修改为不扣除手续费
+        elif status == 'refunded':
+            # 退费（MIGRATION_GUIDE）：收入=0；成本=基础成本C；不再从利润中扣除手续费
             revenue = 0
             cost = course.cost or 0
-            fees = 0
+            refund_channel = (course.refund_channel or '').strip()
+            if refund_channel == '淘宝':
+                fees = 0.0
+            else:
+                # 以退款渠道计算费率；若未配置该渠道费率则回退到淘宝费率
+                channel_r = calc_channel_fee_rate(refund_channel)
+                if not channel_r:
+                    channel_r = taobao_fee_rate or 0.0
+                base_amount = float(course.trial_price or 0)
+                # 若数据库已记录退款手续费且>0，则以记录值为准（人工覆盖）；否则按费率估算
+                recorded_fee = float(course.refund_fee or 0)
+                fees = recorded_fee if recorded_fee > 0 else base_amount * channel_r
             profit = -cost
-            
-        elif status == 'refunded':
-            # 试听后退费：退费金额 + 退费手续费 + 成本
-            revenue = 0  # 退费后无净收入
-            cost = (course.cost or 0) + (course.refund_amount or 0) + (course.refund_fee or 0)
-            fees = 0
-            profit = -cost
-            
         elif status == 'converted':
-            # 试听后转正课：收入 - 成本 - 手续费
+            # 独立核算：与已报名一致
             revenue = course.trial_price or 0
             cost = course.cost or 0
-            fees = revenue * taobao_fee_rate if course.source == '淘宝' else 0
-            profit = revenue - cost - fees
-            
+            fees = (revenue * channel_rate) if revenue else 0
+            profit = revenue - cost  # 修改为不扣除手续费
         elif status == 'no_action':
-            # 试听后无操作：收入 - 成本 - 手续费
+            # 视为已支付并完成试听：与已报名一致
             revenue = course.trial_price or 0
             cost = course.cost or 0
-            fees = revenue * taobao_fee_rate if course.source == '淘宝' else 0
-            profit = revenue - cost - fees
+            fees = (revenue * channel_rate) if revenue else 0
+            profit = revenue - cost  # 修改为不扣除手续费
+        else:
+            # 未知状态保护
+            revenue = 0
+            cost = 0
+            fees = 0
+            profit = 0
+
+        # 只有参与统计的状态才累计
+        status_stats[status]['count'] += 1
         
         # 累加到对应状态
         status_stats[status]['revenue'] += revenue
         status_stats[status]['cost'] += cost
         status_stats[status]['fees'] += fees
         status_stats[status]['profit'] += profit
+
+        # 记录调试明细
+        if debug_mode:
+            calc_rows.append({
+                'id': course.id,
+                'status': status,
+                'source': course.source or '',
+                'trial_price': float(course.trial_price or 0),
+                'included': True,
+                'revenue': float(revenue or 0),
+                'cost': float(cost or 0),
+                'fees': float(fees or 0),
+            })
     
     # 计算总统计
     total_stats = {
-        'total_trials': sum(stats['count'] for stats in status_stats.values()),
-        'total_revenue': sum(stats['revenue'] for stats in status_stats.values()),
-        'total_cost': sum(stats['cost'] for stats in status_stats.values()),
-        'total_fees': sum(stats['fees'] for stats in status_stats.values()),
-        'total_profit': sum(stats['profit'] for stats in status_stats.values())
+        # 仅统计纳入口径的状态：已报名、转正、无操作、退费；未报名不计入
+        'total_trials': (
+            status_stats['registered']['count']
+            + status_stats['converted']['count']
+            + status_stats['no_action']['count']
+            + status_stats['refunded']['count']
+        ),
+        'total_revenue': sum(s['revenue'] for s in status_stats.values()),
+        # 修改：总成本 = 基础成本合计（不重复计算手续费）
+        'total_cost': sum(s['cost'] for s in status_stats.values()),
+        # 修改：单独计算总手续费
+        'total_fees': sum(s['fees'] for s in status_stats.values()),
+        # 直接计算总利润 = 总收入 - 总成本
+        'total_profit': sum(s['revenue'] for s in status_stats.values()) - sum(s['cost'] for s in status_stats.values())
     }
     
     return render_template('trial_courses.html', 
@@ -799,6 +860,7 @@ def manage_trial_courses():
                          taobao_fee_rate=taobao_fee_rate,
                          stats=total_stats,
                          status_stats=status_stats,
+                         calc_rows=calc_rows if debug_mode else None,
                          embedded=embedded)
 
 @app.route('/formal-courses', methods=['GET'])
@@ -1046,20 +1108,11 @@ def update_trial_course(course_id):
         course.trial_price = float(request.form['trial_price'])
         course.source = request.form['source']
         
-        # 重新计算成本
-        trial_cost_config = Config.query.filter_by(key='trial_cost').first()
-        base_trial_cost = float(trial_cost_config.value) if trial_cost_config else 0
-        
-        # 如果来源是淘宝，需要加上手续费
-        if course.source == '淘宝':
-            taobao_fee_rate_config = Config.query.filter_by(key='taobao_fee_rate').first()
-            taobao_fee_rate = float(taobao_fee_rate_config.value) if taobao_fee_rate_config else 0.006
-            taobao_fee = course.trial_price * taobao_fee_rate
-            total_trial_cost = base_trial_cost + taobao_fee
-        else:
-            total_trial_cost = base_trial_cost
-            
-        course.cost = total_trial_cost
+        # 计算试听课成本
+        # 统一规则：course.cost 仅存储“基础试听课成本”，不包含任何渠道手续费，防止与统计中的手续费重复计算
+        base_trial_cost_config = Config.query.filter_by(key='trial_cost').first()
+        base_trial_cost = float(base_trial_cost_config.value) if base_trial_cost_config else 0
+        course.cost = base_trial_cost
         
         db.session.commit()
         return jsonify({'success': True, 'message': '试听课信息更新成功'})
@@ -1140,14 +1193,26 @@ def update_trial_status(course_id):
         # 更新状态
         course.trial_status = new_status
         
-        # 如果是退费状态，更新退费相关信息
+        # 如果是退费状态，更新退费相关信息（金额=试听售价；手续费=0；记录退款渠道）
         if new_status == 'refunded':
-            course.refund_amount = float(data.get('refund_amount', 0))
-            course.refund_fee = float(data.get('refund_fee', 0))
+            refund_channel = (data.get('refund_channel') or '').strip()
+            if not refund_channel:
+                return jsonify({'success': False, 'message': '请选择退款渠道'}), 400
+            # 接受前端传入的退费金额与手续费（若未提供，采用默认值）
+            try:
+                refund_amount = float(data.get('refund_amount')) if data.get('refund_amount') is not None else float(course.trial_price or 0)
+                refund_fee = float(data.get('refund_fee')) if data.get('refund_fee') is not None else 0.0
+            except (TypeError, ValueError):
+                return jsonify({'success': False, 'message': '退费金额或手续费格式不正确'}), 400
+
+            course.refund_channel = refund_channel
+            course.refund_amount = refund_amount
+            course.refund_fee = refund_fee
         else:
             # 非退费状态清空退费信息
             course.refund_amount = 0
             course.refund_fee = 0
+            course.refund_channel = None
         
         # 如果状态改为已转化，需要检查是否有对应的正课记录
         if new_status == 'converted' and not course.converted_to_course:
@@ -1164,6 +1229,65 @@ def update_trial_status(course_id):
 
 
 # 课程管理API
+
+@app.route('/api/trial-courses/revenue-debug', methods=['GET'])
+def trial_courses_revenue_debug():
+    """只读调试接口：输出试听课收入统计的逐条明细与汇总
+
+    口径与 manage_trial_courses() 完全一致：
+    - 纳入状态：registered / converted / no_action / refunded
+    - 收入：
+        * refunded -> 0
+        * 其他三类 -> trial_price
+    - 未报名 not_registered 完全不纳入
+
+    返回 JSON：
+    {
+      success: true,
+      total_revenue: float,
+      included_ids: [int],
+      rows: [
+        {id, customer_name, status, trial_price, included, revenue}
+      ]
+    }
+    """
+    try:
+        # 查询所有试听课（不受前端筛选影响）
+        trial_courses_list = Course.query.filter(Course.is_trial == True).order_by(Course.created_at.asc()).all()
+
+        rows = []
+        total_revenue = 0.0
+        included_ids = []
+
+        for course in trial_courses_list:
+            status = course.trial_status or 'registered'
+            price = float(course.trial_price or 0.0)
+            customer_name = course.customer.name if getattr(course, 'customer', None) else None
+
+            included = status in ['registered', 'converted', 'no_action', 'refunded']
+            revenue = 0.0
+            if included:
+                revenue = 0.0 if status == 'refunded' else price
+                total_revenue += revenue
+                included_ids.append(course.id)
+
+            rows.append({
+                'id': course.id,
+                'customer_name': customer_name,
+                'status': status,
+                'trial_price': price,
+                'included': included,
+                'revenue': revenue
+            })
+
+        return jsonify({
+            'success': True,
+            'total_revenue': round(total_revenue, 2),
+            'included_ids': included_ids,
+            'rows': rows
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'调试接口执行失败：{str(e)}'}), 500
 
 @app.route('/test-export')
 def test_export():

@@ -47,6 +47,9 @@
 </div>
 {% endif %}
 
+<!-- 隐藏配置：用于在JS中读取手续费率，避免直接在JS内插入模板表达式导致语法问题 -->
+<div id="{{ table_id }}-config" data-taobao-fee-rate="{{ taobao_fee_rate or 0.006 }}" style="display:none"></div>
+
 <!-- 试听课表格 -->
 <div class="table-responsive">
     <table class="table table-hover customer-table">
@@ -77,7 +80,7 @@
                         {% set course = course_data %}
                         {% set customer = course_data %}
                     {% endif %}
-                    <tr data-course-id="{{ course.id }}">
+                    <tr data-course-id="{{ course.id }}" data-trial-price="{{ course.trial_price or course.price or 0 }}">
                         <td>{{ customer.name or customer.customer_name or course.customer_name }}</td>
                         <td>{{ customer.gender or customer.customer_gender or course.customer_gender or '-' }}</td>
                         <td>{{ customer.grade or customer.customer_grade or course.customer_grade or '-' }}</td>
@@ -96,11 +99,22 @@
                         <td>¥{{ "%.2f"|format(course.trial_price or course.price or 0) }}</td>
                         <td>{{ course.source or '-' }}</td>
                         <td>
-                            {% if course.source == '淘宝' %}
-                                {% set fee_amount = (course.trial_price or course.price or 0) * (taobao_fee_rate or 0.006) %}
-                                ¥{{ "%.2f"|format(fee_amount) }}
+                            {% set current_status = course.trial_status or course.status_key or 'registered' %}
+                            {% if current_status == 'refunded' %}
+                                {% if course.refund_channel == '淘宝' %}
+                                    ¥0.00
+                                {% else %}
+                                    {% set fallback_fee = (course.trial_price or course.price or 0) * (taobao_fee_rate or 0.006) %}
+                                    {% set show_fee = (course.refund_fee if course.refund_fee is not none else fallback_fee) %}
+                                    ¥{{ "%.2f"|format(show_fee or 0) }}
+                                {% endif %}
                             {% else %}
-                                ¥0.00
+                                {% if course.source == '淘宝' %}
+                                    {% set fee_amount = (course.trial_price or course.price or 0) * (taobao_fee_rate or 0.006) %}
+                                    ¥{{ "%.2f"|format(fee_amount) }}
+                                {% else %}
+                                    ¥0.00
+                                {% endif %}
                             {% endif %}
                         </td>
 
@@ -110,7 +124,7 @@
                                 {% set current_status = course.trial_status or course.status_key or 'registered' %}
                                 <select class="form-select form-select-sm status-select" 
                                         data-course-id="{{ course.id }}" 
-                                        onchange="updateTrialStatus({{ course.id }}, this.value, {{ table_id|tojson }})">
+                                        onchange="updateTrialStatus({{ course.id }}, this.value, '{{ table_id }}')">
                                     <option value="registered" {% if current_status == 'registered' %}selected{% endif %}>已报名试听课</option>
                                     <option value="not_registered" {% if current_status == 'not_registered' %}selected{% endif %}>未报名试听课</option>
                                     <option value="refunded" {% if current_status == 'refunded' %}selected{% endif %}>试听后退费</option>
@@ -127,17 +141,17 @@
                         </td>
                         <td>
                             <div class="btn-group btn-group-sm" role="group">
-                                <button onclick="editTrialCourse({{ course.id }}, {{ table_id|tojson }})" 
+                                <button onclick="editTrialCourse({{ course.id }}, '{{ table_id }}')" 
                                         class="btn btn-outline-primary btn-sm" title="编辑详情">
                                     <i class="fas fa-edit"></i>
                                 </button>
                                 {% if not course.converted_to_course and current_status != 'converted' %}
-                                <button onclick="convertTrialToCourse({{ course.id }}, {{ table_id|tojson }})" 
+                                <button onclick="convertTrialToCourse({{ course.id }}, '{{ table_id }}')" 
                                         class="btn btn-outline-success btn-sm" title="转正课">
                                     <i class="fas fa-arrow-right"></i>
                                 </button>
                                 {% endif %}
-                                <button onclick="deleteTrialCourse({{ course.id }}, '试听课用户', {{ table_id|tojson }})" 
+                                <button onclick="deleteTrialCourse({{ course.id }}, '试听课用户', '{{ table_id }}')" 
                                         class="btn btn-outline-danger btn-sm" title="删除">
                                     <i class="fas fa-trash"></i>
                                 </button>
@@ -166,12 +180,21 @@
                 <input type="hidden" id="{{ table_id }}-refund-course-id">
                 <div class="modal-body">
                     <div class="mb-3">
+                        <label for="{{ table_id }}-refund-channel" class="form-label">退款渠道 *</label>
+                        <select id="{{ table_id }}-refund-channel" class="form-select" required>
+                            <option value="">请选择</option>
+                            <option value="淘宝">淘宝</option>
+                            <option value="微信">微信</option>
+                            <option value="支付宝">支付宝</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
                         <label for="{{ table_id }}-refund-amount" class="form-label">退费金额 *</label>
                         <input type="number" id="{{ table_id }}-refund-amount" class="form-control" 
                                step="0.01" min="0" placeholder="请输入退费金额" required>
                     </div>
                     <div class="mb-3">
-                        <label for="{{ table_id }}-refund-fee" class="form-label">退费手续费 *</label>
+                        <label for="{{ table_id }}-refund-fee" class="form-label">退款手续费</label>
                         <input type="number" id="{{ table_id }}-refund-fee" class="form-control" 
                                step="0.01" min="0" placeholder="请输入退费手续费" required>
                     </div>
@@ -183,7 +206,7 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                    <button type="button" class="btn btn-warning" onclick="submitRefund({{ table_id|tojson }})">
+                    <button type="button" class="btn btn-warning" onclick="submitRefund('{{ table_id }}')">
                         <i class="fas fa-check"></i> 确认退费
                     </button>
                 </div>
@@ -215,6 +238,42 @@
     // 显示退费信息模态框
     function showRefundModal(courseId, tableId) {
         document.getElementById(`${tableId}-refund-course-id`).value = courseId;
+        // 自动填充退款金额=试听售价，退款手续费=0，并禁用编辑
+        const row = document.querySelector(`tr[data-course-id="${courseId}"]`);
+        const price = row ? parseFloat(row.getAttribute('data-trial-price') || '0') : 0;
+        const amountInput = document.getElementById(`${tableId}-refund-amount`);
+        const feeInput = document.getElementById(`${tableId}-refund-fee`);
+        const channelSelect = document.getElementById(`${tableId}-refund-channel`);
+        if (channelSelect) channelSelect.value = '';
+        if (amountInput) {
+            amountInput.value = price.toFixed(2);
+            amountInput.setAttribute('disabled', 'disabled');
+        }
+        if (feeInput) {
+            feeInput.value = '0.00';
+            feeInput.setAttribute('disabled', 'disabled');
+        }
+        // 读取渠道费率（优先从隐藏配置节点读取）
+        function getTaobaoFeeRate(tableId) {
+            const el = document.getElementById(`${tableId}-config`);
+            const v = el ? parseFloat(el.getAttribute('data-taobao-fee-rate')) : NaN;
+            return isNaN(v) ? 0.006 : v;
+        }
+
+        // 根据退款渠道动态控制手续费输入框
+        if (channelSelect && feeInput) {
+            channelSelect.onchange = function() {
+                const channel = channelSelect.value;
+                if (channel === '淘宝') {
+                    feeInput.value = '0.00';
+                    feeInput.setAttribute('disabled', 'disabled');
+                } else {
+                    const estimated = price * getTaobaoFeeRate(tableId);
+                    feeInput.value = isNaN(estimated) ? '0.00' : estimated.toFixed(2);
+                    feeInput.removeAttribute('disabled');
+                }
+            };
+        }
         const modal = new bootstrap.Modal(document.getElementById(`${tableId}-refund-modal`));
         modal.show();
     }
@@ -223,22 +282,22 @@
     window.submitRefund = function(tableId) {
         const courseId = document.getElementById(`${tableId}-refund-course-id`).value;
         const refundAmount = document.getElementById(`${tableId}-refund-amount`).value;
-        const refundFee = document.getElementById(`${tableId}-refund-fee`).value;
+        const refundChannel = document.getElementById(`${tableId}-refund-channel`).value;
         const refundNote = document.getElementById(`${tableId}-refund-note`).value;
         
         if (!refundAmount || refundAmount <= 0) {
             alert('请输入有效的退费金额');
             return;
         }
-        
-        if (!refundFee || refundFee < 0) {
-            alert('请输入有效的退费手续费');
+        if (!refundChannel) {
+            alert('请选择退款渠道');
             return;
         }
         
         updateStatusAPI(courseId, 'refunded', {
             refund_amount: parseFloat(refundAmount),
-            refund_fee: parseFloat(refundFee),
+            refund_fee: 0,
+            refund_channel: refundChannel,
             refund_note: refundNote
         }, tableId);
     };
