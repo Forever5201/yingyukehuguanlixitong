@@ -1,82 +1,257 @@
 {% extends "base.html" %}
 
-{% block title %}正课详情 - 客户管理系统{% endblock %}
+{% block title %}正课详情 - {{ course.customer.name }}{% endblock %}
 {% block page_title %}正课详情{% endblock %}
 
 {% block content %}
-<div class="page-container">
-  <div class="form-section">
-    <h3><i class="fas fa-user"></i> 学员信息</h3>
-    <div class="form-grid">
-      <div class="form-group"><label>姓名</label><div>{{ customer.name }}</div></div>
-      <div class="form-group"><label>电话</label><div>{{ customer.phone }}</div></div>
-      <div class="form-group"><label>性别</label><div>{{ customer.gender or '-' }}</div></div>
-      <div class="form-group"><label>年级</label><div>{{ customer.grade or '-' }}</div></div>
-      <div class="form-group"><label>地区</label><div>{{ customer.region or '-' }}</div></div>
-      <div class="form-group"><label>是否参加过辅导</label><div>{{ customer.has_tutoring_experience or '-' }}</div></div>
+<div class="page-container" style="max-width: 1000px; margin: 0 auto;">
+    <!-- 返回按钮 -->
+    <div style="margin-bottom: 20px;">
+        <a href="{{ url_for('manage_formal_courses') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> 返回正课列表
+        </a>
     </div>
-  </div>
 
-  {% if trial %}
-  <div class="form-section">
-    <h3><i class="fas fa-play-circle"></i> 试听课信息</h3>
-    <div class="form-grid">
-      <div class="form-group"><label>试听售价</label><div>¥{{ "%.2f"|format(trial.trial_price or 0) }}</div></div>
-      <div class="form-group"><label>渠道来源</label><div>{{ trial.source or '-' }}</div></div>
-      <div class="form-group"><label>报名时间</label><div>{{ trial.created_at.strftime('%Y-%m-%d %H:%M') if trial.created_at else '-' }}</div></div>
+    <!-- 学员信息 -->
+    <div class="detail-section">
+        <h3><i class="fas fa-user"></i> 学员信息</h3>
+        <div class="info-grid">
+            <div class="info-item">
+                <label>姓名：</label>
+                <span>{{ course.customer.name }}</span>
+            </div>
+            <div class="info-item">
+                <label>电话：</label>
+                <span>{{ course.customer.phone }}</span>
+            </div>
+            <div class="info-item">
+                <label>性别：</label>
+                <span>{{ course.customer.gender or '未填' }}</span>
+            </div>
+            <div class="info-item">
+                <label>年级：</label>
+                <span>{{ course.customer.grade or '未填' }}</span>
+            </div>
+            <div class="info-item">
+                <label>地区：</label>
+                <span>{{ course.customer.region or '未填' }}</span>
+            </div>
+            <div class="info-item">
+                <label>渠道来源：</label>
+                <span>{{ course.customer.source or '未填' }}</span>
+            </div>
+        </div>
     </div>
-  </div>
-  {% endif %}
 
-  <div class="form-section">
-    <h3><i class="fas fa-graduation-cap"></i> 正课信息</h3>
-    <div class="form-grid">
-      <div class="form-group"><label>课程类型</label><div>{{ course.course_type }}</div></div>
-      <div class="form-group"><label>购买节数</label><div>{{ calc.sessions }}</div></div>
-      <div class="form-group"><label>赠课节数</label><div>{{ calc.gift_sessions }}</div></div>
-      <div class="form-group"><label>单节售价</label><div>¥{{ "%.2f"|format(calc.price) }}</div></div>
-      <div class="form-group"><label>支付渠道</label><div>{{ course.payment_channel or '-' }}</div></div>
-      <div class="form-group"><label>其他成本</label><div>¥{{ "%.2f"|format(calc.other_cost) }}</div></div>
-      <div class="form-group"><label>创建时间</label><div>{{ course.created_at.strftime('%Y-%m-%d %H:%M') if course.created_at else '-' }}</div></div>
+    <!-- 试听课信息（如果有） -->
+    {% if trial_course %}
+    <div class="detail-section">
+        <h3><i class="fas fa-headphones"></i> 试听课信息</h3>
+        <div class="info-grid">
+            <div class="info-item">
+                <label>试听价格：</label>
+                <span>¥{{ "%.2f"|format(trial_course.trial_price) }}</span>
+            </div>
+            <div class="info-item">
+                <label>试听来源：</label>
+                <span>{{ trial_course.source or '未填' }}</span>
+            </div>
+            <div class="info-item">
+                <label>试听状态：</label>
+                <span class="status-badge status-{{ trial_course.trial_status }}">
+                    {{ {'registered': '已报名', 'attended': '已试听', 'converted': '已转化', 'cancelled': '已取消', 'refunded': '已退费'}.get(trial_course.trial_status, trial_course.trial_status) }}
+                </span>
+            </div>
+            <div class="info-item">
+                <label>试听时间：</label>
+                <span>{{ trial_course.created_at.strftime('%Y-%m-%d %H:%M') if trial_course.created_at else '未知' }}</span>
+            </div>
+        </div>
     </div>
-  </div>
+    {% endif %}
 
-  <div class="form-section">
-    <h3><i class="fas fa-calculator"></i> 计算口径与结果</h3>
-    <div class="form-grid">
-      <div class="form-group"><label>总收入</label><div>¥{{ "%.2f"|format(calc.total_revenue) }}</div></div>
-      <div class="form-group"><label>单节成本快照</label><div>¥{{ "%.2f"|format(course.snapshot_course_cost or 0) }}</div></div>
-      <div class="form-group"><label>课程成本</label><div>¥{{ "%.2f"|format(calc.session_cost) }}</div></div>
-      <div class="form-group"><label>手续费率快照</label><div>{{ (calc.fee_rate * 100)|round(3) }}%</div></div>
-      <div class="form-group"><label>手续费</label><div>¥{{ "%.2f"|format(calc.fee_amount) }}</div></div>
-      <div class="form-group"><label>总成本</label><div>¥{{ "%.2f"|format(calc.total_cost) }}</div></div>
-      <div class="form-group"><label>净利润</label><div class="{% if calc.profit >= 0 %}text-success{% else %}text-danger{% endif %}">¥{{ "%.2f"|format(calc.profit) }}</div></div>
+    <!-- 正课信息 -->
+    <div class="detail-section">
+        <h3><i class="fas fa-graduation-cap"></i> 正课信息</h3>
+        <div class="info-grid">
+            <div class="info-item">
+                <label>课程类型：</label>
+                <span>{{ course.course_type }}</span>
+            </div>
+            <div class="info-item">
+                <label>购买节数：</label>
+                <span>{{ course.sessions }} 节</span>
+            </div>
+            <div class="info-item">
+                <label>赠课节数：</label>
+                <span>{{ course.gift_sessions }} 节</span>
+            </div>
+            <div class="info-item">
+                <label>总节数：</label>
+                <span>{{ course.sessions + course.gift_sessions }} 节</span>
+            </div>
+            <div class="info-item">
+                <label>单节售价：</label>
+                <span>¥{{ "%.2f"|format(course.price) }}</span>
+            </div>
+            <div class="info-item">
+                <label>支付渠道：</label>
+                <span>{{ course.payment_channel }}</span>
+            </div>
+            <div class="info-item">
+                <label>报名时间：</label>
+                <span>{{ course.created_at.strftime('%Y-%m-%d %H:%M') if course.created_at else '未知' }}</span>
+            </div>
+        </div>
     </div>
-  </div>
 
-  {% if meta and meta|length > 0 %}
-  <div class="form-section">
-    <h3><i class="fas fa-list"></i> 其他信息（动态）</h3>
-    <div class="form-grid">
-      {% for key, value in meta.items() %}
-        <div class="form-group"><label>{{ key }}</label><div>{{ value }}</div></div>
-      {% endfor %}
+    <!-- 计算明细 -->
+    <div class="detail-section">
+        <h3><i class="fas fa-calculator"></i> 计算明细</h3>
+        
+        <div class="calc-section">
+            <h4>收入明细</h4>
+            <div class="calc-item">
+                <span>购买节数 × 单节售价：</span>
+                <span>{{ course.sessions }} × ¥{{ "%.2f"|format(course.price) }} = ¥{{ "%.2f"|format(calculations.revenue) }}</span>
+            </div>
+            <div class="calc-total">
+                <span>总收入：</span>
+                <span>¥{{ "%.2f"|format(calculations.revenue) }}</span>
+            </div>
+        </div>
+
+        <div class="calc-section">
+            <h4>成本明细</h4>
+            <div class="calc-item">
+                <span>课时成本（{{ course.sessions + course.gift_sessions }}节 × ¥{{ "%.2f"|format(calculations.course_cost_per_session) }}）：</span>
+                <span>¥{{ "%.2f"|format(calculations.session_cost) }}</span>
+            </div>
+            <div class="calc-item">
+                <span>其他成本：</span>
+                <span>¥{{ "%.2f"|format(calculations.other_cost) }}</span>
+            </div>
+            {% if course.payment_channel == '淘宝' and calculations.fee > 0 %}
+            <div class="calc-item">
+                <span>手续费（{{ "%.2f"|format(calculations.fee_rate) }}%）：</span>
+                <span>¥{{ "%.2f"|format(calculations.fee) }}</span>
+            </div>
+            {% endif %}
+            <div class="calc-total">
+                <span>总成本：</span>
+                <span>¥{{ "%.2f"|format(calculations.total_cost) }}</span>
+            </div>
+        </div>
+
+        <div class="calc-section profit-section">
+            <h4>净利润</h4>
+            <div class="calc-total {% if calculations.profit >= 0 %}profit-positive{% else %}profit-negative{% endif %}">
+                <span>净利润（总收入 - 总成本）：</span>
+                <span>¥{{ "%.2f"|format(calculations.profit) }}</span>
+            </div>
+        </div>
     </div>
-  </div>
-  {% endif %}
 
-  <div style="text-align:center; margin-top:10px;">
-    <a href="{{ url_for('manage_formal_courses') }}" class="btn btn-secondary">返回列表</a>
-  </div>
+    <!-- 扩展信息（如果有） -->
+    {% if meta_data %}
+    <div class="detail-section">
+        <h3><i class="fas fa-info-circle"></i> 扩展信息</h3>
+        <div class="info-grid">
+            {% for key, value in meta_data.items() %}
+            <div class="info-item">
+                <label>{{ key }}：</label>
+                <span>{{ value }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
 </div>
 
 <style>
-.form-section { background:#fff; padding:20px; border-radius:8px; box-shadow:0 2px 4px rgba(0,0,0,0.06); margin-bottom:20px; }
-.form-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:16px; }
-.form-group label { color:#666; font-size:13px; margin-bottom:4px; }
-.form-group div { color:#333; }
-.text-success{ color:#28a745; }
-.text-danger{ color:#dc3545; }
+.detail-section {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    margin-bottom: 20px;
+}
+
+.detail-section h3 {
+    margin: 0 0 20px 0;
+    color: #333;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #007bff;
+}
+
+.info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 15px;
+}
+
+.info-item {
+    display: flex;
+    align-items: center;
+}
+
+.info-item label {
+    font-weight: 600;
+    color: #666;
+    min-width: 100px;
+    margin-right: 10px;
+}
+
+.calc-section {
+    margin-bottom: 20px;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 5px;
+}
+
+.calc-section h4 {
+    margin: 0 0 10px 0;
+    color: #495057;
+}
+
+.calc-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 5px 0;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.calc-total {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 0 5px 0;
+    font-weight: 600;
+    font-size: 1.1em;
+}
+
+.profit-section {
+    background: #e8f5e9;
+}
+
+.profit-positive {
+    color: #2e7d32;
+}
+
+.profit-negative {
+    color: #c62828;
+}
+
+.status-badge {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.9em;
+}
+
+.status-registered { background: #e3f2fd; color: #1976d2; }
+.status-attended { background: #f3e5f5; color: #7b1fa2; }
+.status-converted { background: #e8f5e9; color: #388e3c; }
+.status-cancelled { background: #fce4ec; color: #c2185b; }
+.status-refunded { background: #fff3e0; color: #f57c00; }
 </style>
 {% endblock %}
 

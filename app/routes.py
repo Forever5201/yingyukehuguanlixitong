@@ -878,6 +878,80 @@ def manage_trial_courses():
                          calc_rows=calc_rows if debug_mode else None,
                          embedded=embedded)
 
+@app.route('/api/formal-courses/stats', methods=['GET'])
+def api_formal_courses_stats():
+    """正课统计API"""
+    try:
+        # 获取所有正课
+        courses = Course.query.filter_by(is_trial=False).all()
+        
+        # 获取淘宝手续费率配置（用于旧数据）
+        taobao_fee_config = Config.query.filter_by(key='taobao_fee_rate').first()
+        default_fee_rate = float(taobao_fee_config.value) / 100 if taobao_fee_config else 0.006
+        
+        # 计算统计数据
+        total_revenue = 0
+        total_cost = 0
+        total_profit = 0
+        total_fees = 0
+        rows = []
+        
+        for course in courses:
+            # 计算收入
+            revenue = course.sessions * course.price
+            
+            # 计算手续费
+            fee = 0
+            if course.payment_channel == '淘宝':
+                # 优先使用快照费率，否则使用默认费率
+                fee_rate = course.snapshot_fee_rate if course.snapshot_fee_rate else default_fee_rate
+                fee = revenue * fee_rate
+            
+            # 计算成本（course.cost已包含课时成本和其他成本）
+            cost = course.cost + fee  # 总成本包含手续费
+            
+            # 计算利润
+            profit = revenue - cost
+            
+            # 累加统计
+            total_revenue += revenue
+            total_cost += cost
+            total_profit += profit
+            total_fees += fee
+            
+            # 构建行数据
+            rows.append({
+                'id': course.id,
+                'customer_name': course.customer.name,
+                'course_type': course.course_type,
+                'sessions': course.sessions,
+                'gift_sessions': course.gift_sessions,
+                'price': course.price,
+                'payment_channel': course.payment_channel,
+                'revenue': revenue,
+                'course_cost': course.cost,  # 原始成本（不含手续费）
+                'other_cost': course.other_cost,
+                'fee': fee,
+                'total_cost': cost,  # 总成本（含手续费）
+                'profit': profit,
+                'created_at': course.created_at.strftime('%Y-%m-%d') if course.created_at else ''
+            })
+        
+        return jsonify({
+            'success': True,
+            'summary': {
+                'total_courses': len(courses),
+                'total_revenue': round(total_revenue, 2),
+                'total_cost': round(total_cost, 2),
+                'total_profit': round(total_profit, 2),
+                'total_fees': round(total_fees, 2)
+            },
+            'rows': rows
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
 @app.route('/formal-courses', methods=['GET'])
 def manage_formal_courses():
     """正课管理页面"""
@@ -964,8 +1038,25 @@ def convert_trial_to_course(trial_id):
         course_cost_config = Config.query.filter_by(key='course_cost').first()
         course_cost_per_session = float(course_cost_config.value) if course_cost_config else 0
         
-        # 计算总成本
+        # 获取淘宝手续费率配置
+        taobao_fee_config = Config.query.filter_by(key='taobao_fee_rate').first()
+        taobao_fee_rate = float(taobao_fee_config.value) / 100 if taobao_fee_config else 0.006
+        
+        # 计算总成本（不包含手续费，手续费单独计算）
         total_cost = (sessions + gift_sessions) * course_cost_per_session + other_cost
+        
+        # 准备表单数据快照
+        import json
+        form_data = {
+            'course_type': course_type,
+            'sessions': sessions,
+            'price': price,
+            'payment_channel': payment_channel,
+            'gift_sessions': gift_sessions,
+            'other_cost': other_cost,
+            'course_cost_per_session': course_cost_per_session,
+            'taobao_fee_rate': taobao_fee_rate * 100  # 存储为百分比
+        }
         
         # 创建正课记录
         formal_course = Course(
@@ -979,7 +1070,10 @@ def convert_trial_to_course(trial_id):
             gift_sessions=gift_sessions,
             other_cost=other_cost,
             payment_channel=payment_channel,
-            converted_from_trial=trial_id
+            converted_from_trial=trial_id,
+            snapshot_course_cost=course_cost_per_session,  # 保存单节成本快照
+            snapshot_fee_rate=taobao_fee_rate,  # 保存手续费率快照（小数）
+            meta=json.dumps(form_data, ensure_ascii=False)  # 保存表单数据快照
         )
         
         db.session.add(formal_course)
@@ -1044,6 +1138,57 @@ def delete_trial_course(course_id):
     db.session.delete(course)
     db.session.commit()
     return jsonify({'success': True, 'message': '试听课记录删除成功'})
+
+@app.route('/formal-courses/<int:course_id>/details', methods=['GET'])
+def formal_course_details(course_id):
+    """正课详情页面"""
+    course = Course.query.filter_by(id=course_id, is_trial=False).first_or_404()
+    
+    # 获取试听课信息（如果是转化而来）
+    trial_course = None
+    if course.converted_from_trial:
+        trial_course = Course.query.get(course.converted_from_trial)
+    
+    # 解析meta信息
+    import json
+    meta_data = {}
+    if course.meta:
+        try:
+            meta_data = json.loads(course.meta)
+        except:
+            pass
+    
+    # 计算展示信息
+    revenue = course.sessions * course.price
+    fee = 0
+    
+    # 使用快照费率计算手续费
+    if course.payment_channel == '淘宝' and course.snapshot_fee_rate:
+        fee = revenue * course.snapshot_fee_rate
+    
+    # 总成本（包含手续费）
+    total_cost = course.cost + fee
+    profit = revenue - total_cost
+    
+    # 课时成本
+    course_cost_per_session = course.snapshot_course_cost if course.snapshot_course_cost else 0
+    total_sessions = course.sessions + course.gift_sessions
+    session_cost = total_sessions * course_cost_per_session
+    
+    return render_template('formal_course_details.html',
+                         course=course,
+                         trial_course=trial_course,
+                         meta_data=meta_data,
+                         calculations={
+                             'revenue': revenue,
+                             'session_cost': session_cost,
+                             'other_cost': course.other_cost,
+                             'fee': fee,
+                             'total_cost': total_cost,
+                             'profit': profit,
+                             'course_cost_per_session': course_cost_per_session,
+                             'fee_rate': course.snapshot_fee_rate * 100 if course.snapshot_fee_rate else 0
+                         })
 
 @app.route('/api/formal-courses/<int:course_id>', methods=['GET'])
 def get_formal_course(course_id):

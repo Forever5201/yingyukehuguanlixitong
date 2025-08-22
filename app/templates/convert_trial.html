@@ -175,30 +175,30 @@ function updateProfitPreview() {
             feeAmount = totalRevenue * (taobaoFeeRate / 100);
         }
         
-        // 计算总成本
+        // 计算总成本（包含手续费）
         const totalSessions = sessions + giftSessions;
         const sessionCost = totalSessions * courseCostPerSession;
-        const totalCost = sessionCost + otherCost;
+        const totalCost = sessionCost + otherCost + feeAmount;
         
         // 计算净利润
-        const netProfit = totalRevenue - totalCost - feeAmount;
+        const netProfit = totalRevenue - totalCost;
         
         preview.innerHTML = `
             <div class="profit-breakdown">
                 <div class="revenue-section">
                     <div><strong>收入明细：</strong></div>
                     <div>购买节数：${sessions} 节 × ¥${price.toFixed(2)} = ¥${totalRevenue.toFixed(2)}</div>
-                    ${paymentChannel === '淘宝' ? `<div>手续费：¥${totalRevenue.toFixed(2)} × ${taobaoFeeRate}% = ¥${feeAmount.toFixed(2)}</div>` : ''}
                 </div>
                 <div class="cost-section">
                     <div><strong>成本明细：</strong></div>
                     <div>课程成本：${totalSessions} 节 × ¥${courseCostPerSession.toFixed(2)} = ¥${sessionCost.toFixed(2)}</div>
                     <div>其他成本：¥${otherCost.toFixed(2)}</div>
+                    ${paymentChannel === '淘宝' ? `<div>手续费：¥${totalRevenue.toFixed(2)} × ${taobaoFeeRate}% = ¥${feeAmount.toFixed(2)}</div>` : ''}
                     <div>总成本：¥${totalCost.toFixed(2)}</div>
                 </div>
                 <div class="profit-section ${netProfit >= 0 ? 'profit-positive' : 'profit-negative'}">
                     <div><strong>净利润：¥${netProfit.toFixed(2)}</strong></div>
-                    <small>净利润 = 总收入 - 总成本 - 手续费</small>
+                    <small>净利润 = 总收入 - 总成本</small>
                 </div>
             </div>
         `;

@@ -48,6 +48,11 @@ class Course(db.Model):
     converted_from_trial = db.Column(db.Integer, db.ForeignKey('course.id'))  # 从哪个试听课转化而来
     converted_to_course = db.Column(db.Integer, db.ForeignKey('course.id'))  # 转化为哪个正课
     
+    # 快照字段
+    snapshot_course_cost = db.Column(db.Float, default=0)  # 转正时的单节成本快照
+    snapshot_fee_rate = db.Column(db.Float, default=0)  # 转正时的手续费率快照(小数)
+    meta = db.Column(db.Text)  # 扩展信息JSON
+    
     # 时间信息
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
