@@ -1,6 +1,10 @@
 from . import db
 from datetime import datetime
 
+class Employee(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), unique=True, nullable=False)
+
 class Customer(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
@@ -9,8 +13,12 @@ class Customer(db.Model):
     region = db.Column(db.String(100))
     phone = db.Column(db.String(20), unique=True, nullable=False)
     source = db.Column(db.String(50)) # 渠道来源
+    employee_id = db.Column(db.Integer, db.ForeignKey('employee.id'))
     has_tutoring_experience = db.Column(db.String(10)) # 是否参加过英语课外辅导
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # 关系
+    employee = db.relationship('Employee', backref='customers', lazy=True)
 
 class Course(db.Model):
     id = db.Column(db.Integer, primary_key=True)

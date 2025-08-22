@@ -63,6 +63,19 @@ Thumbs.db
 *.tmp
 *.temp
 
+# Backup files and folders
+backups/
+*.bak
+*.backup
+restore_tmp_*/
+
+# Excel files (test data)
+*.xlsx
+*.xls
+
+# Batch files shortcuts
+*.lnk
+
 # Coverage reports
 htmlcov/
 .coverage
