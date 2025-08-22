@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block title %}正课详情 - 客户管理系统{% endblock %}
+{% block page_title %}正课详情{% endblock %}
+
+{% block content %}
+<div class="page-container">
+  <div class="form-section">
+    <h3><i class="fas fa-user"></i> 学员信息</h3>
+    <div class="form-grid">
+      <div class="form-group"><label>姓名</label><div>{{ customer.name }}</div></div>
+      <div class="form-group"><label>电话</label><div>{{ customer.phone }}</div></div>
+      <div class="form-group"><label>性别</label><div>{{ customer.gender or '-' }}</div></div>
+      <div class="form-group"><label>年级</label><div>{{ customer.grade or '-' }}</div></div>
+      <div class="form-group"><label>地区</label><div>{{ customer.region or '-' }}</div></div>
+      <div class="form-group"><label>是否参加过辅导</label><div>{{ customer.has_tutoring_experience or '-' }}</div></div>
+    </div>
+  </div>
+
+  {% if trial %}
+  <div class="form-section">
+    <h3><i class="fas fa-play-circle"></i> 试听课信息</h3>
+    <div class="form-grid">
+      <div class="form-group"><label>试听售价</label><div>¥{{ "%.2f"|format(trial.trial_price or 0) }}</div></div>
+      <div class="form-group"><label>渠道来源</label><div>{{ trial.source or '-' }}</div></div>
+      <div class="form-group"><label>报名时间</label><div>{{ trial.created_at.strftime('%Y-%m-%d %H:%M') if trial.created_at else '-' }}</div></div>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="form-section">
+    <h3><i class="fas fa-graduation-cap"></i> 正课信息</h3>
+    <div class="form-grid">
+      <div class="form-group"><label>课程类型</label><div>{{ course.course_type }}</div></div>
+      <div class="form-group"><label>购买节数</label><div>{{ calc.sessions }}</div></div>
+      <div class="form-group"><label>赠课节数</label><div>{{ calc.gift_sessions }}</div></div>
+      <div class="form-group"><label>单节售价</label><div>¥{{ "%.2f"|format(calc.price) }}</div></div>
+      <div class="form-group"><label>支付渠道</label><div>{{ course.payment_channel or '-' }}</div></div>
+      <div class="form-group"><label>其他成本</label><div>¥{{ "%.2f"|format(calc.other_cost) }}</div></div>
+      <div class="form-group"><label>创建时间</label><div>{{ course.created_at.strftime('%Y-%m-%d %H:%M') if course.created_at else '-' }}</div></div>
+    </div>
+  </div>
+
+  <div class="form-section">
+    <h3><i class="fas fa-calculator"></i> 计算口径与结果</h3>
+    <div class="form-grid">
+      <div class="form-group"><label>总收入</label><div>¥{{ "%.2f"|format(calc.total_revenue) }}</div></div>
+      <div class="form-group"><label>单节成本快照</label><div>¥{{ "%.2f"|format(course.snapshot_course_cost or 0) }}</div></div>
+      <div class="form-group"><label>课程成本</label><div>¥{{ "%.2f"|format(calc.session_cost) }}</div></div>
+      <div class="form-group"><label>手续费率快照</label><div>{{ (calc.fee_rate * 100)|round(3) }}%</div></div>
+      <div class="form-group"><label>手续费</label><div>¥{{ "%.2f"|format(calc.fee_amount) }}</div></div>
+      <div class="form-group"><label>总成本</label><div>¥{{ "%.2f"|format(calc.total_cost) }}</div></div>
+      <div class="form-group"><label>净利润</label><div class="{% if calc.profit >= 0 %}text-success{% else %}text-danger{% endif %}">¥{{ "%.2f"|format(calc.profit) }}</div></div>
+    </div>
+  </div>
+
+  {% if meta and meta|length > 0 %}
+  <div class="form-section">
+    <h3><i class="fas fa-list"></i> 其他信息（动态）</h3>
+    <div class="form-grid">
+      {% for key, value in meta.items() %}
+        <div class="form-group"><label>{{ key }}</label><div>{{ value }}</div></div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <div style="text-align:center; margin-top:10px;">
+    <a href="{{ url_for('manage_formal_courses') }}" class="btn btn-secondary">返回列表</a>
+  </div>
+</div>
+
+<style>
+.form-section { background:#fff; padding:20px; border-radius:8px; box-shadow:0 2px 4px rgba(0,0,0,0.06); margin-bottom:20px; }
+.form-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:16px; }
+.form-group label { color:#666; font-size:13px; margin-bottom:4px; }
+.form-group div { color:#333; }
+.text-success{ color:#28a745; }
+.text-danger{ color:#dc3545; }
+</style>
+{% endblock %}
+
+
+
