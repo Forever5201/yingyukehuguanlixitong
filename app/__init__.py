@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, send_from_directory, Response
 from flask_sqlalchemy import SQLAlchemy
 from config import Config
 import os
@@ -30,5 +30,22 @@ def create_app():
             os.makedirs(api_dir)
         
         db.create_all()
+
+    # favicon 路由，避免 /favicon.ico 404
+    @app.route('/favicon.ico')
+    def favicon():
+        static_dir = os.path.join(app.root_path, 'static')
+        ico = os.path.join(static_dir, 'favicon.ico')
+        png = os.path.join(static_dir, 'favicon.png')
+        if os.path.exists(ico):
+            return send_from_directory(static_dir, 'favicon.ico', mimetype='image/x-icon')
+        if os.path.exists(png):
+            return send_from_directory(static_dir, 'favicon.png', mimetype='image/png')
+        # 1x1 空白 PNG 兜底
+        empty_png = (
+            b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15\xc4\x89"
+            b"\x00\x00\x00\x0cIDAT\x08\xd7c\xf8\xff\xff?\x00\x05\xfe\x02\xfeA\x9ei\x1d\x00\x00\x00\x00IEND\xaeB`\x82"
+        )
+        return Response(empty_png, mimetype='image/png')
 
     return app

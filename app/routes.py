@@ -5,11 +5,26 @@ from datetime import datetime
 import csv
 from io import StringIO, BytesIO
 import pandas as pd
+import os
 
 @app.route('/test-js')
 def test_js():
     """JavaScript测试页面"""
     return render_template('test_js.html')
+
+@app.route('/static/vendor/fontawesome/all.min.css')
+def serve_fa_css():
+    """本地提供 FontAwesome all.min.css，避免外部CDN超时导致样式缺失"""
+    try:
+        css_dir = os.path.join(app.root_path, 'static', 'vendor', 'fontawesome')
+        css_path = os.path.join(css_dir, 'all.min.css')
+        os.makedirs(css_dir, exist_ok=True)
+        if not os.path.exists(css_path):
+            with open(css_path, 'w', encoding='utf-8') as f:
+                f.write("/* fallback for fontawesome if CDN not available */\n")
+        return send_from_directory(css_dir, 'all.min.css', mimetype='text/css')
+    except Exception:
+        return make_response("/* fallback */", 200, {"Content-Type": "text/css"})
 
 @app.route('/api/test')
 def test_api():
