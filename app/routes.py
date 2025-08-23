@@ -980,82 +980,11 @@ def export_formal_courses():
     except Exception as e:
         return jsonify({'error': f'导出失败: {str(e)}'}), 500
 
-@app.route('/api/customers/<int:customer_id>', methods=['GET'])
-def get_customer_api(customer_id):
-    """获取客户详情API"""
-    try:
-        customer = Customer.query.get_or_404(customer_id)
-        return jsonify({
-            'success': True,
-            'customer': {
-                'id': customer.id,
-                'name': customer.name,
-                'phone': customer.phone,
-                'gender': customer.gender,
-                'grade': customer.grade,
-                'region': customer.region,
-                'source': customer.source,
-                'has_tutoring_experience': customer.has_tutoring_experience,
-                'created_at': customer.created_at.isoformat() if customer.created_at else None
-            }
-        })
-    except Exception as e:
-        return jsonify({'success': False, 'message': str(e)}), 500
 
-@app.route('/api/customers/<int:customer_id>', methods=['PUT'])
-def update_customer_api(customer_id):
-    """更新客户信息API"""
-    try:
-        customer = Customer.query.get_or_404(customer_id)
-        
-        # 更新客户信息
-        customer.name = request.form.get('name', customer.name)
-        customer.phone = request.form.get('phone', customer.phone)
-        customer.gender = request.form.get('gender', customer.gender)
-        customer.grade = request.form.get('grade', customer.grade)
-        customer.region = request.form.get('region', customer.region)
-        customer.source = request.form.get('source', customer.source)
-        customer.has_tutoring_experience = request.form.get('has_tutoring_experience', customer.has_tutoring_experience)
-        
-        db.session.commit()
-        return jsonify({'success': True, 'message': '客户信息更新成功'})
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'success': False, 'message': str(e)}), 500
 
-@app.route('/api/customers/<int:customer_id>', methods=['DELETE'])
-def delete_customer_api(customer_id):
-    try:
-        customer = Customer.query.get_or_404(customer_id)
-        
-        # 记录删除信息用于日志
-        customer_name = customer.name
-        customer_phone = customer.phone
-        
-        # 查找并删除关联的课程记录
-        related_courses = Course.query.filter_by(customer_id=customer_id).all()
-        course_count = len(related_courses)
-        
-        # 删除关联的课程记录
-        for course in related_courses:
-            db.session.delete(course)
-        
-        # 删除客户记录
-        db.session.delete(customer)
-        db.session.commit()
-        
-        # 记录删除日志
-        app.logger.info(f"客户删除成功: {customer_name}({customer_phone}), 同时删除了 {course_count} 条关联课程记录")
-        
-        return jsonify({
-            'success': True, 
-            'message': f'删除成功，同时清理了 {course_count} 条关联记录'
-        })
-        
-    except Exception as e:
-        db.session.rollback()
-        app.logger.error(f"客户删除失败: {str(e)}")
-        return jsonify({'success': False, 'message': f'删除失败: {str(e)}'}), 500
+
+
+
 
 @app.route('/api/taobao-orders/settle', methods=['POST'])
 def settle_orders():
@@ -1578,97 +1507,9 @@ def api_trial_courses():
     except Exception as e:
         return {'error': str(e)}, 500
 
-@app.route('/api/formal-courses/<int:course_id>', methods=['GET'])
-def api_formal_course(course_id):
-    """单个正课详情API"""
-    try:
-        course = Course.query.get(course_id)
-        if not course:
-            return {'error': 'Course not found'}, 404
-        return {
-            'id': course.id,
-            'customer_name': course.customer.name,
-            'course_type': course.course_type,
-            'sessions': course.sessions,
-            'gift_sessions': course.gift_sessions,
-            'price': course.price,
-            'payment_channel': course.payment_channel,
-            'fee': course.fee,
-            'course_cost': course.cost,
-            'revenue': course.revenue,
-            'profit': course.profit,
-        }
-    except Exception as e:
-        return {'error': str(e)}, 500
 
-@app.route('/api/trial-courses/<int:course_id>', methods=['GET'])
-def api_trial_course(course_id):
-    """单个试听详情API"""
-    try:
-        course = Course.query.get(course_id)
-        if not course:
-            return {'error': 'Course not found'}, 404
-        return {
-            'id': course.id,
-            'customer_name': course.customer.name,
-            'course_type': course.course_type,
-            'sessions': course.sessions,
-            'gift_sessions': course.gift_sessions,
-            'price': course.price,
-            'payment_channel': course.payment_channel,
-            'fee': course.fee,
-            'course_cost': course.cost,
-            'revenue': course.revenue,
-            'profit': course.profit,
-        }
-    except Exception as e:
-        return {'error': str(e)}, 500
 
-@app.route('/api/formal-courses/<int:course_id>', methods=['PUT'])
-def update_formal_course(course_id):
-    """更新正课API"""
-    try:
-        course = Course.query.get(course_id)
-        if not course:
-            return {'error': 'Course not found'}, 404
-        data = request.get_json()
-        course.customer_id = data.get('customer_id', course.customer_id)
-        course.course_type = data.get('course_type', course.course_type)
-        course.sessions = data.get('sessions', course.sessions)
-        course.gift_sessions = data.get('gift_sessions', course.gift_sessions)
-        course.price = data.get('price', course.price)
-        course.payment_channel = data.get('payment_channel', course.payment_channel)
-        course.snapshot_fee_rate = data.get('snapshot_fee_rate', course.snapshot_fee_rate)
-        course.base_cost_per_session = data.get('base_cost_per_session', course.base_cost_per_session)
-        course.custom_course_cost = data.get('custom_course_cost', course.custom_course_cost)
-        course.use_base_cost = data.get('use_base_cost', course.use_base_cost)
-        db.session.commit()
-        return {'message': 'Course updated successfully'}
-    except Exception as e:
-        return {'error': str(e)}, 500
 
-@app.route('/api/trial-courses/<int:course_id>', methods=['PUT'])
-def update_trial_course(course_id):
-    """更新试听API"""
-    try:
-        course = Course.query.get(course_id)
-        if not course:
-            return {'error': 'Course not found'}, 404
-        data = request.get_json()
-        course.customer_id = data.get('customer_id', course.customer_id)
-        course.course_type = data.get('course_type', course.course_type)
-        course.sessions = data.get('sessions', course.sessions)
-        course.gift_sessions = data.get('gift_sessions', course.gift_sessions)
-        course.price = data.get('price', course.price)
-        course.payment_channel = data.get('payment_channel', course.payment_channel)
-        course.snapshot_fee_rate = data.get('snapshot_fee_rate', course.snapshot_fee_rate)
-        course.base_cost_per_session = data.get('base_cost_per_session', course.base_cost_per_session)
-        course.custom_course_cost = data.get('custom_course_cost', course.custom_course_cost)
-        course.use_base_cost = data.get('use_base_cost', course.use_base_cost)
-        db.session.commit()
-        return {'message': 'Course updated successfully'}
-    except Exception as e:
-        return {'error': str(e)}, 500
 
 @app.route('/api/formal-courses', methods=['POST'])
 def create_formal_course():
