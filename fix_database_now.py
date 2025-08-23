@@ -65,7 +65,8 @@ def fix_database():
             
             for table in tables:
                 try:
-                    result = db.session.execute(f'SELECT COUNT(*) FROM {table}')
+                    from sqlalchemy import text
+                    result = db.session.execute(text(f'SELECT COUNT(*) FROM {table}'))
                     count = result.scalar()
                     print(f"  ✓ {table:<20} - {count} 条记录")
                 except Exception as e:
