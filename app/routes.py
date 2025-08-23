@@ -254,22 +254,16 @@ def get_employee_performance(employee_id):
         
         # 正课提成
         for course in formal_courses:
-            sessions = safe_int(course.sessions, 0)
-            price = safe_float(course.price, 0)
-            revenue = sessions * price
+            # 使用新的利润计算函数（包含退费）
+            profit_info = calculate_course_profit_with_refund(course)
             
             # 计算利润或销售额
             if config.commission_type == 'profit':
-                # 计算利润
-                fee = 0
-                if course.payment_channel == '淘宝':
-                    fee_rate = course.snapshot_fee_rate if course.snapshot_fee_rate else 0.006
-                    fee = revenue * fee_rate
-                profit = revenue - course.cost - fee
-                base_amount = profit
+                # 利润型提成
+                base_amount = profit_info['profit']
             else:
                 # 销售额提成
-                base_amount = revenue
+                base_amount = profit_info['revenue']
             
             # 根据课程类型计算提成
             if course.is_renewal:
@@ -302,8 +296,9 @@ def get_employee_performance(employee_id):
                 'customer_name': c.customer.name,
                 'course_type': c.course_type,
                 'sessions': c.sessions,
-                'total_amount': c.sessions * c.price,
-                'profit': calculate_course_profit(c),
+                'total_amount': (profit_info := calculate_course_profit_with_refund(c))['revenue'],  # 使用退费后的实际收入
+                'profit': profit_info['profit'],  # 使用退费后的利润
+                'has_refund': profit_info['has_refund'],
                 'is_renewal': c.is_renewal,
                 'created_at': c.created_at.strftime('%Y-%m-%d')
             } for c in formal_courses],
@@ -332,6 +327,78 @@ def calculate_course_profit(course):
         fee_rate = course.snapshot_fee_rate if course.snapshot_fee_rate else 0.006
         fee = revenue * fee_rate
     return revenue - course.cost - fee
+
+def calculate_course_profit_with_refund(course, include_refund=True):
+    """统一的课程利润计算函数（考虑退费）"""
+    # 原始计算
+    sessions = safe_int(course.sessions, 0)
+    price = safe_float(course.price, 0)
+    revenue = sessions * price
+    
+    # 计算手续费（基于原始收入）
+    fee = 0
+    if course.payment_channel == '淘宝':
+        fee_rate = course.snapshot_fee_rate if course.snapshot_fee_rate else 0.006
+        fee = revenue * fee_rate
+    
+    # 原始成本
+    cost = safe_float(course.cost, 0)
+    
+    if include_refund and not course.is_trial:  # 只对正课计算退费
+        # 获取退费记录
+        refunds = CourseRefund.query.filter_by(
+            course_id=course.id,
+            status='completed'
+        ).all()
+        
+        if refunds:
+            total_refunded_sessions = sum(r.refund_sessions for r in refunds)
+            total_refunded_amount = sum(r.refund_amount for r in refunds)
+            
+            # 实际收入 = 原始收入 - 退费金额
+            actual_revenue = revenue - total_refunded_amount
+            
+            # 成本按比例调整
+            actual_sessions = sessions - total_refunded_sessions
+            if sessions > 0:
+                # 分离固定成本和变动成本
+                other_cost = safe_float(course.other_cost, 0)  # 固定成本
+                course_cost = cost - other_cost  # 变动成本
+                
+                # 变动成本按比例，固定成本不变
+                actual_cost = (course_cost * actual_sessions / sessions) + other_cost
+            else:
+                actual_cost = cost  # 全部退费时保留成本
+            
+            # 利润 = 实际收入 - 实际成本 - 手续费（手续费不退）
+            profit = actual_revenue - actual_cost - fee
+            
+            return {
+                'revenue': actual_revenue,
+                'cost': actual_cost + fee,  # 为了兼容现有逻辑，成本包含手续费
+                'profit': profit,
+                'has_refund': True,
+                'refund_info': {
+                    'sessions': total_refunded_sessions,
+                    'amount': total_refunded_amount
+                }
+            }
+        else:
+            # 没有退费，返回原始数据
+            return {
+                'revenue': revenue,
+                'cost': cost + fee,
+                'profit': revenue - cost - fee,
+                'has_refund': False
+            }
+    else:
+        # 不考虑退费的原始计算
+        return {
+            'revenue': revenue,
+            'cost': cost + fee,
+            'profit': revenue - cost - fee,
+            'has_refund': False
+        }
 
 @main_bp.route('/api/employees/<int:employee_id>/commission-config', methods=['GET'])
 def get_commission_config(employee_id):
@@ -498,17 +565,13 @@ def get_profit_report():
         new_course_profit_total = 0
         
         for course in new_courses:
-            sessions = safe_int(course.sessions, 0)
-            price = safe_float(course.price, 0)
-            revenue = sessions * price
-            fee = 0
-            if course.payment_channel == '淘宝':
-                fee_rate = course.snapshot_fee_rate if course.snapshot_fee_rate else 0.006
-                fee = revenue * fee_rate
+            # 使用新的利润计算函数（包含退费）
+            profit_info = calculate_course_profit_with_refund(course)
             
-            cost = safe_float(course.cost, 0)
-            cost = cost + fee
-            profit = revenue - cost
+            revenue = profit_info['revenue']
+            cost = profit_info['cost']
+            profit = profit_info['profit']
+            
             new_course_profit_total += profit
             
             shareholder_a = profit * profit_config['new_course_shareholder_a'] / 100
@@ -520,6 +583,8 @@ def get_profit_report():
                 'revenue': revenue,
                 'cost': cost,
                 'profit': profit,
+                'has_refund': profit_info['has_refund'],
+                'refund_amount': profit_info.get('refund_info', {}).get('amount', 0),
                 'shareholder_a': shareholder_a,
                 'shareholder_b': shareholder_b,
                 'date': course.created_at.strftime('%Y-%m-%d')
@@ -530,11 +595,10 @@ def get_profit_report():
         renewal_profit_total = 0
         
         for course in renewal_courses:
-            sessions = safe_int(course.sessions, 0)
-            price = safe_float(course.price, 0)
-            revenue = sessions * price
+            # 使用新的利润计算函数（包含退费）
+            profit_info = calculate_course_profit_with_refund(course)
             
-            # 检查是否有优惠
+            # 处理续课优惠
             discount = 0
             if course.meta:
                 try:
@@ -543,16 +607,11 @@ def get_profit_report():
                 except:
                     pass
             
-            revenue -= discount
-            
-            fee = 0
-            if course.payment_channel == '淘宝':
-                fee_rate = course.snapshot_fee_rate if course.snapshot_fee_rate else 0.006
-                fee = revenue * fee_rate
-            
-            cost = safe_float(course.cost, 0)
-            cost = cost + fee
+            # 调整收入（减去优惠）
+            revenue = profit_info['revenue'] - discount
+            cost = profit_info['cost']
             profit = revenue - cost
+            
             renewal_profit_total += profit
             
             shareholder_a = profit * profit_config['renewal_shareholder_a'] / 100
@@ -564,6 +623,8 @@ def get_profit_report():
                 'revenue': revenue,
                 'cost': cost,
                 'profit': profit,
+                'has_refund': profit_info['has_refund'],
+                'refund_amount': profit_info.get('refund_info', {}).get('amount', 0),
                 'shareholder_a': shareholder_a,
                 'shareholder_b': shareholder_b,
                 'date': course.created_at.strftime('%Y-%m-%d')
@@ -1420,34 +1481,26 @@ def api_formal_courses_stats():
         rows = []
         
         for course in courses:
-            # 计算收入
-            sessions = safe_int(course.sessions, 0)
-            price = safe_float(course.price, 0)
-            revenue = sessions * price
+            # 使用新的利润计算函数（包含退费）
+            profit_info = calculate_course_profit_with_refund(course)
             
-            # 计算手续费
+            revenue = profit_info['revenue']
+            cost = profit_info['cost']
+            profit = profit_info['profit']
+            
+            # 计算手续费（用于显示）
             fee = 0
             if course.payment_channel == '淘宝':
-                # 优先使用快照费率，否则使用默认费率
                 fee_rate = course.snapshot_fee_rate if course.snapshot_fee_rate else default_fee_rate
-                fee = revenue * fee_rate
+                fee = course.sessions * course.price * fee_rate  # 基于原始金额计算
             
-            # 计算成本（使用基础成本和自定义成本）
+            # 课程成本（用于显示）
             if course.custom_course_cost:
-                # 使用自定义成本
                 course_cost = course.custom_course_cost
             elif course.snapshot_course_cost:
-                # 使用快照成本
                 course_cost = (course.sessions + course.gift_sessions) * course.snapshot_course_cost + (course.other_cost or 0)
             else:
-                # 使用配置的成本
                 course_cost = (course.sessions + course.gift_sessions) * course_cost_per_session + (course.other_cost or 0)
-            
-            # 总成本包含手续费
-            cost = course_cost + fee
-            
-            # 计算利润
-            profit = revenue - course_cost  # 利润不包含手续费
             
             # 累加统计
             total_revenue += revenue
@@ -1469,6 +1522,8 @@ def api_formal_courses_stats():
                 'course_cost': course_cost,
                 'revenue': revenue,
                 'profit': profit,
+                'has_refund': profit_info['has_refund'],
+                'refund_amount': profit_info.get('refund_info', {}).get('amount', 0),
                 'created_at': course.created_at.isoformat() if course.created_at else None,
             })
         
