@@ -1718,19 +1718,6 @@ def create_trial_course():
     except Exception as e:
         return {'error': str(e)}, 500
 
-@app.route('/api/formal-courses/<int:course_id>', methods=['DELETE'])
-def delete_formal_course(course_id):
-    """删除正课API"""
-    try:
-        course = Course.query.get(course_id)
-        if not course:
-            return {'error': 'Course not found'}, 404
-        db.session.delete(course)
-        db.session.commit()
-        return {'message': 'Course deleted successfully'}
-    except Exception as e:
-        return {'error': str(e)}, 500
-
 @app.route('/api/trial-courses/<int:course_id>', methods=['DELETE'])
 def delete_trial_course(course_id):
     """删除试听API"""
