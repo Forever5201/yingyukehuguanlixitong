@@ -742,6 +742,13 @@ def manage_trial_courses():
         # 统一规则：试听课成本仅为基础成本，不包含任何渠道手续费
         total_trial_cost = base_trial_cost
         
+        # 获取分配的员工ID
+        assigned_employee_id = request.form.get('assigned_employee_id')
+        if assigned_employee_id and assigned_employee_id.strip():
+            assigned_employee_id = int(assigned_employee_id)
+        else:
+            assigned_employee_id = None
+        
         # 创建试听课记录
         new_trial = Course(
             name='试听课',
@@ -750,7 +757,8 @@ def manage_trial_courses():
             trial_price=trial_price,
             source=source,
             cost=total_trial_cost,
-            trial_status='registered'
+            trial_status='registered',
+            assigned_employee_id=assigned_employee_id
         )
         
         db.session.add(new_trial)
@@ -918,6 +926,9 @@ def manage_trial_courses():
         'total_profit': sum(s['revenue'] for s in status_stats.values()) - sum(s['cost'] for s in status_stats.values())
     }
     
+    # 获取员工列表
+    employees = Employee.query.order_by(Employee.name).all()
+    
     return render_template('trial_courses.html', 
                          trial_courses=trial_courses,
                          customers=customers,
@@ -925,7 +936,8 @@ def manage_trial_courses():
                          stats=total_stats,
                          status_stats=status_stats,
                          calc_rows=calc_rows if debug_mode else None,
-                         embedded=embedded)
+                         embedded=embedded,
+                         employees=employees)
 
 @app.route('/api/formal-courses/stats', methods=['GET'])
 def api_formal_courses_stats():
@@ -1401,6 +1413,32 @@ def update_formal_course(course_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': f'更新失败：{str(e)}'})
+
+@app.route('/api/trial-courses/<int:course_id>/assign', methods=['POST'])
+def assign_trial_course(course_id):
+    """分配试听课给员工"""
+    course = Course.query.filter_by(id=course_id, is_trial=True).first_or_404()
+    
+    try:
+        data = request.get_json()
+        employee_id = data.get('employee_id')
+        
+        # 如果employee_id为空字符串或None，则清除分配
+        if employee_id == '' or employee_id is None:
+            course.assigned_employee_id = None
+        else:
+            # 验证员工是否存在
+            employee = Employee.query.get(employee_id)
+            if not employee:
+                return jsonify({'success': False, 'message': '员工不存在'}), 400
+            course.assigned_employee_id = employee_id
+        
+        db.session.commit()
+        return jsonify({'success': True, 'message': '分配成功'})
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'分配失败：{str(e)}'})
 
 @app.route('/api/trial-courses/<int:course_id>/status', methods=['PUT'])
 def update_trial_status(course_id):

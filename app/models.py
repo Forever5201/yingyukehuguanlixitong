@@ -35,6 +35,7 @@ class Course(db.Model):
     refund_fee = db.Column(db.Float, default=0)  # 退费手续费
     refund_channel = db.Column(db.String(50))  # 退款渠道（微信、淘宝、支付宝等）
     custom_trial_cost = db.Column(db.Float)  # 自定义试听课成本
+    assigned_employee_id = db.Column(db.Integer, db.ForeignKey('employee.id'))  # 分配的员工ID
     
     # 正课信息
     course_type = db.Column(db.String(50))  # 课程类型（单词课、语法课、阅读课、拼读课）
@@ -58,6 +59,9 @@ class Course(db.Model):
     # 时间信息
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # 关系
+    assigned_employee = db.relationship('Employee', backref='assigned_courses', foreign_keys=[assigned_employee_id])
 
 class TaobaoOrder(db.Model):
     id = db.Column(db.Integer, primary_key=True)

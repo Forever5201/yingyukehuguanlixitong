@@ -334,7 +334,17 @@
                                 </select>
                             </div>
                         </div>
-
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="assigned_employee_id">分配给员工</label>
+                                <select name="assigned_employee_id" id="assigned_employee_id">
+                                    <option value="">暂不分配（可稍后分配）</option>
+                                    {% for employee in employees %}
+                                    <option value="{{ employee.id }}">{{ employee.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 
@@ -562,8 +572,9 @@
                         <th>渠道来源</th>
                         <th>手续费</th>
                         <th>报名时间</th>
-                                <th>试听课状态</th>
-                                <th>操作</th>
+                        <th>试听课状态</th>
+                        <th>负责员工</th>
+                        <th>操作</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -624,6 +635,21 @@
                                     <small>退款渠道：{{ course.refund_channel or '-' }}</small>
                                 </div>
                                 {% endif %}
+                            </div>
+                        </td>
+                        <td>
+                            <div class="employee-assign">
+                                <select class="form-control form-control-sm employee-select" 
+                                        data-course-id="{{ course.id }}" 
+                                        onchange="assignEmployee({{ course.id }}, this.value)">
+                                    <option value="">未分配</option>
+                                    {% for employee in employees %}
+                                    <option value="{{ employee.id }}" 
+                                            {% if course.assigned_employee_id == employee.id %}selected{% endif %}>
+                                        {{ employee.name }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
                             </div>
                         </td>
                         <td>
@@ -2581,7 +2607,70 @@ document.addEventListener('DOMContentLoaded', function() {
     border-color: #007bff;
     box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
 }
+
+/* 员工分配下拉框样式 */
+.employee-select {
+    min-width: 100px;
+    padding: 2px 8px;
+    font-size: 12px;
+}
+
+.employee-assign {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
 </style>
+
+<script>
+// 分配员工
+function assignEmployee(courseId, employeeId) {
+    if (!confirm('确定要将该试听课分配给此员工吗？')) {
+        // 恢复原选项
+        location.reload();
+        return;
+    }
+    
+    fetch(`/api/trial-courses/${courseId}/assign`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            employee_id: employeeId || null
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('分配成功', 'success');
+        } else {
+            showAlert(data.message || '分配失败', 'danger');
+            location.reload();
+        }
+    })
+    .catch(error => {
+        showAlert('分配失败：' + error.message, 'danger');
+        location.reload();
+    });
+}
+
+// 显示提示信息
+function showAlert(message, type) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 9999;';
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="close" data-dismiss="alert">
+            <span>&times;</span>
+        </button>
+    `;
+    document.body.appendChild(alertDiv);
+    
+    setTimeout(() => alertDiv.remove(), 3000);
+}
+</script>
 
 <!-- 引入学员详情模态框 -->
 {% include 'components/customer_detail_modal.html' %}
