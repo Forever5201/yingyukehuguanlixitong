@@ -184,27 +184,6 @@ def employee_performance():
     
     return render_template('employee_performance.html', employees=employees)
 
-@app.route('/api/employees', methods=['POST'])
-def create_employee():
-    """创建新员工"""
-    try:
-        name = request.form.get('name', '').strip()
-        if not name:
-            return jsonify({'success': False, 'message': '员工姓名不能为空'})
-        
-        # 检查是否已存在
-        if Employee.query.filter_by(name=name).first():
-            return jsonify({'success': False, 'message': '该员工已存在'})
-        
-        employee = Employee(name=name)
-        db.session.add(employee)
-        db.session.commit()
-        
-        return jsonify({'success': True, 'message': '员工添加成功'})
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'success': False, 'message': str(e)})
-
 @app.route('/api/employees/<int:employee_id>/performance')
 def get_employee_performance(employee_id):
     """获取员工业绩详情"""
@@ -1001,82 +980,11 @@ def export_formal_courses():
     except Exception as e:
         return jsonify({'error': f'导出失败: {str(e)}'}), 500
 
-@app.route('/api/customers/<int:customer_id>', methods=['GET'])
-def get_customer_api(customer_id):
-    """获取客户详情API"""
-    try:
-        customer = Customer.query.get_or_404(customer_id)
-        return jsonify({
-            'success': True,
-            'customer': {
-                'id': customer.id,
-                'name': customer.name,
-                'phone': customer.phone,
-                'gender': customer.gender,
-                'grade': customer.grade,
-                'region': customer.region,
-                'source': customer.source,
-                'has_tutoring_experience': customer.has_tutoring_experience,
-                'created_at': customer.created_at.isoformat() if customer.created_at else None
-            }
-        })
-    except Exception as e:
-        return jsonify({'success': False, 'message': str(e)}), 500
 
-@app.route('/api/customers/<int:customer_id>', methods=['PUT'])
-def update_customer_api(customer_id):
-    """更新客户信息API"""
-    try:
-        customer = Customer.query.get_or_404(customer_id)
-        
-        # 更新客户信息
-        customer.name = request.form.get('name', customer.name)
-        customer.phone = request.form.get('phone', customer.phone)
-        customer.gender = request.form.get('gender', customer.gender)
-        customer.grade = request.form.get('grade', customer.grade)
-        customer.region = request.form.get('region', customer.region)
-        customer.source = request.form.get('source', customer.source)
-        customer.has_tutoring_experience = request.form.get('has_tutoring_experience', customer.has_tutoring_experience)
-        
-        db.session.commit()
-        return jsonify({'success': True, 'message': '客户信息更新成功'})
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'success': False, 'message': str(e)}), 500
 
-@app.route('/api/customers/<int:customer_id>', methods=['DELETE'])
-def delete_customer_api(customer_id):
-    try:
-        customer = Customer.query.get_or_404(customer_id)
-        
-        # 记录删除信息用于日志
-        customer_name = customer.name
-        customer_phone = customer.phone
-        
-        # 查找并删除关联的课程记录
-        related_courses = Course.query.filter_by(customer_id=customer_id).all()
-        course_count = len(related_courses)
-        
-        # 删除关联的课程记录
-        for course in related_courses:
-            db.session.delete(course)
-        
-        # 删除客户记录
-        db.session.delete(customer)
-        db.session.commit()
-        
-        # 记录删除日志
-        app.logger.info(f"客户删除成功: {customer_name}({customer_phone}), 同时删除了 {course_count} 条关联课程记录")
-        
-        return jsonify({
-            'success': True, 
-            'message': f'删除成功，同时清理了 {course_count} 条关联记录'
-        })
-        
-    except Exception as e:
-        db.session.rollback()
-        app.logger.error(f"客户删除失败: {str(e)}")
-        return jsonify({'success': False, 'message': f'删除失败: {str(e)}'}), 500
+
+
+
 
 @app.route('/api/taobao-orders/settle', methods=['POST'])
 def settle_orders():
@@ -1334,13 +1242,13 @@ def manage_trial_courses():
         # 按状态计算
         if status == 'registered':
             revenue = course.trial_price or 0
-            cost = course.cost or 0
+            cost = course.cost or 0  # 使用成本
             fees = (revenue * channel_rate) if revenue else 0
             profit = revenue - cost  # 修改为不扣除手续费
         elif status == 'refunded':
             # 退费（MIGRATION_GUIDE）：收入=0；成本=基础成本C；不再从利润中扣除手续费
             revenue = 0
-            cost = course.cost or 0
+            cost = course.cost or 0  # 使用成本
             refund_channel = (course.refund_channel or '').strip()
             if refund_channel == '淘宝':
                 fees = 0.0
@@ -1357,13 +1265,13 @@ def manage_trial_courses():
         elif status == 'converted':
             # 独立核算：与已报名一致
             revenue = course.trial_price or 0
-            cost = course.cost or 0
+            cost = course.cost or 0  # 使用成本
             fees = (revenue * channel_rate) if revenue else 0
             profit = revenue - cost  # 修改为不扣除手续费
         elif status == 'no_action':
             # 视为已支付并完成试听：与已报名一致
             revenue = course.trial_price or 0
-            cost = course.cost or 0
+            cost = course.cost or 0  # 使用成本
             fees = (revenue * channel_rate) if revenue else 0
             profit = revenue - cost  # 修改为不扣除手续费
         else:
@@ -1455,6 +1363,77 @@ def api_formal_courses_stats():
                 fee_rate = course.snapshot_fee_rate if course.snapshot_fee_rate else default_fee_rate
                 fee = revenue * fee_rate
             
+            # 计算成本（使用基础成本和自定义成本）
+            base_cost = (course.sessions + course.gift_sessions) * course.cost_per_session if course.cost_per_session else 0
+            custom_cost = course.custom_course_cost if course.custom_course_cost else 0
+            course_cost = base_cost if course.use_base_cost else custom_cost
+            
+            # 总成本包含手续费
+            cost = course_cost + fee
+            
+            # 计算利润
+            profit = revenue - course_cost  # 利润不包含手续费
+            
+            # 累加统计
+            total_revenue += revenue
+            total_cost += cost
+            total_profit += profit
+            total_fees += fee
+            
+            # 构建行数据
+            rows.append({
+                'id': course.id,
+                'customer_name': course.customer.name,
+                'course_type': course.course_type,
+                'sessions': course.sessions,
+                'gift_sessions': course.gift_sessions,
+                'price': course.price,
+                'payment_channel': course.payment_channel,
+                'fee': fee,
+                'course_cost': course_cost,
+                'revenue': revenue,
+                'profit': profit,
+            })
+        
+        return {
+            'total_revenue': total_revenue,
+            'total_cost': total_cost,
+            'total_profit': total_profit,
+            'total_fees': total_fees,
+            'rows': rows,
+        }
+    except Exception as e:
+        return {'error': str(e)}, 500
+
+@app.route('/api/trial-courses/stats', methods=['GET'])
+def api_trial_courses_stats():
+    """试听统计API"""
+    try:
+        # 获取所有试听
+        courses = Course.query.filter_by(is_trial=True).all()
+        
+        # 获取淘宝手续费率配置（用于旧数据）
+        taobao_fee_config = Config.query.filter_by(key='taobao_fee_rate').first()
+        default_fee_rate = float(taobao_fee_config.value) / 100 if taobao_fee_config else 0.006
+        
+        # 计算统计数据
+        total_revenue = 0
+        total_cost = 0
+        total_profit = 0
+        total_fees = 0
+        rows = []
+        
+        for course in courses:
+            # 计算收入
+            revenue = course.sessions * course.price
+            
+            # 计算手续费
+            fee = 0
+            if course.payment_channel == '淘宝':
+                # 优先使用快照费率，否则使用默认费率
+                fee_rate = course.snapshot_fee_rate if course.snapshot_fee_rate else default_fee_rate
+                fee = revenue * fee_rate
+            
             # 计算成本（course.cost已包含课时成本和其他成本）
             cost = course.cost + fee  # 总成本包含手续费
             
@@ -1469,6 +1448,416 @@ def api_formal_courses_stats():
             
             # 构建行数据
             rows.append({
+                'id': course.id,
+                'customer_name': course.customer.name,
+                'course_type': course.course_type,
+                'sessions': course.sessions,
+                'gift_sessions': course.gift_sessions,
+                'price': course.price,
+                'payment_channel': course.payment_channel,
+                'fee': fee,
+                'course_cost': course.cost,
+                'revenue': revenue,
+                'profit': profit,
+            })
+        
+        return {
+            'total_revenue': total_revenue,
+            'total_cost': total_cost,
+            'total_profit': total_profit,
+            'total_fees': total_fees,
+            'rows': rows,
+        }
+    except Exception as e:
+        return {'error': str(e)}, 500
+
+@app.route('/api/customers', methods=['GET'])
+def api_customers():
+    """客户列表API"""
+    try:
+        customers = Customer.query.order_by(Customer.name).all()
+        return [{'id': c.id, 'name': c.name} for c in customers]
+    except Exception as e:
+        return {'error': str(e)}, 500
+
+@app.route('/api/employees', methods=['GET'])
+def api_employees():
+    """员工列表API"""
+    try:
+        employees = Employee.query.order_by(Employee.name).all()
+        return [{'id': e.id, 'name': e.name} for e in employees]
+    except Exception as e:
+        return {'error': str(e)}, 500
+
+@app.route('/api/employees', methods=['POST'])
+def create_employee():
+    """创建新员工API"""
+    try:
+        data = request.get_json()
+        name = data.get('name', '').strip()
+        
+        if not name:
+            return jsonify({'success': False, 'message': '员工姓名不能为空'}), 400
+        
+        # 检查是否已存在
+        existing = Employee.query.filter_by(name=name).first()
+        if existing:
+            return jsonify({'success': False, 'message': '该员工已存在'}), 400
+        
+        # 创建新员工
+        employee = Employee(name=name)
+        db.session.add(employee)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True, 
+            'message': '员工添加成功',
+            'employee': {'id': employee.id, 'name': employee.name}
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/api/formal-courses', methods=['GET'])
+def api_formal_courses():
+    """正课列表API"""
+    try:
+        courses = Course.query.filter_by(is_trial=False).all()
+        return [{'id': c.id, 'customer_name': c.customer.name, 'course_type': c.course_type, 'sessions': c.sessions, 'gift_sessions': c.gift_sessions, 'price': c.price, 'payment_channel': c.payment_channel} for c in courses]
+    except Exception as e:
+        return {'error': str(e)}, 500
+
+@app.route('/api/trial-courses', methods=['GET'])
+def api_trial_courses():
+    """试听列表API"""
+    try:
+        courses = Course.query.filter_by(is_trial=True).all()
+        return [{'id': c.id, 'customer_name': c.customer.name, 'course_type': c.course_type, 'sessions': c.sessions, 'gift_sessions': c.gift_sessions, 'price': c.price, 'payment_channel': c.payment_channel} for c in courses]
+    except Exception as e:
+        return {'error': str(e)}, 500
+
+
+
+
+
+@app.route('/api/formal-courses', methods=['POST'])
+def create_formal_course():
+    """创建正课API"""
+    try:
+        data = request.get_json()
+        course = Course(
+            customer_id=data['customer_id'],
+            course_type=data['course_type'],
+            sessions=data['sessions'],
+            gift_sessions=data['gift_sessions'],
+            price=data['price'],
+            payment_channel=data['payment_channel'],
+            snapshot_fee_rate=data.get('snapshot_fee_rate'),            custom_course_cost=data.get('custom_course_cost'),            is_trial=False
+        )
+        db.session.add(course)
+        db.session.commit()
+        return {'message': 'Course created successfully'}
+    except Exception as e:
+        return {'error': str(e)}, 500
+
+@app.route('/api/trial-courses', methods=['POST'])
+def create_trial_course():
+    """创建试听API"""
+    try:
+        data = request.get_json()
+        course = Course(
+            customer_id=data['customer_id'],
+            course_type=data['course_type'],
+            sessions=data['sessions'],
+            gift_sessions=data['gift_sessions'],
+            price=data['price'],
+            payment_channel=data['payment_channel'],
+            snapshot_fee_rate=data.get('snapshot_fee_rate'),            custom_course_cost=data.get('custom_course_cost'),            is_trial=True
+        )
+        db.session.add(course)
+        db.session.commit()
+        return {'message': 'Course created successfully'}
+    except Exception as e:
+        return {'error': str(e)}, 500
+
+@app.route('/api/trial-courses/<int:course_id>', methods=['DELETE'])
+def delete_trial_course(course_id):
+    """删除试听API"""
+    try:
+        course = Course.query.get(course_id)
+        if not course:
+            return {'error': 'Course not found'}, 404
+        db.session.delete(course)
+        db.session.commit()
+        return {'message': 'Course deleted successfully'}
+    except Exception as e:
+        return {'error': str(e)}, 500
+
+@app.route('/api/customers/<int:customer_id>', methods=['GET'])
+def api_customer(customer_id):
+    """单个客户详情API"""
+    try:
+        customer = Customer.query.get(customer_id)
+        if not customer:
+            return {'error': 'Customer not found'}, 404
+        return {'id': customer.id, 'name': customer.name}
+    except Exception as e:
+        return {'error': str(e)}, 500
+
+@app.route('/api/customers/<int:customer_id>', methods=['PUT'])
+def update_customer(customer_id):
+    """更新客户API"""
+    try:
+        customer = Customer.query.get(customer_id)
+        if not customer:
+            return {'error': 'Customer not found'}, 404
+        data = request.get_json()
+        customer.name = data.get('name', customer.name)
+        db.session.commit()
+        return {'message': 'Customer updated successfully'}
+    except Exception as e:
+        return {'error': str(e)}, 500
+
+@app.route('/api/customers', methods=['POST'])
+def create_customer():
+    """创建客户API"""
+    try:
+        data = request.get_json()
+        customer = Customer(name=data['name'])
+        db.session.add(customer)
+        db.session.commit()
+        return {'message': 'Customer created successfully'}
+    except Exception as e:
+        return {'error': str(e)}, 500
+
+@app.route('/api/customers/<int:customer_id>', methods=['DELETE'])
+def delete_customer(customer_id):
+    """删除客户API"""
+    try:
+        customer = Customer.query.get(customer_id)
+        if not customer:
+            return {'error': 'Customer not found'}, 404
+        db.session.delete(customer)
+        db.session.commit()
+        return {'message': 'Customer deleted successfully'}
+    except Exception as e:
+        return {'error': str(e)}, 500
+
+@app.route('/api/employees/<int:employee_id>', methods=['GET'])
+def api_employee(employee_id):
+    """单个员工详情API"""
+    try:
+        employee = Employee.query.get(employee_id)
+        if not employee:
+            return {'error': 'Employee not found'}, 404
+        return {'id': employee.id, 'name': employee.name}
+    except Exception as e:
+        return {'error': str(e)}, 500
+
+@app.route('/api/employees/<int:employee_id>', methods=['PUT'])
+def update_employee(employee_id):
+    """更新员工API"""
+    try:
+        employee = Employee.query.get(employee_id)
+        if not employee:
+            return {'error': 'Employee not found'}, 404
+        data = request.get_json()
+        employee.name = data.get('name', employee.name)
+        db.session.commit()
+        return {'message': 'Employee updated successfully'}
+    except Exception as e:
+        return {'error': str(e)}, 500
+
+
+
+@app.route('/api/config/<string:key>', methods=['GET'])
+def api_config(key):
+    """配置详情API"""
+    try:
+        config = Config.query.filter_by(key=key).first()
+        if not config:
+            return {'error': 'Config not found'}, 404
+        return {'key': config.key, 'value': config.value}
+    except Exception as e:
+        return {'error': str(e)}, 500
+
+@app.route('/api/config/<string:key>', methods=['PUT'])
+def update_config(key):
+    """更新配置API"""
+    try:
+        config = Config.query.filter_by(key=key).first()
+        if not config:
+            return {'error': 'Config not found'}, 404
+        data = request.get_json()
+        config.value = data.get('value', config.value)
+        db.session.commit()
+        return {'message': 'Config updated successfully'}
+    except Exception as e:
+        return {'error': str(e)}, 500
+
+@app.route('/api/config', methods=['POST'])
+def create_config():
+    """创建配置API"""
+    try:
+        data = request.get_json()
+        config = Config(key=data['key'], value=data['value'])
+        db.session.add(config)
+        db.session.commit()
+        return {'message': 'Config created successfully'}
+    except Exception as e:
+        return {'error': str(e)}, 500
+
+@app.route('/api/config/<string:key>', methods=['DELETE'])
+def delete_config(key):
+    """删除配置API"""
+    try:
+        config = Config.query.filter_by(key=key).first()
+        if not config:
+            return {'error': 'Config not found'}, 404
+        db.session.delete(config)
+        db.session.commit()
+        return {'message': 'Config deleted successfully'}
+    except Exception as e:
+        return {'error': str(e)}, 500
+
+@app.route('/api/formal-courses/status-stats', methods=['GET'])
+def api_formal_courses_status_stats():
+    """正课状态统计API"""
+    try:
+        # 获取所有正课
+        courses = Course.query.filter_by(is_trial=False).all()
+        
+        # 获取淘宝手续费率配置（用于旧数据）
+        taobao_fee_config = Config.query.filter_by(key='taobao_fee_rate').first()
+        default_fee_rate = float(taobao_fee_config.value) / 100 if taobao_fee_config else 0.006
+        
+        # 计算统计数据
+        status_stats = {
+            'paid': {'count': 0, 'revenue': 0, 'cost': 0, 'fees': 0},
+            'unpaid': {'count': 0, 'revenue': 0, 'cost': 0, 'fees': 0},
+            'refunded': {'count': 0, 'revenue': 0, 'cost': 0, 'fees': 0},
+        }
+        calc_rows = []
+        
+        for course in courses:
+            # 计算收入
+            revenue = course.sessions * course.price
+            
+            # 计算手续费
+            fee = 0
+            if course.payment_channel == '淘宝':
+                # 优先使用快照费率，否则使用默认费率
+                fee_rate = course.snapshot_fee_rate if course.snapshot_fee_rate else default_fee_rate
+                fee = revenue * fee_rate
+            
+            # 计算成本（使用基础成本和自定义成本）
+            base_cost = (course.sessions + course.gift_sessions) * course.cost_per_session if course.cost_per_session else 0
+            custom_cost = course.custom_course_cost if course.custom_course_cost else 0
+            course_cost = base_cost if course.use_base_cost else custom_cost
+            
+            # 总成本包含手续费
+            cost = course_cost + fee
+            
+            # 计算利润
+            profit = revenue - course_cost  # 利润不包含手续费
+            
+            # 累加统计
+            if course.status == 'paid':
+                status_stats['paid']['count'] += 1
+                status_stats['paid']['revenue'] += revenue
+                status_stats['paid']['cost'] += cost
+                status_stats['paid']['fees'] += fee
+            elif course.status == 'unpaid':
+                status_stats['unpaid']['count'] += 1
+                status_stats['unpaid']['revenue'] += revenue
+                status_stats['unpaid']['cost'] += cost
+                status_stats['unpaid']['fees'] += fee
+            elif course.status == 'refunded':
+                status_stats['refunded']['count'] += 1
+                status_stats['refunded']['revenue'] += revenue
+                status_stats['refunded']['cost'] += cost
+                status_stats['refunded']['fees'] += fee
+            
+            # 构建行数据
+            calc_rows.append({
+                'id': course.id,
+                'customer_name': course.customer.name,
+                'course_type': course.course_type,
+                'sessions': course.sessions,
+                'gift_sessions': course.gift_sessions,
+                'price': course.price,
+                'payment_channel': course.payment_channel,
+                'fee': fee,
+                'course_cost': course_cost,
+                'revenue': revenue,
+                'profit': profit,
+            })
+        
+        return {
+            'total_revenue': sum(s['revenue'] for s in status_stats.values()),
+            'total_cost': sum(s['course_cost'] for s in status_stats.values()),
+            'total_fees': sum(s['fee'] for s in status_stats.values()),
+            'total_profit': sum(s['revenue'] for s in status_stats.values()) - sum(s['course_cost'] for s in status_stats.values())
+
+        }
+    except Exception as e:
+        return {'error': str(e)}, 500
+
+@app.route('/api/trial-courses/status-stats', methods=['GET'])
+def api_trial_courses_status_stats():
+    """试听状态统计API"""
+    try:
+        # 获取所有试听
+        courses = Course.query.filter_by(is_trial=True).all()
+        
+        # 获取淘宝手续费率配置（用于旧数据）
+        taobao_fee_config = Config.query.filter_by(key='taobao_fee_rate').first()
+        default_fee_rate = float(taobao_fee_config.value) / 100 if taobao_fee_config else 0.006
+        
+        # 计算统计数据
+        status_stats = {
+            'paid': {'count': 0, 'revenue': 0, 'cost': 0, 'fees': 0},
+            'unpaid': {'count': 0, 'revenue': 0, 'cost': 0, 'fees': 0},
+            'refunded': {'count': 0, 'revenue': 0, 'cost': 0, 'fees': 0},
+        }
+        calc_rows = []
+        
+        for course in courses:
+            # 计算收入
+            revenue = course.sessions * course.price
+            
+            # 计算手续费
+            fee = 0
+            if course.payment_channel == '淘宝':
+                # 优先使用快照费率，否则使用默认费率
+                fee_rate = course.snapshot_fee_rate if course.snapshot_fee_rate else default_fee_rate
+                fee = revenue * fee_rate
+            
+            # 计算成本（course.cost已包含课时成本和其他成本）
+            cost = course.cost + fee  # 总成本包含手续费
+            
+            # 计算利润
+            profit = revenue - cost
+            
+            # 累加统计
+            if course.status == 'paid':
+                status_stats['paid']['count'] += 1
+                status_stats['paid']['revenue'] += revenue
+                status_stats['paid']['cost'] += cost
+                status_stats['paid']['fees'] += fee
+            elif course.status == 'unpaid':
+                status_stats['unpaid']['count'] += 1
+                status_stats['unpaid']['revenue'] += revenue
+                status_stats['unpaid']['cost'] += cost
+                status_stats['unpaid']['fees'] += fee
+            elif course.status == 'refunded':
+                status_stats['refunded']['count'] += 1
+                status_stats['refunded']['revenue'] += revenue
+                status_stats['refunded']['cost'] += cost
+                status_stats['refunded']['fees'] += fee
+            
+            # 构建行数据
+            calc_rows.append({
                 'id': course.id,
                 'customer_name': course.customer.name,
                 'course_type': course.course_type,
@@ -1750,19 +2139,6 @@ def get_trial_course(course_id):
         
     except Exception as e:
         return jsonify({'success': False, 'message': f'获取课程信息失败：{str(e)}'})
-
-@app.route('/api/trial-courses/<int:course_id>', methods=['DELETE'])
-def delete_trial_course(course_id):
-    """删除试听课记录"""
-    course = Course.query.filter_by(id=course_id, is_trial=True).first_or_404()
-    
-    # 检查是否已转化为正课
-    if course.converted_to_course:
-        return jsonify({'success': False, 'message': '该试听课已转化为正课，无法删除'})
-    
-    db.session.delete(course)
-    db.session.commit()
-    return jsonify({'success': True, 'message': '试听课记录删除成功'})
 
 @app.route('/formal-courses/<int:course_id>/details', methods=['GET'])
 def formal_course_details(course_id):
