@@ -265,11 +265,18 @@ function showAddEmployeeModal() {
 
 // 保存新员工
 function saveNewEmployee() {
-    const formData = new FormData(document.getElementById('addEmployeeForm'));
+    const form = document.getElementById('addEmployeeForm');
+    const formData = new FormData(form);
+    const data = {
+        name: formData.get('name')
+    };
     
     fetch('/api/employees', {
         method: 'POST',
-        body: formData
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
     })
     .then(response => response.json())
     .then(data => {
