@@ -1,5 +1,5 @@
 from . import db
-from datetime import datetime
+from datetime import datetime, timezone
 
 class Employee(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -15,7 +15,7 @@ class Customer(db.Model):
     source = db.Column(db.String(50)) # 渠道来源
     employee_id = db.Column(db.Integer, db.ForeignKey('employee.id'))
     has_tutoring_experience = db.Column(db.String(10)) # 是否参加过英语课外辅导
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     
     # 关系
     employee = db.relationship('Employee', backref='customers', lazy=True)
@@ -60,8 +60,8 @@ class Course(db.Model):
     custom_course_cost = db.Column(db.Float)  # 自定义正课单节成本
     
     # 时间信息
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     
     # 关系
     assigned_employee = db.relationship('Employee', backref='assigned_courses', foreign_keys=[assigned_employee_id])
@@ -77,7 +77,7 @@ class TaobaoOrder(db.Model):
     order_time = db.Column(db.DateTime)
     settled = db.Column(db.Boolean, default=False)  # 结算状态
     settled_at = db.Column(db.DateTime)  # 结算时间
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
 class Config(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -93,8 +93,8 @@ class CommissionConfig(db.Model):
     new_course_rate = db.Column(db.Float, default=0)  # 新课提成比例
     renewal_rate = db.Column(db.Float, default=0)  # 续课提成比例
     base_salary = db.Column(db.Float, default=0)  # 底薪
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     
     # 关系
     employee = db.relationship('Employee', backref='commission_config', uselist=False)

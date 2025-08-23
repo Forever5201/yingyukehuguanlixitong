@@ -15,14 +15,14 @@ def safe_float(value, default=0):
     """安全转换为浮点数"""
     try:
         return float(value) if value is not None else default
-    except:
+    except (ValueError, TypeError):
         return default
 
 def safe_int(value, default=0):
     """安全转换为整数"""
     try:
         return int(value) if value is not None else default
-    except:
+    except (ValueError, TypeError):
         return default
 
 
