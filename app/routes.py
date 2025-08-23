@@ -1,5 +1,5 @@
-from flask import render_template, request, redirect, url_for, jsonify, flash, make_response, send_from_directory, current_app, Blueprint
-from .models import db, Customer, Config, TaobaoOrder, Course, Employee, CommissionConfig
+from flask import render_template, request, redirect, url_for, jsonify, flash, make_response, send_from_directory, current_app, Blueprint, session
+from .models import db, Customer, Config, TaobaoOrder, Course, Employee, CommissionConfig, CourseRefund
 from datetime import datetime, timedelta
 import csv
 from io import StringIO, BytesIO
@@ -1263,7 +1263,7 @@ def manage_trial_courses():
     
     # 按状态分组统计试听课（使用与页面相同的数据集，确保前后端一致）
     # 注意：页面表格数据 trial_courses 来源于 Course INNER JOIN Customer 的结果，
-    # 若存在“孤儿”试听课（缺失客户记录），页面不会显示该条，但此前统计会包含，导致不一致。
+    # 若存在"孤儿"试听课（缺失客户记录），页面不会显示该条，但此前统计会包含，导致不一致。
     # 这里改为直接使用同一数据源中的 Course 对象集合，保证一致性。
     trial_courses_list = [course for (course, _) in trial_courses]
     
@@ -1280,7 +1280,7 @@ def manage_trial_courses():
     
     # 计算各状态的统计数据
     for course in trial_courses_list:
-        # 默认状态为空时按“已报名试听课”处理，避免被错误排除
+        # 默认状态为空时按"已报名试听课"处理，避免被错误排除
         status = course.trial_status or 'registered'
 
         # 未报名：完全不参与统计（不计数、不计收入/成本/费用/利润）
@@ -2617,3 +2617,153 @@ def trial_courses_revenue_debug():
 def test_export():
     """测试导出功能页面"""
     return render_template('test_export.html')
+
+# ========== 退费相关API ==========
+
+def calculate_refundable_sessions(course):
+    """计算可退费节数"""
+    # 获取已退费记录
+    existing_refunds = CourseRefund.query.filter_by(
+        course_id=course.id,
+        status='completed'
+    ).all()
+    
+    total_refunded = sum(r.refund_sessions for r in existing_refunds)
+    
+    # 可退费节数 = 购买节数 - 已退费节数
+    # 注意：赠送节数不参与退费
+    refundable = course.sessions - total_refunded
+    
+    return max(0, refundable)
+
+@main_bp.route('/api/courses/<int:course_id>/refund-info', methods=['GET'])
+def get_refund_info(course_id):
+    """获取课程的可退费信息"""
+    try:
+        course = Course.query.get(course_id)
+        if not course or course.is_trial:
+            return jsonify({'success': False, 'message': '课程不存在或不是正课'}), 404
+        
+        # 计算可退费信息
+        refundable_sessions = calculate_refundable_sessions(course)
+        
+        # 获取退费历史
+        refund_history = CourseRefund.query.filter_by(
+            course_id=course_id
+        ).order_by(CourseRefund.refund_date.desc()).all()
+        
+        return jsonify({
+            'success': True,
+            'data': {
+                'course_id': course.id,
+                'customer_name': course.customer.name,
+                'course_type': course.course_type,
+                'purchased_sessions': course.sessions,
+                'refunded_sessions': course.sessions - refundable_sessions,
+                'refundable_sessions': refundable_sessions,
+                'unit_price': course.price,
+                'max_refund_amount': refundable_sessions * course.price,
+                'refund_history': [{
+                    'id': r.id,
+                    'sessions': r.refund_sessions,
+                    'amount': r.refund_amount,
+                    'reason': r.refund_reason,
+                    'date': r.refund_date.strftime('%Y-%m-%d %H:%M:%S'),
+                    'status': r.status
+                } for r in refund_history]
+            }
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@main_bp.route('/api/courses/<int:course_id>/refund', methods=['POST'])
+def apply_course_refund(course_id):
+    """申请正课退费"""
+    try:
+        # 获取课程
+        course = Course.query.get(course_id)
+        if not course or course.is_trial:
+            return jsonify({'success': False, 'message': '课程不存在或不是正课'}), 404
+        
+        # 获取请求数据
+        data = request.get_json()
+        refund_sessions = int(data.get('refund_sessions', 0))
+        refund_reason = data.get('refund_reason', '')
+        refund_channel = data.get('refund_channel', '原路退回')
+        refund_fee = float(data.get('refund_fee', 0))
+        remark = data.get('remark', '')
+        
+        # 验证退费节数
+        refundable_sessions = calculate_refundable_sessions(course)
+        
+        if refund_sessions <= 0 or refund_sessions > refundable_sessions:
+            return jsonify({
+                'success': False, 
+                'message': f'退费节数无效，可退费节数为{refundable_sessions}'
+            }), 400
+        
+        # 计算退费金额
+        refund_amount = refund_sessions * course.price
+        
+        # 使用数据库事务
+        try:
+            # 创建退费记录
+            refund = CourseRefund(
+                course_id=course_id,
+                refund_sessions=refund_sessions,
+                refund_amount=refund_amount,
+                refund_reason=refund_reason,
+                refund_channel=refund_channel,
+                refund_fee=refund_fee,
+                refund_date=datetime.now(),
+                status='completed',
+                operator_name=session.get('user_name', 'System'),
+                remark=remark
+            )
+            
+            db.session.add(refund)
+            db.session.commit()
+            
+            return jsonify({
+                'success': True,
+                'data': {
+                    'refund_id': refund.id,
+                    'refund_amount': refund_amount,
+                    'actual_refund': refund_amount - refund_fee,
+                    'remaining_sessions': refundable_sessions - refund_sessions
+                }
+            })
+            
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'success': False, 'message': '数据库操作失败'}), 500
+            
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@main_bp.route('/api/courses/<int:course_id>/refund-history', methods=['GET'])
+def get_refund_history(course_id):
+    """获取课程退费历史"""
+    try:
+        refunds = CourseRefund.query.filter_by(
+            course_id=course_id
+        ).order_by(CourseRefund.refund_date.desc()).all()
+        
+        return jsonify({
+            'success': True,
+            'refunds': [{
+                'id': r.id,
+                'refund_sessions': r.refund_sessions,
+                'refund_amount': r.refund_amount,
+                'refund_reason': r.refund_reason,
+                'refund_channel': r.refund_channel,
+                'refund_fee': r.refund_fee,
+                'actual_refund': r.refund_amount - r.refund_fee,
+                'refund_date': r.refund_date.strftime('%Y-%m-%d %H:%M:%S'),
+                'status': r.status,
+                'operator_name': r.operator_name,
+                'remark': r.remark
+            } for r in refunds]
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500

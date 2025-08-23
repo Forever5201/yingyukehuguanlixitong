@@ -98,3 +98,21 @@ class CommissionConfig(db.Model):
     
     # 关系
     employee = db.relationship('Employee', backref='commission_config', uselist=False)
+
+class CourseRefund(db.Model):
+    """课程退费记录表"""
+    id = db.Column(db.Integer, primary_key=True)
+    course_id = db.Column(db.Integer, db.ForeignKey('course.id'), nullable=False)
+    refund_sessions = db.Column(db.Integer, nullable=False)  # 退费节数
+    refund_amount = db.Column(db.Float, nullable=False)  # 退费金额
+    refund_reason = db.Column(db.String(200))  # 退费原因
+    refund_channel = db.Column(db.String(50))  # 退费渠道
+    refund_fee = db.Column(db.Float, default=0)  # 退费手续费
+    refund_date = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))  # 退费日期
+    status = db.Column(db.String(20), default='completed')  # 状态：completed/cancelled
+    operator_name = db.Column(db.String(100))  # 操作员姓名
+    remark = db.Column(db.Text)  # 备注
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    
+    # 关系
+    course = db.relationship('Course', backref='refunds', lazy=True)
