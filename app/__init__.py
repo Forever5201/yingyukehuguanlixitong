@@ -21,26 +21,30 @@ def create_app():
     if migrate_available:
         migrate.init_app(app, db)
 
-    with app.app_context():
-        # 注册传统路由（向后兼容）
-        from . import routes
+    # 重要修改：将路由导入移出app_context
+    # 这样可以确保测试时路由能正确加载
+    
+    # 注册传统路由（向后兼容）
+    from . import routes
+    
+    # 注册新的统一API蓝图
+    from .api.course_controller import course_api
+    app.register_blueprint(course_api)
+    
+    # 确保services目录存在
+    services_dir = os.path.join(os.path.dirname(__file__), 'services')
+    if not os.path.exists(services_dir):
+        os.makedirs(services_dir)
         
-        # 注册新的统一API蓝图
-        from .api.course_controller import course_api
-        app.register_blueprint(course_api)
-        
-        # 确保services目录存在
-        services_dir = os.path.join(os.path.dirname(__file__), 'services')
-        if not os.path.exists(services_dir):
-            os.makedirs(services_dir)
-            
-        # 确保api目录存在
-        api_dir = os.path.join(os.path.dirname(__file__), 'api')
-        if not os.path.exists(api_dir):
-            os.makedirs(api_dir)
-        
-        # 如果没有 Flask-Migrate，使用传统方式创建数据库
-        if not migrate_available:
+    # 确保api目录存在
+    api_dir = os.path.join(os.path.dirname(__file__), 'api')
+    if not os.path.exists(api_dir):
+        os.makedirs(api_dir)
+    
+    # 如果没有 Flask-Migrate，使用传统方式创建数据库
+    # 这部分需要在app_context中执行
+    if not migrate_available:
+        with app.app_context():
             db.create_all()
 
     # favicon 路由，避免 /favicon.ico 404
