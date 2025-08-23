@@ -1489,6 +1489,35 @@ def api_employees():
     except Exception as e:
         return {'error': str(e)}, 500
 
+@app.route('/api/employees', methods=['POST'])
+def create_employee():
+    """创建新员工API"""
+    try:
+        data = request.get_json()
+        name = data.get('name', '').strip()
+        
+        if not name:
+            return jsonify({'success': False, 'message': '员工姓名不能为空'}), 400
+        
+        # 检查是否已存在
+        existing = Employee.query.filter_by(name=name).first()
+        if existing:
+            return jsonify({'success': False, 'message': '该员工已存在'}), 400
+        
+        # 创建新员工
+        employee = Employee(name=name)
+        db.session.add(employee)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True, 
+            'message': '员工添加成功',
+            'employee': {'id': employee.id, 'name': employee.name}
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
 @app.route('/api/formal-courses', methods=['GET'])
 def api_formal_courses():
     """正课列表API"""
