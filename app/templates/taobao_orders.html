@@ -310,7 +310,7 @@
             <h3 id="modalTitle">添加刷单记录</h3>
             <button class="close" onclick="closeModal()">&times;</button>
         </div>
-        <form id="orderForm" method="POST" action="{{ url_for('manage_taobao_orders') }}">
+        <form id="orderForm" method="POST" action="{{ url_for('main.manage_taobao_orders') }}">
             <div class="modal-body">
                 <input type="hidden" id="orderId" name="order_id">
                 

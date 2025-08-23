@@ -16,24 +16,59 @@ def run_tests():
     print("=" * 60)
     print()
     
+    # 检查测试文件是否存在
+    test_file = 'test_profit_and_performance.py'
+    if not os.path.exists(test_file):
+        print(f"❌ 测试文件不存在：{test_file}")
+        return
+    
+    print(f"✅ 测试文件存在：{test_file}")
+    
     try:
+        # 先检查导入
+        print("正在检查模块导入...")
+        try:
+            from app import create_app
+            print("✅ app模块导入成功")
+        except ImportError as e:
+            print(f"❌ app模块导入失败：{e}")
+            return
+            
+        try:
+            from app.models import Employee, Customer, Course, Config, CommissionConfig
+            print("✅ models模块导入成功")
+        except ImportError as e:
+            print(f"❌ models模块导入失败：{e}")
+            return
+        
         # 尝试运行单元测试
         print("正在运行测试用例...")
         import subprocess
-        result = subprocess.run([sys.executable, 'test_profit_and_performance.py'], 
-                              capture_output=True, text=True)
+        result = subprocess.run([sys.executable, 'test_profit_and_performance.py', '-v'], 
+                              capture_output=True, text=True, timeout=60)
+        
+        print(f"测试进程返回码：{result.returncode}")
+        
+        if result.stdout:
+            print("\n标准输出：")
+            print(result.stdout)
+        
+        if result.stderr:
+            print("\n标准错误：")
+            print(result.stderr)
         
         if result.returncode == 0:
-            print("✅ 测试运行成功！")
-            print("\n测试输出：")
-            print(result.stdout)
+            print("\n✅ 测试运行成功！")
         else:
-            print("❌ 测试运行失败！")
-            print("\n错误信息：")
-            print(result.stderr)
+            print("\n❌ 测试运行失败！")
             
+    except subprocess.TimeoutExpired:
+        print("❌ 测试运行超时（60秒）")
     except Exception as e:
         print(f"❌ 无法运行测试：{str(e)}")
+        import traceback
+        print("详细错误信息：")
+        traceback.print_exc()
         print("\n请确保已安装所有依赖：")
         print("pip install flask flask-sqlalchemy")
     

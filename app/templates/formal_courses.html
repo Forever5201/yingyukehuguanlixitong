@@ -62,7 +62,7 @@
             </div>
             <div class="info-content">
                 <h4>正课管理说明</h4>
-                <p>正课记录只能通过试听课转化生成，不支持直接添加。请前往<a href="{{ url_for('manage_trial_courses') }}" class="link">试听课管理</a>页面进行转化操作。</p>
+                <p>正课记录只能通过试听课转化生成，不支持直接添加。请前往<a href="{{ url_for('main.manage_trial_courses') }}" class="link">试听课管理</a>页面进行转化操作。</p>
             </div>
         </div>
     </div>
@@ -150,14 +150,14 @@
                                 </button>
                                 
                                 <!-- 计算明细按钮 -->
-                                <a href="{{ url_for('formal_course_details', course_id=course.id) }}" 
+                                <a href="{{ url_for('main.formal_course_details', course_id=course.id) }}" 
                                    class="btn btn-sm btn-outline-secondary action-btn" title="查看计算明细">
                                     <i class="fas fa-calculator"></i>
                                     <span class="btn-text">明细</span>
                                 </a>
                                 
                                 <!-- 续课按钮 -->
-                                <a href="{{ url_for('renew_course', course_id=course.id) }}" 
+                                                                 <a href="{{ url_for('main.renew_course', course_id=course.id) }}" 
                                    class="btn btn-sm btn-outline-success action-btn" title="续课">
                                     <i class="fas fa-plus-circle"></i>
                                     <span class="btn-text">续课</span>

@@ -21,31 +21,31 @@
             <h2><i class="fas fa-users"></i> 客户管理</h2>
         </div>
         <nav class="sidebar-nav">
-            <a href="{{ url_for('home') }}" class="nav-item {{ 'active' if request.endpoint == 'home' else '' }}">
+            <a href="{{ url_for('main.home') }}" class="nav-item {{ 'active' if request.endpoint == 'main.home' else '' }}">
                 <i class="fas fa-home"></i>
                 <span>首页</span>
             </a>
-            <a href="{{ url_for('manage_trial_courses') }}" class="nav-item {{ 'active' if request.endpoint == 'manage_trial_courses' else '' }}">
+            <a href="{{ url_for('main.manage_trial_courses') }}" class="nav-item {{ 'active' if request.endpoint == 'main.manage_trial_courses' else '' }}">
                 <i class="fas fa-play-circle"></i>
                 <span>试听课管理</span>
             </a>
-            <a href="{{ url_for('manage_formal_courses') }}" class="nav-item {{ 'active' if request.endpoint == 'manage_formal_courses' else '' }}">
+            <a href="{{ url_for('main.manage_formal_courses') }}" class="nav-item {{ 'active' if request.endpoint == 'main.manage_formal_courses' else '' }}">
                 <i class="fas fa-graduation-cap"></i>
                 <span>正课管理</span>
             </a>
-            <a href="{{ url_for('employee_performance') }}" class="nav-item {{ 'active' if request.endpoint == 'employee_performance' else '' }}">
+            <a href="{{ url_for('main.employee_performance') }}" class="nav-item {{ 'active' if request.endpoint == 'main.employee_performance' else '' }}">
                 <i class="fas fa-chart-line"></i>
                 <span>员工业绩</span>
             </a>
-            <a href="{{ url_for('profit_distribution') }}" class="nav-item {{ 'active' if request.endpoint == 'profit_distribution' else '' }}">
+            <a href="{{ url_for('main.profit_distribution') }}" class="nav-item {{ 'active' if request.endpoint == 'main.profit_distribution' else '' }}">
                 <i class="fas fa-coins"></i>
                 <span>股东利润分配</span>
             </a>
-            <a href="{{ url_for('manage_taobao_orders') }}" class="nav-item {{ 'active' if request.endpoint == 'manage_taobao_orders' else '' }}">
+            <a href="{{ url_for('main.manage_taobao_orders') }}" class="nav-item {{ 'active' if request.endpoint == 'main.manage_taobao_orders' else '' }}">
                 <i class="fas fa-shopping-cart"></i>
                 <span>刷单管理</span>
             </a>
-            <a href="{{ url_for('manage_config') }}" class="nav-item {{ 'active' if request.endpoint == 'manage_config' else '' }}">
+            <a href="{{ url_for('main.manage_config') }}" class="nav-item {{ 'active' if request.endpoint == 'main.manage_config' else '' }}">
                 <i class="fas fa-cog"></i>
                 <span>系统配置</span>
             </a>

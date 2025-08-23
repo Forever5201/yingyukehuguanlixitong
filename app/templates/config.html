@@ -11,7 +11,7 @@
             <p class="config-description">设置试听课和正课的成本价格</p>
         </div>
         
-        <form action="{{ url_for('manage_config') }}" method="post" class="config-form">
+        <form action="{{ url_for('main.manage_config') }}" method="post" class="config-form">
             <div class="form-section">
                 <div class="form-group">
                     <label for="trial_cost">
@@ -159,7 +159,7 @@ function updateShareholderB(type) {
             <p class="config-description">设置股东信息和利润分配比例</p>
         </div>
         
-        <form action="{{ url_for('manage_config') }}" method="post" class="config-form">
+        <form action="{{ url_for('main.manage_config') }}" method="post" class="config-form">
             <input type="hidden" name="config_type" value="profit_distribution">
             
             <div class="form-section">
@@ -274,7 +274,7 @@ function updateShareholderB(type) {
                 <button type="submit" class="btn btn-primary">
                     <i class="fas fa-save"></i> 保存股东配置
                 </button>
-                <a href="{{ url_for('profit_distribution') }}" class="btn btn-secondary" style="margin-left: 10px;">
+                <a href="{{ url_for('main.profit_distribution') }}" class="btn btn-secondary" style="margin-left: 10px;">
                     <i class="fas fa-chart-bar"></i> 查看利润分配报表
                 </a>
             </div>

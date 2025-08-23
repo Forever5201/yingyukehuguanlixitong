@@ -1,5 +1,4 @@
-from flask import render_template, request, redirect, url_for, jsonify, flash, make_response, send_from_directory
-from flask import current_app as app
+from flask import render_template, request, redirect, url_for, jsonify, flash, make_response, send_from_directory, current_app, Blueprint
 from .models import db, Customer, Config, TaobaoOrder, Course, Employee, CommissionConfig
 from datetime import datetime, timedelta
 import csv
@@ -8,16 +7,35 @@ import pandas as pd
 import os
 import json
 
-@app.route('/test-js')
+# 创建主蓝图
+main_bp = Blueprint('main', __name__)
+
+# ========== 安全转换函数 ==========
+def safe_float(value, default=0):
+    """安全转换为浮点数"""
+    try:
+        return float(value) if value is not None else default
+    except:
+        return default
+
+def safe_int(value, default=0):
+    """安全转换为整数"""
+    try:
+        return int(value) if value is not None else default
+    except:
+        return default
+
+
+@main_bp.route('/test-js')
 def test_js():
     """JavaScript测试页面"""
     return render_template('test_js.html')
 
-@app.route('/static/vendor/fontawesome/all.min.css')
+@main_bp.route('/static/vendor/fontawesome/all.min.css')
 def serve_fa_css():
     """本地提供 FontAwesome all.min.css，避免外部CDN超时导致样式缺失"""
     try:
-        css_dir = os.path.join(app.root_path, 'static', 'vendor', 'fontawesome')
+        css_dir = os.path.join(current_app.root_path, 'static', 'vendor', 'fontawesome')
         css_path = os.path.join(css_dir, 'all.min.css')
         os.makedirs(css_dir, exist_ok=True)
         if not os.path.exists(css_path):
@@ -27,12 +45,12 @@ def serve_fa_css():
     except Exception:
         return make_response("/* fallback */", 200, {"Content-Type": "text/css"})
 
-@app.route('/api/test')
+@main_bp.route('/api/test')
 def test_api():
     """简单的测试API"""
     return jsonify({'status': 'ok', 'message': '服务器正常工作'})
 
-@app.route('/api/test-excel')
+@main_bp.route('/api/test-excel')
 def test_excel_export():
     """测试Excel导出功能"""
     try:
@@ -62,7 +80,7 @@ def test_excel_export():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@app.route('/')
+@main_bp.route('/')
 def home():
     # 批量获取配置值
     configs = {c.key: float(c.value) for c in Config.query.filter(Config.key.in_([
@@ -106,7 +124,7 @@ def home():
                          total_order_amount=order_stats.total_order_amount or 0,
                          recent_customers=recent_customers)
 
-@app.route('/customers', methods=['GET', 'POST'])
+@main_bp.route('/customers', methods=['GET', 'POST'])
 def manage_customers():
     if request.method == 'POST':
         name = request.form['name'].strip()
@@ -148,7 +166,7 @@ def manage_customers():
     ).order_by(Customer.created_at.desc()).all()
     return render_template('customers.html', customers=customers)
 
-@app.route('/employee-performance')
+@main_bp.route('/employee-performance')
 def employee_performance():
     """员工业绩管理页面"""
     employees = Employee.query.all()
@@ -184,11 +202,13 @@ def employee_performance():
     
     return render_template('employee_performance.html', employees=employees)
 
-@app.route('/api/employees/<int:employee_id>/performance')
+@main_bp.route('/api/employees/<int:employee_id>/performance')
 def get_employee_performance(employee_id):
     """获取员工业绩详情"""
     try:
-        employee = Employee.query.get_or_404(employee_id)
+        employee = Employee.query.get(employee_id)
+        if not employee:
+            return jsonify({'success': False, 'message': '员工不存在'}), 404
         
         # 获取试听课记录
         trial_courses = Course.query.filter_by(
@@ -234,7 +254,9 @@ def get_employee_performance(employee_id):
         
         # 正课提成
         for course in formal_courses:
-            revenue = course.sessions * course.price
+            sessions = safe_int(course.sessions, 0)
+            price = safe_float(course.price, 0)
+            revenue = sessions * price
             
             # 计算利润或销售额
             if config.commission_type == 'profit':
@@ -302,14 +324,16 @@ def get_employee_performance(employee_id):
 
 def calculate_course_profit(course):
     """计算课程利润"""
-    revenue = course.sessions * course.price
+    sessions = safe_int(course.sessions, 0)
+    price = safe_float(course.price, 0)
+    revenue = sessions * price
     fee = 0
     if course.payment_channel == '淘宝':
         fee_rate = course.snapshot_fee_rate if course.snapshot_fee_rate else 0.006
         fee = revenue * fee_rate
     return revenue - course.cost - fee
 
-@app.route('/api/employees/<int:employee_id>/commission-config', methods=['GET'])
+@main_bp.route('/api/employees/<int:employee_id>/commission-config', methods=['GET'])
 def get_commission_config(employee_id):
     """获取员工提成配置"""
     try:
@@ -333,12 +357,14 @@ def get_commission_config(employee_id):
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)})
 
-@app.route('/api/employees/<int:employee_id>/commission-config', methods=['POST'])
+@main_bp.route('/api/employees/<int:employee_id>/commission-config', methods=['POST'])
 def save_commission_config(employee_id):
     """保存员工提成配置"""
     try:
         # 检查员工是否存在
-        employee = Employee.query.get_or_404(employee_id)
+        employee = Employee.query.get(employee_id)
+        if not employee:
+            return jsonify({'success': False, 'message': '员工不存在'}), 404
         
         # 获取或创建配置
         config = CommissionConfig.query.filter_by(employee_id=employee_id).first()
@@ -360,7 +386,7 @@ def save_commission_config(employee_id):
         db.session.rollback()
         return jsonify({'success': False, 'message': str(e)})
 
-@app.route('/profit-distribution')
+@main_bp.route('/profit-distribution')
 def profit_distribution():
     """股东利润分配页面"""
     # 获取利润分配配置
@@ -384,7 +410,7 @@ def profit_distribution():
     
     return render_template('profit_distribution.html', profit_config=profit_config)
 
-@app.route('/api/profit-config', methods=['POST'])
+@main_bp.route('/api/profit-config', methods=['POST'])
 def save_profit_config():
     """保存利润分配配置"""
     try:
@@ -417,7 +443,7 @@ def save_profit_config():
         db.session.rollback()
         return jsonify({'success': False, 'message': str(e)})
 
-@app.route('/api/profit-report')
+@main_bp.route('/api/profit-report')
 def get_profit_report():
     """获取利润分配报表"""
     try:
@@ -472,13 +498,16 @@ def get_profit_report():
         new_course_profit_total = 0
         
         for course in new_courses:
-            revenue = course.sessions * course.price
+            sessions = safe_int(course.sessions, 0)
+            price = safe_float(course.price, 0)
+            revenue = sessions * price
             fee = 0
             if course.payment_channel == '淘宝':
                 fee_rate = course.snapshot_fee_rate if course.snapshot_fee_rate else 0.006
                 fee = revenue * fee_rate
             
-            cost = course.cost + fee
+            cost = safe_float(course.cost, 0)
+            cost = cost + fee
             profit = revenue - cost
             new_course_profit_total += profit
             
@@ -501,7 +530,9 @@ def get_profit_report():
         renewal_profit_total = 0
         
         for course in renewal_courses:
-            revenue = course.sessions * course.price
+            sessions = safe_int(course.sessions, 0)
+            price = safe_float(course.price, 0)
+            revenue = sessions * price
             
             # 检查是否有优惠
             discount = 0
@@ -519,7 +550,8 @@ def get_profit_report():
                 fee_rate = course.snapshot_fee_rate if course.snapshot_fee_rate else 0.006
                 fee = revenue * fee_rate
             
-            cost = course.cost + fee
+            cost = safe_float(course.cost, 0)
+            cost = cost + fee
             profit = revenue - cost
             renewal_profit_total += profit
             
@@ -574,7 +606,7 @@ def get_profit_report():
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)})
 
-@app.route('/config', methods=['GET', 'POST'])
+@main_bp.route('/config', methods=['GET', 'POST'])
 def manage_config():
     if request.method == 'POST':
         config_type = request.form.get('config_type', 'basic')
@@ -639,7 +671,7 @@ def manage_config():
     
     return render_template('config.html', config=config)
 
-@app.route('/taobao-orders', methods=['GET', 'POST'])
+@main_bp.route('/taobao-orders', methods=['GET', 'POST'])
 def manage_taobao_orders():
     if request.method == 'POST':
         order_id = request.form.get('order_id')
@@ -733,7 +765,7 @@ def manage_taobao_orders():
                              'settled_principal': settled_principal
                          })
 
-@app.route('/api/taobao-orders/<int:order_id>', methods=['GET'])
+@main_bp.route('/api/taobao-orders/<int:order_id>', methods=['GET'])
 def get_taobao_order(order_id):
     """获取单个淘宝订单详情"""
     try:
@@ -757,7 +789,7 @@ def get_taobao_order(order_id):
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
 
-@app.route('/api/taobao-orders/<int:order_id>', methods=['PUT'])
+@main_bp.route('/api/taobao-orders/<int:order_id>', methods=['PUT'])
 def update_taobao_order(order_id):
     """更新淘宝订单字段"""
     order = TaobaoOrder.query.get_or_404(order_id)
@@ -810,7 +842,7 @@ def update_taobao_order(order_id):
         }
     })
 
-@app.route('/api/taobao-orders/<int:order_id>', methods=['DELETE'])
+@main_bp.route('/api/taobao-orders/<int:order_id>', methods=['DELETE'])
 def delete_taobao_order(order_id):
     """删除淘宝订单"""
     order = TaobaoOrder.query.get_or_404(order_id)
@@ -818,22 +850,22 @@ def delete_taobao_order(order_id):
     db.session.commit()
     return jsonify({'success': True, 'message': '订单删除成功'})
 
-@app.route('/api/export/taobao-orders')
+@main_bp.route('/api/export/taobao-orders')
 def export_taobao_orders():
     """导出刷单数据为Excel"""
     try:
-        app.logger.info("开始导出刷单数据")
+        current_app.logger.info("开始导出刷单数据")
         
         # 查询所有订单数据，与UI界面保持一致
         try:
             orders = TaobaoOrder.query.order_by(TaobaoOrder.order_time.desc()).all()
-            app.logger.info(f"成功查询到 {len(orders)} 条订单")
+            current_app.logger.info(f"成功查询到 {len(orders)} 条订单")
         except Exception as query_error:
-            app.logger.error(f"订单查询失败: {str(query_error)}")
+            current_app.logger.error(f"订单查询失败: {str(query_error)}")
             return jsonify({'error': f'订单查询失败: {str(query_error)}'}), 500
         
         if not orders:
-            app.logger.info("没有找到订单数据")
+            current_app.logger.info("没有找到订单数据")
             return jsonify({'error': '没有找到订单数据'}), 404
         
         # 准备完整的数据，与UI界面显示的字段保持一致
@@ -856,10 +888,10 @@ def export_taobao_orders():
                     '创建时间': order.created_at.strftime('%Y-%m-%d %H:%M:%S') if order.created_at else ''
                 })
             except Exception as data_error:
-                app.logger.error(f"处理第{i+1}条订单数据时出错: {str(data_error)}")
+                current_app.logger.error(f"处理第{i+1}条订单数据时出错: {str(data_error)}")
                 continue
         
-        app.logger.info(f"准备了 {len(data)} 条数据")
+        current_app.logger.info(f"准备了 {len(data)} 条数据")
         
         if not data:
             return jsonify({'error': '没有有效的数据可导出'}), 404
@@ -867,9 +899,9 @@ def export_taobao_orders():
         # 创建DataFrame
         try:
             df = pd.DataFrame(data)
-            app.logger.info("创建DataFrame成功")
+            current_app.logger.info("创建DataFrame成功")
         except Exception as df_error:
-            app.logger.error(f"创建DataFrame失败: {str(df_error)}")
+            current_app.logger.error(f"创建DataFrame失败: {str(df_error)}")
             return jsonify({'error': f'创建DataFrame失败: {str(df_error)}'}), 500
         
         # 创建Excel文件
@@ -879,9 +911,9 @@ def export_taobao_orders():
                 df.to_excel(writer, sheet_name='刷单数据', index=False)
             
             output.seek(0)
-            app.logger.info("Excel文件创建成功")
+            current_app.logger.info("Excel文件创建成功")
         except Exception as excel_error:
-            app.logger.error(f"创建Excel文件失败: {str(excel_error)}")
+            current_app.logger.error(f"创建Excel文件失败: {str(excel_error)}")
             return jsonify({'error': f'创建Excel文件失败: {str(excel_error)}'}), 500
         
         # 生成文件名（使用英文避免编码问题）
@@ -892,14 +924,14 @@ def export_taobao_orders():
         response.headers['Content-Type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
         response.headers['Content-Disposition'] = f'attachment; filename="{filename}"'
         
-        app.logger.info("导出完成")
+        current_app.logger.info("导出完成")
         return response
         
     except Exception as e:
-        app.logger.error(f"导出刷单数据时出错: {str(e)}")
+        current_app.logger.error(f"导出刷单数据时出错: {str(e)}")
         return jsonify({'error': f'导出失败: {str(e)}'}), 500
 
-@app.route('/api/export/trial-courses')
+@main_bp.route('/api/export/trial-courses')
 def export_trial_courses():
     """导出试听课数据为Excel（使用现有模型字段）"""
     try:
@@ -937,7 +969,7 @@ def export_trial_courses():
     except Exception as e:
         return jsonify({'error': f'导出失败: {str(e)}'}), 500
 
-@app.route('/api/export/formal-courses')
+@main_bp.route('/api/export/formal-courses')
 def export_formal_courses():
     """导出正课数据为Excel（使用现有模型字段）"""
     try:
@@ -986,7 +1018,7 @@ def export_formal_courses():
 
 
 
-@app.route('/api/taobao-orders/settle', methods=['POST'])
+@main_bp.route('/api/taobao-orders/settle', methods=['POST'])
 def settle_orders():
     """批量结算淘宝订单"""
     order_ids = request.json.get('order_ids', [])
@@ -1014,7 +1046,7 @@ def settle_orders():
         'total_commission': total_commission
     })
 
-@app.route('/api/taobao-orders/<int:order_id>/quick-edit', methods=['PUT'])
+@main_bp.route('/api/taobao-orders/<int:order_id>/quick-edit', methods=['PUT'])
 def quick_edit_order(order_id):
     """快捷编辑订单字段"""
     order = TaobaoOrder.query.get_or_404(order_id)
@@ -1054,7 +1086,7 @@ def quick_edit_order(order_id):
         }
     })
 
-@app.route('/api/config/<config_key>')
+@main_bp.route('/api/config/<config_key>')
 def get_config(config_key):
     """获取系统配置参数"""
     config_item = Config.query.filter_by(key=config_key).first()
@@ -1076,7 +1108,7 @@ def get_config(config_key):
         })
 
 # 试听课管理路由
-@app.route('/trial-courses', methods=['GET', 'POST'])
+@main_bp.route('/trial-courses', methods=['GET', 'POST'])
 def manage_trial_courses():
     """试听课管理页面"""
     if request.method == 'POST':
@@ -1334,7 +1366,7 @@ def manage_trial_courses():
                          embedded=embedded,
                          employees=employees)
 
-@app.route('/api/formal-courses/stats', methods=['GET'])
+@main_bp.route('/api/formal-courses/stats', methods=['GET'])
 def api_formal_courses_stats():
     """正课统计API"""
     try:
@@ -1358,7 +1390,9 @@ def api_formal_courses_stats():
         
         for course in courses:
             # 计算收入
-            revenue = course.sessions * course.price
+            sessions = safe_int(course.sessions, 0)
+            price = safe_float(course.price, 0)
+            revenue = sessions * price
             
             # 计算手续费
             fee = 0
@@ -1417,7 +1451,7 @@ def api_formal_courses_stats():
     except Exception as e:
         return {'error': str(e)}, 500
 
-@app.route('/api/trial-courses/stats', methods=['GET'])
+@main_bp.route('/api/trial-courses/stats', methods=['GET'])
 def api_trial_courses_stats():
     """试听统计API"""
     try:
@@ -1437,7 +1471,9 @@ def api_trial_courses_stats():
         
         for course in courses:
             # 计算收入
-            revenue = course.sessions * course.price
+            sessions = safe_int(course.sessions, 0)
+            price = safe_float(course.price, 0)
+            revenue = sessions * price
             
             # 计算手续费
             fee = 0
@@ -1447,7 +1483,8 @@ def api_trial_courses_stats():
                 fee = revenue * fee_rate
             
             # 计算成本（course.cost已包含课时成本和其他成本）
-            cost = course.cost + fee  # 总成本包含手续费
+            cost = safe_float(course.cost, 0)
+            cost = cost + fee  # 总成本包含手续费
             
             # 计算利润
             profit = revenue - cost
@@ -1483,7 +1520,7 @@ def api_trial_courses_stats():
     except Exception as e:
         return {'error': str(e)}, 500
 
-@app.route('/api/customers', methods=['GET'])
+@main_bp.route('/api/customers', methods=['GET'])
 def api_customers():
     """客户列表API"""
     try:
@@ -1492,7 +1529,7 @@ def api_customers():
     except Exception as e:
         return {'error': str(e)}, 500
 
-@app.route('/api/employees', methods=['GET'])
+@main_bp.route('/api/employees', methods=['GET'])
 def api_employees():
     """员工列表API"""
     try:
@@ -1501,7 +1538,7 @@ def api_employees():
     except Exception as e:
         return {'error': str(e)}, 500
 
-@app.route('/api/employees', methods=['POST'])
+@main_bp.route('/api/employees', methods=['POST'])
 def create_employee():
     """创建新员工API"""
     try:
@@ -1530,7 +1567,7 @@ def create_employee():
         db.session.rollback()
         return jsonify({'success': False, 'message': str(e)}), 500
 
-@app.route('/api/formal-courses', methods=['GET'])
+@main_bp.route('/api/formal-courses', methods=['GET'])
 def api_formal_courses():
     """正课列表API"""
     try:
@@ -1539,7 +1576,7 @@ def api_formal_courses():
     except Exception as e:
         return {'error': str(e)}, 500
 
-@app.route('/api/trial-courses', methods=['GET'])
+@main_bp.route('/api/trial-courses', methods=['GET'])
 def api_trial_courses():
     """试听列表API"""
     try:
@@ -1552,7 +1589,7 @@ def api_trial_courses():
 
 
 
-@app.route('/api/formal-courses', methods=['POST'])
+@main_bp.route('/api/formal-courses', methods=['POST'])
 def create_formal_course():
     """创建正课API"""
     try:
@@ -1572,7 +1609,7 @@ def create_formal_course():
     except Exception as e:
         return {'error': str(e)}, 500
 
-@app.route('/api/trial-courses', methods=['POST'])
+@main_bp.route('/api/trial-courses', methods=['POST'])
 def create_trial_course():
     """创建试听API"""
     try:
@@ -1592,7 +1629,7 @@ def create_trial_course():
     except Exception as e:
         return {'error': str(e)}, 500
 
-@app.route('/api/trial-courses/<int:course_id>', methods=['DELETE'])
+@main_bp.route('/api/trial-courses/<int:course_id>', methods=['DELETE'])
 def delete_trial_course(course_id):
     """删除试听API"""
     try:
@@ -1605,7 +1642,7 @@ def delete_trial_course(course_id):
     except Exception as e:
         return {'error': str(e)}, 500
 
-@app.route('/api/customers/<int:customer_id>', methods=['GET'])
+@main_bp.route('/api/customers/<int:customer_id>', methods=['GET'])
 def api_customer(customer_id):
     """单个客户详情API"""
     try:
@@ -1616,7 +1653,7 @@ def api_customer(customer_id):
     except Exception as e:
         return {'error': str(e)}, 500
 
-@app.route('/api/customers/<int:customer_id>', methods=['PUT'])
+@main_bp.route('/api/customers/<int:customer_id>', methods=['PUT'])
 def update_customer(customer_id):
     """更新客户API"""
     try:
@@ -1630,7 +1667,7 @@ def update_customer(customer_id):
     except Exception as e:
         return {'error': str(e)}, 500
 
-@app.route('/api/customers', methods=['POST'])
+@main_bp.route('/api/customers', methods=['POST'])
 def create_customer():
     """创建客户API"""
     try:
@@ -1642,7 +1679,7 @@ def create_customer():
     except Exception as e:
         return {'error': str(e)}, 500
 
-@app.route('/api/customers/<int:customer_id>', methods=['DELETE'])
+@main_bp.route('/api/customers/<int:customer_id>', methods=['DELETE'])
 def delete_customer(customer_id):
     """删除客户API"""
     try:
@@ -1655,7 +1692,7 @@ def delete_customer(customer_id):
     except Exception as e:
         return {'error': str(e)}, 500
 
-@app.route('/api/employees/<int:employee_id>', methods=['GET'])
+@main_bp.route('/api/employees/<int:employee_id>', methods=['GET'])
 def api_employee(employee_id):
     """单个员工详情API"""
     try:
@@ -1666,7 +1703,7 @@ def api_employee(employee_id):
     except Exception as e:
         return {'error': str(e)}, 500
 
-@app.route('/api/employees/<int:employee_id>', methods=['PUT'])
+@main_bp.route('/api/employees/<int:employee_id>', methods=['PUT'])
 def update_employee(employee_id):
     """更新员工API"""
     try:
@@ -1682,7 +1719,7 @@ def update_employee(employee_id):
 
 
 
-@app.route('/api/config/<string:key>', methods=['GET'])
+@main_bp.route('/api/config/<string:key>', methods=['GET'])
 def api_config(key):
     """配置详情API"""
     try:
@@ -1693,7 +1730,7 @@ def api_config(key):
     except Exception as e:
         return {'error': str(e)}, 500
 
-@app.route('/api/config/<string:key>', methods=['PUT'])
+@main_bp.route('/api/config/<string:key>', methods=['PUT'])
 def update_config(key):
     """更新配置API"""
     try:
@@ -1707,7 +1744,7 @@ def update_config(key):
     except Exception as e:
         return {'error': str(e)}, 500
 
-@app.route('/api/config', methods=['POST'])
+@main_bp.route('/api/config', methods=['POST'])
 def create_config():
     """创建配置API"""
     try:
@@ -1719,7 +1756,7 @@ def create_config():
     except Exception as e:
         return {'error': str(e)}, 500
 
-@app.route('/api/config/<string:key>', methods=['DELETE'])
+@main_bp.route('/api/config/<string:key>', methods=['DELETE'])
 def delete_config(key):
     """删除配置API"""
     try:
@@ -1732,7 +1769,7 @@ def delete_config(key):
     except Exception as e:
         return {'error': str(e)}, 500
 
-@app.route('/api/formal-courses/status-stats', methods=['GET'])
+@main_bp.route('/api/formal-courses/status-stats', methods=['GET'])
 def api_formal_courses_status_stats():
     """正课状态统计API"""
     try:
@@ -1757,7 +1794,9 @@ def api_formal_courses_status_stats():
         
         for course in courses:
             # 计算收入
-            revenue = course.sessions * course.price
+            sessions = safe_int(course.sessions, 0)
+            price = safe_float(course.price, 0)
+            revenue = sessions * price
             
             # 计算手续费
             fee = 0
@@ -1825,7 +1864,7 @@ def api_formal_courses_status_stats():
     except Exception as e:
         return {'error': str(e)}, 500
 
-@app.route('/api/trial-courses/status-stats', methods=['GET'])
+@main_bp.route('/api/trial-courses/status-stats', methods=['GET'])
 def api_trial_courses_status_stats():
     """试听状态统计API"""
     try:
@@ -1925,7 +1964,7 @@ def api_trial_courses_status_stats():
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
 
-@app.route('/formal-courses', methods=['GET'])
+@main_bp.route('/formal-courses', methods=['GET'])
 def manage_formal_courses():
     """正课管理页面"""
     
@@ -1967,15 +2006,17 @@ def manage_formal_courses():
     
     for course in courses:
         # 计算基础收入：购买节数 × 单节售价
-        base_revenue = course.sessions * course.price
+        sessions = safe_int(course.sessions, 0)
+        price = safe_float(course.price, 0)
+        revenue = sessions * price
         
         # 如果是淘宝支付，扣除手续费
         if course.payment_channel == '淘宝':
-            fee_amount = base_revenue * taobao_fee_rate
-            actual_revenue = base_revenue - fee_amount
+            fee_amount = revenue * taobao_fee_rate
+            actual_revenue = revenue - fee_amount
             total_fees += fee_amount
         else:
-            actual_revenue = base_revenue
+            actual_revenue = revenue
             
         total_revenue += actual_revenue
         
@@ -2004,7 +2045,7 @@ def manage_formal_courses():
                          },
                          embedded=embedded)
 
-@app.route('/renew-course/<int:course_id>', methods=['GET', 'POST'])
+@main_bp.route('/renew-course/<int:course_id>', methods=['GET', 'POST'])
 def renew_course(course_id):
     """续课功能"""
     course = Course.query.filter_by(id=course_id, is_trial=False).first_or_404()
@@ -2079,7 +2120,7 @@ def renew_course(course_id):
     
     return render_template('renew_course.html', course=course, employees=employees)
 
-@app.route('/convert-trial/<int:trial_id>', methods=['GET', 'POST'])
+@main_bp.route('/convert-trial/<int:trial_id>', methods=['GET', 'POST'])
 def convert_trial_to_course(trial_id):
     """试听课转正课"""
     trial_course = Course.query.filter_by(id=trial_id, is_trial=True).first_or_404()
@@ -2148,7 +2189,7 @@ def convert_trial_to_course(trial_id):
     
     return render_template('convert_trial.html', trial_course=trial_course)
 
-@app.route('/api/trial-courses/<int:course_id>', methods=['GET'])
+@main_bp.route('/api/trial-courses/<int:course_id>', methods=['GET'])
 def get_trial_course(course_id):
     """获取单个试听课的详细信息"""
     course = Course.query.filter_by(id=course_id, is_trial=True).first_or_404()
@@ -2187,7 +2228,7 @@ def get_trial_course(course_id):
     except Exception as e:
         return jsonify({'success': False, 'message': f'获取课程信息失败：{str(e)}'})
 
-@app.route('/formal-courses/<int:course_id>/details', methods=['GET'])
+@main_bp.route('/formal-courses/<int:course_id>/details', methods=['GET'])
 def formal_course_details(course_id):
     """正课详情页面"""
     course = Course.query.filter_by(id=course_id, is_trial=False).first_or_404()
@@ -2207,7 +2248,9 @@ def formal_course_details(course_id):
             pass
     
     # 计算展示信息
-    revenue = course.sessions * course.price
+    sessions = safe_int(course.sessions, 0)
+    price = safe_float(course.price, 0)
+    revenue = sessions * price
     fee = 0
     
     # 使用快照费率计算手续费
@@ -2215,7 +2258,8 @@ def formal_course_details(course_id):
         fee = revenue * course.snapshot_fee_rate
     
     # 总成本（包含手续费）
-    total_cost = course.cost + fee
+    cost = safe_float(course.cost, 0)
+    total_cost = cost + fee
     profit = revenue - total_cost
     
     # 课时成本
@@ -2238,7 +2282,7 @@ def formal_course_details(course_id):
                              'fee_rate': course.snapshot_fee_rate * 100 if course.snapshot_fee_rate else 0
                          })
 
-@app.route('/api/formal-courses/<int:course_id>', methods=['GET'])
+@main_bp.route('/api/formal-courses/<int:course_id>', methods=['GET'])
 def get_formal_course(course_id):
     """获取单个正课信息"""
     try:
@@ -2273,7 +2317,7 @@ def get_formal_course(course_id):
     except Exception as e:
         return jsonify({'success': False, 'message': f'获取课程信息失败：{str(e)}'})
 
-@app.route('/api/formal-courses/<int:course_id>', methods=['DELETE'])
+@main_bp.route('/api/formal-courses/<int:course_id>', methods=['DELETE'])
 def delete_formal_course(course_id):
     """删除正课记录"""
     course = Course.query.filter_by(id=course_id, is_trial=False).first_or_404()
@@ -2288,7 +2332,7 @@ def delete_formal_course(course_id):
     db.session.commit()
     return jsonify({'success': True, 'message': '正课记录删除成功'})
 
-@app.route('/api/config/course_cost')
+@main_bp.route('/api/config/course_cost')
 def get_course_cost_config():
     """获取正课成本配置"""
     try:
@@ -2300,7 +2344,7 @@ def get_course_cost_config():
     except Exception as e:
         return jsonify({'value': '0'})
 
-@app.route('/api/trial-courses/<int:course_id>', methods=['PUT'])
+@main_bp.route('/api/trial-courses/<int:course_id>', methods=['PUT'])
 def update_trial_course(course_id):
     """更新试听课记录"""
     course = Course.query.filter_by(id=course_id, is_trial=True).first_or_404()
@@ -2348,7 +2392,7 @@ def update_trial_course(course_id):
         db.session.rollback()
         return jsonify({'success': False, 'message': f'更新失败：{str(e)}'})
 
-@app.route('/api/formal-courses/<int:course_id>', methods=['PUT'])
+@main_bp.route('/api/formal-courses/<int:course_id>', methods=['PUT'])
 def update_formal_course(course_id):
     """更新正课记录"""
     course = Course.query.filter_by(id=course_id, is_trial=False).first_or_404()
@@ -2399,7 +2443,7 @@ def update_formal_course(course_id):
         db.session.rollback()
         return jsonify({'success': False, 'message': f'更新失败：{str(e)}'})
 
-@app.route('/api/trial-courses/<int:course_id>/assign', methods=['POST'])
+@main_bp.route('/api/trial-courses/<int:course_id>/assign', methods=['POST'])
 def assign_trial_course(course_id):
     """分配试听课给员工"""
     course = Course.query.filter_by(id=course_id, is_trial=True).first_or_404()
@@ -2425,7 +2469,7 @@ def assign_trial_course(course_id):
         db.session.rollback()
         return jsonify({'success': False, 'message': f'分配失败：{str(e)}'})
 
-@app.route('/api/trial-courses/<int:course_id>/status', methods=['PUT'])
+@main_bp.route('/api/trial-courses/<int:course_id>/status', methods=['PUT'])
 def update_trial_status(course_id):
     """更新试听课状态"""
     course = Course.query.filter_by(id=course_id, is_trial=True).first_or_404()
@@ -2479,7 +2523,7 @@ def update_trial_status(course_id):
 
 # 课程管理API
 
-@app.route('/api/trial-courses/revenue-debug', methods=['GET'])
+@main_bp.route('/api/trial-courses/revenue-debug', methods=['GET'])
 def trial_courses_revenue_debug():
     """只读调试接口：输出试听课收入统计的逐条明细与汇总
 
@@ -2538,7 +2582,7 @@ def trial_courses_revenue_debug():
     except Exception as e:
         return jsonify({'success': False, 'message': f'调试接口执行失败：{str(e)}'}), 500
 
-@app.route('/test-export')
+@main_bp.route('/test-export')
 def test_export():
     """测试导出功能页面"""
     return render_template('test_export.html')

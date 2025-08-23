@@ -691,7 +691,7 @@ courses = db.session.query(Course).join(Customer).filter(
    - 备份计算结果
 """
     
-    with open('/workspace/code_fixes.md', 'w', encoding='utf-8') as f:
+    with open('code_fixes.md', 'w', encoding='utf-8') as f:
         f.write(fixes)
 
 
