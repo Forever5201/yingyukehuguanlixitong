@@ -258,7 +258,9 @@ let currentEmployeeId = null;
 
 // 显示添加员工模态框
 function showAddEmployeeModal() {
-    $('#addEmployeeModal').modal('show');
+    const modal = document.getElementById('addEmployeeModal');
+    modal.style.display = 'block';
+    modal.classList.add('show');
 }
 
 // 保存新员工
@@ -272,7 +274,9 @@ function saveNewEmployee() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            $('#addEmployeeModal').modal('hide');
+            const modal = document.getElementById('addEmployeeModal');
+            modal.style.display = 'none';
+            modal.classList.remove('show');
             location.reload();
         } else {
             alert(data.message || '添加失败');

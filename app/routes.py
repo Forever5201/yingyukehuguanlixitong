@@ -1242,13 +1242,13 @@ def manage_trial_courses():
         # 按状态计算
         if status == 'registered':
             revenue = course.trial_price or 0
-            cost = course.base_cost or 0  # 使用基础成本
+            cost = course.cost or 0  # 使用成本
             fees = (revenue * channel_rate) if revenue else 0
             profit = revenue - cost  # 修改为不扣除手续费
         elif status == 'refunded':
             # 退费（MIGRATION_GUIDE）：收入=0；成本=基础成本C；不再从利润中扣除手续费
             revenue = 0
-            cost = course.base_cost or 0  # 使用基础成本
+            cost = course.cost or 0  # 使用成本
             refund_channel = (course.refund_channel or '').strip()
             if refund_channel == '淘宝':
                 fees = 0.0
@@ -1265,13 +1265,13 @@ def manage_trial_courses():
         elif status == 'converted':
             # 独立核算：与已报名一致
             revenue = course.trial_price or 0
-            cost = course.base_cost or 0  # 使用基础成本
+            cost = course.cost or 0  # 使用成本
             fees = (revenue * channel_rate) if revenue else 0
             profit = revenue - cost  # 修改为不扣除手续费
         elif status == 'no_action':
             # 视为已支付并完成试听：与已报名一致
             revenue = course.trial_price or 0
-            cost = course.base_cost or 0  # 使用基础成本
+            cost = course.cost or 0  # 使用成本
             fees = (revenue * channel_rate) if revenue else 0
             profit = revenue - cost  # 修改为不扣除手续费
         else:
@@ -1364,7 +1364,7 @@ def api_formal_courses_stats():
                 fee = revenue * fee_rate
             
             # 计算成本（使用基础成本和自定义成本）
-            base_cost = (course.sessions + course.gift_sessions) * course.base_cost_per_session if course.base_cost_per_session else 0
+            base_cost = (course.sessions + course.gift_sessions) * course.cost_per_session if course.cost_per_session else 0
             custom_cost = course.custom_course_cost if course.custom_course_cost else 0
             course_cost = base_cost if course.use_base_cost else custom_cost
             
@@ -1523,11 +1523,7 @@ def create_formal_course():
             gift_sessions=data['gift_sessions'],
             price=data['price'],
             payment_channel=data['payment_channel'],
-            snapshot_fee_rate=data.get('snapshot_fee_rate'),
-            base_cost_per_session=data.get('base_cost_per_session'),
-            custom_course_cost=data.get('custom_course_cost'),
-            use_base_cost=data.get('use_base_cost'),
-            is_trial=False,
+            snapshot_fee_rate=data.get('snapshot_fee_rate'),            custom_course_cost=data.get('custom_course_cost'),            is_trial=False
         )
         db.session.add(course)
         db.session.commit()
@@ -1547,11 +1543,7 @@ def create_trial_course():
             gift_sessions=data['gift_sessions'],
             price=data['price'],
             payment_channel=data['payment_channel'],
-            snapshot_fee_rate=data.get('snapshot_fee_rate'),
-            base_cost_per_session=data.get('base_cost_per_session'),
-            custom_course_cost=data.get('custom_course_cost'),
-            use_base_cost=data.get('use_base_cost'),
-            is_trial=True,
+            snapshot_fee_rate=data.get('snapshot_fee_rate'),            custom_course_cost=data.get('custom_course_cost'),            is_trial=True
         )
         db.session.add(course)
         db.session.commit()
@@ -1730,7 +1722,7 @@ def api_formal_courses_status_stats():
                 fee = revenue * fee_rate
             
             # 计算成本（使用基础成本和自定义成本）
-            base_cost = (course.sessions + course.gift_sessions) * course.base_cost_per_session if course.base_cost_per_session else 0
+            base_cost = (course.sessions + course.gift_sessions) * course.cost_per_session if course.cost_per_session else 0
             custom_cost = course.custom_course_cost if course.custom_course_cost else 0
             course_cost = base_cost if course.use_base_cost else custom_cost
             
