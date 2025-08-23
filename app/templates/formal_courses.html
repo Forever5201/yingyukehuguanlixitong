@@ -124,16 +124,16 @@
                                 ¥{{ "%.2f"|format(total_revenue) }}
                             {% endif %}
                         </td>
-                        <td>¥{{ "%.2f"|format(course.cost - course.other_cost) }}</td>
+                        <td>¥{{ "%.2f"|format((course.cost or 0) - (course.other_cost or 0)) }}</td>
                         <td>¥{{ "%.2f"|format(course.other_cost) }}</td>
                         <td>
                             {% set total_revenue = course.sessions * course.price %}
                             {% if course.payment_channel == '淘宝' %}
                                 {% set fee_amount = total_revenue * taobao_fee_rate %}
                                 {% set actual_revenue = total_revenue - fee_amount %}
-                                {% set profit = actual_revenue - course.cost %}
+                                {% set profit = actual_revenue - (course.cost or 0) %}
                             {% else %}
-                                {% set profit = total_revenue - course.cost %}
+                                {% set profit = total_revenue - (course.cost or 0) %}
                             {% endif %}
                             <span class="{% if profit >= 0 %}text-success{% else %}text-danger{% endif %}">
                                 ¥{{ "%.2f"|format(profit) }}
@@ -811,11 +811,13 @@ document.addEventListener('DOMContentLoaded', function() {
     fetch('/api/formal-courses/stats')
         .then(response => response.json())
         .then(data => {
-            if (data.success) {
+            if (data && !data.error) {
                 // 更新统计卡片
-                updateStatCards(data.summary);
+                updateStatCards(data);
                 // 更新表格数据
                 updateTableData(data.rows);
+            } else {
+                console.error('API返回错误:', data.error);
             }
         })
         .catch(error => {
@@ -823,26 +825,20 @@ document.addEventListener('DOMContentLoaded', function() {
         });
 });
 
-function updateStatCards(summary) {
-    // 更新统计卡片的值
-    const statElements = {
-        'fc_total_courses': summary.total_courses,
-        'fc_total_revenue': `¥${summary.total_revenue.toFixed(2)}`,
-        'fc_total_cost': `¥${summary.total_cost.toFixed(2)}`,
-        'fc_total_profit': `¥${summary.total_profit.toFixed(2)}`,
-        'fc_total_fees': `¥${summary.total_fees.toFixed(2)}`
-    };
+function updateStatCards(data) {
+    // 计算总课程数
+    const total_courses = data.rows ? data.rows.length : 0;
     
     // 查找并更新对应的统计卡片
     document.querySelectorAll('.stat-card').forEach((card, index) => {
         const h3 = card.querySelector('h3');
         if (h3) {
             switch(index) {
-                case 0: h3.textContent = summary.total_courses; break;
-                case 1: h3.textContent = `¥${summary.total_revenue.toFixed(2)}`; break;
-                case 2: h3.textContent = `¥${summary.total_cost.toFixed(2)}`; break;
-                case 3: h3.textContent = `¥${summary.total_profit.toFixed(2)}`; break;
-                case 4: h3.textContent = `¥${summary.total_fees.toFixed(2)}`; break;
+                case 0: h3.textContent = total_courses; break;
+                case 1: h3.textContent = `¥${(data.total_revenue || 0).toFixed(2)}`; break;
+                case 2: h3.textContent = `¥${(data.total_cost || 0).toFixed(2)}`; break;
+                case 3: h3.textContent = `¥${(data.total_profit || 0).toFixed(2)}`; break;
+                case 4: h3.textContent = `¥${(data.total_fees || 0).toFixed(2)}`; break;
             }
         }
     });
@@ -859,25 +855,25 @@ function updateTableData(rows) {
     rows.forEach(row => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
-            <td>${row.customer_name}</td>
-            <td>${row.course_type}</td>
-            <td>${row.sessions}</td>
-            <td>${row.gift_sessions}</td>
-            <td>¥${row.price.toFixed(2)}</td>
+            <td>${row.customer_name || ''}</td>
+            <td>${row.course_type || ''}</td>
+            <td>${row.sessions || 0}</td>
+            <td>${row.gift_sessions || 0}</td>
+            <td>¥${(row.price || 0).toFixed(2)}</td>
             <td>
                 ${row.payment_channel ? 
                     `<span class="payment-badge payment-${row.payment_channel}">${row.payment_channel}</span>` : 
                     '<span class="text-muted">未设置</span>'}
             </td>
-            <td>¥${row.revenue.toFixed(2)}</td>
-            <td>¥${(row.course_cost - row.other_cost).toFixed(2)}</td>
-            <td>¥${row.other_cost.toFixed(2)}</td>
+            <td>¥${(row.revenue || 0).toFixed(2)}</td>
+            <td>¥${(row.course_cost || 0).toFixed(2)}</td>
+            <td>¥${(row.fee || 0).toFixed(2)}</td>
             <td>
-                <span class="${row.profit >= 0 ? 'text-success' : 'text-danger'}">
-                    ¥${row.profit.toFixed(2)}
+                <span class="${(row.profit || 0) >= 0 ? 'text-success' : 'text-danger'}">
+                    ¥${(row.profit || 0).toFixed(2)}
                 </span>
             </td>
-            <td>${row.created_at}</td>
+            <td>-</td>
             <td>
                 <div class="action-buttons">
                     <a href="/formal-courses/${row.id}/details" 

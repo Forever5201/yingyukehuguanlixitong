@@ -22,29 +22,30 @@ class Customer(db.Model):
 
 class Course(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
-    customer_id = db.Column(db.Integer, db.ForeignKey('customer.id'), nullable=False)
+    # 课程信息
+    name = db.Column(db.String(100))
+    customer_id = db.Column(db.Integer, db.ForeignKey('customer.id'))
+    is_trial = db.Column(db.Boolean, default=False)
+    assigned_employee_id = db.Column(db.Integer, db.ForeignKey('employee.id'), nullable=True)  # 分配的员工ID
     customer = db.relationship('Customer', backref='courses', lazy=True)
     
     # 试听课信息
-    is_trial = db.Column(db.Boolean, default=False)
-    trial_price = db.Column(db.Float)  # 试听课售价
+    trial_price = db.Column(db.Float)  # 试听价格
     source = db.Column(db.String(50))  # 渠道来源（淘宝、视频号、抖音、小红书）
     trial_status = db.Column(db.String(20), default='registered')  # 试听课状态
     refund_amount = db.Column(db.Float, default=0)  # 退费金额
     refund_fee = db.Column(db.Float, default=0)  # 退费手续费
     refund_channel = db.Column(db.String(50))  # 退款渠道（微信、淘宝、支付宝等）
     custom_trial_cost = db.Column(db.Float)  # 自定义试听课成本
-    assigned_employee_id = db.Column(db.Integer, db.ForeignKey('employee.id'))  # 分配的员工ID
     
     # 正课信息
-    course_type = db.Column(db.String(50))  # 课程类型（单词课、语法课、阅读课、拼读课）
+    course_type = db.Column(db.String(100))  # 课程类型（如：数学、英语）
     sessions = db.Column(db.Integer)  # 购买节数
-    price = db.Column(db.Float)  # 课程售价
-    cost = db.Column(db.Float)  # 课程成本
-    gift_sessions = db.Column(db.Integer, default=0)  # 赠课节数
+    price = db.Column(db.Float)  # 单节售价
+    gift_sessions = db.Column(db.Integer, default=0)  # 赠送节数
     other_cost = db.Column(db.Float, default=0)  # 其他成本
-    payment_channel = db.Column(db.String(50))  # 支付渠道（淘宝、微信、支付宝、现金等）
+    cost = db.Column(db.Float, default=0)  # 基础成本（课时成本 + 其他成本）
+    payment_channel = db.Column(db.String(50))  # 支付渠道（如：淘宝、微信）
     is_renewal = db.Column(db.Boolean, default=False)  # 是否为续课
     renewal_from_course_id = db.Column(db.Integer, db.ForeignKey('course.id'))  # 续课来源课程ID
     
