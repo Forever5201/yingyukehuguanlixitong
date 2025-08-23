@@ -6,7 +6,7 @@
                 <h5 class="modal-title">
                     <i class="fas fa-shopping-cart"></i> 刷单详情
                 </h5>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                <button type="button" class="close" onclick="closeTaobaoOrderDetailModal()" aria-label="Close">
                     <span aria-hidden="true">&times;</span>
                 </button>
             </div>
@@ -160,6 +160,14 @@
 </style>
 
 <script>
+// 关闭淘宝订单详情模态框
+function closeTaobaoOrderDetailModal() {
+    const modal = document.getElementById('taobaoOrderDetailModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
 // 显示订单详情
 function showOrderDetail(orderId) {
     // 重置表单
@@ -199,7 +207,10 @@ function showOrderDetail(orderId) {
         });
     
     // 显示模态框
-    $('#taobaoOrderDetailModal').modal('show');
+    const modal = document.getElementById('taobaoOrderDetailModal');
+    if (modal) {
+        modal.style.display = 'flex';
+    }
 }
 
 // 监听表单变化
@@ -250,7 +261,10 @@ function saveTaobaoOrderDetail() {
     .then(response => response.json())
     .then(result => {
         if (result.success) {
-            $('#taobaoOrderDetailModal').modal('hide');
+            const modal = document.getElementById('taobaoOrderDetailModal');
+            if (modal) {
+                modal.style.display = 'none';
+            }
             location.reload();
         } else {
             alert(result.message || '保存失败');

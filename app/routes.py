@@ -1393,6 +1393,7 @@ def api_formal_courses_stats():
             # 构建行数据
             rows.append({
                 'id': course.id,
+                'customer_id': course.customer.id,
                 'customer_name': course.customer.name,
                 'course_type': course.course_type,
                 'sessions': course.sessions,
@@ -1403,6 +1404,7 @@ def api_formal_courses_stats():
                 'course_cost': course_cost,
                 'revenue': revenue,
                 'profit': profit,
+                'created_at': course.created_at.isoformat() if course.created_at else None,
             })
         
         return {

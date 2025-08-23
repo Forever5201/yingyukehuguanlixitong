@@ -6,7 +6,7 @@
                 <h5 class="modal-title">
                     <i class="fas fa-user-circle"></i> 学员详情
                 </h5>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                <button type="button" class="close" onclick="closeCustomerDetailModal()" aria-label="Close">
                     <span aria-hidden="true">&times;</span>
                 </button>
             </div>
@@ -286,6 +286,14 @@ function loadSystemConfigs() {
         });
 }
 
+// 关闭学员详情模态框
+function closeCustomerDetailModal() {
+    const modal = document.getElementById('customerDetailModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
 // 显示学员详情模态框
 function showCustomerDetail(customerId, courseId = null, courseType = null) {
     // 重置表单
@@ -308,7 +316,10 @@ function showCustomerDetail(customerId, courseId = null, courseType = null) {
     }
     
     // 显示模态框
-    $('#customerDetailModal').modal('show');
+    const modal = document.getElementById('customerDetailModal');
+    if (modal) {
+        modal.style.display = 'flex';
+    }
 }
 
 // 加载试听课详情
@@ -500,7 +511,10 @@ function saveCustomerDetail() {
     .then(result => {
         if (result.success) {
             showAlert('保存成功', 'success');
-            $('#customerDetailModal').modal('hide');
+            const modal = document.getElementById('customerDetailModal');
+            if (modal) {
+                modal.style.display = 'none';
+            }
             // 刷新页面或更新表格
             setTimeout(() => location.reload(), 500);
         } else {

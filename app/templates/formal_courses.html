@@ -142,25 +142,39 @@
                         <td>{{ course.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
                         <td>
                             <div class="action-buttons">
+                                <!-- 查看详情按钮 -->
                                 <button onclick="showCustomerDetail({{ customer.id }}, {{ course.id }}, 'formal')" 
-                                        class="btn btn-sm btn-info me-1" title="查看编辑详情">
+                                        class="btn btn-sm btn-outline-info action-btn" title="查看编辑详情">
                                     <i class="fas fa-eye"></i>
+                                    <span class="btn-text">查看</span>
                                 </button>
+                                
+                                <!-- 计算明细按钮 -->
                                 <a href="{{ url_for('formal_course_details', course_id=course.id) }}" 
-                                   class="btn btn-sm btn-secondary me-1" title="查看计算明细">
+                                   class="btn btn-sm btn-outline-secondary action-btn" title="查看计算明细">
                                     <i class="fas fa-calculator"></i>
+                                    <span class="btn-text">明细</span>
                                 </a>
+                                
+                                <!-- 续课按钮 -->
                                 <a href="{{ url_for('renew_course', course_id=course.id) }}" 
-                                   class="btn btn-sm btn-success me-1" title="续课">
+                                   class="btn btn-sm btn-outline-success action-btn" title="续课">
                                     <i class="fas fa-plus-circle"></i>
+                                    <span class="btn-text">续课</span>
                                 </a>
+                                
+                                <!-- 快速编辑按钮 -->
                                 <button onclick="editFormalCourse({{ course.id }})" 
-                                        class="btn btn-sm btn-primary me-1" title="快速编辑">
+                                        class="btn btn-sm btn-outline-primary action-btn" title="快速编辑">
                                     <i class="fas fa-edit"></i>
+                                    <span class="btn-text">编辑</span>
                                 </button>
+                                
+                                <!-- 删除按钮 -->
                                 <button onclick="deleteFormalCourse({{ course.id }})" 
-                                        class="btn btn-sm btn-danger" title="删除">
+                                        class="btn btn-sm btn-outline-danger action-btn" title="删除">
                                     <i class="fas fa-trash"></i>
+                                    <span class="btn-text">删除</span>
                                 </button>
                             </div>
                         </td>
@@ -347,8 +361,8 @@ function editFormalCourse(courseId) {
         .then(data => {
             console.log('获取到的课程数据:', data);
             if (data.success) {
-                // 使用公共模块进行编辑
-                CourseManager.editFormalCourse(courseId, data.course);
+                // 使用公共模块进行编辑，直接传递data（因为课程信息在顶层）
+                CourseManager.editFormalCourse(courseId, data);
             } else {
                 console.error('获取课程数据失败:', data.message);
                 alert('获取课程信息失败：' + data.message);
@@ -873,20 +887,42 @@ function updateTableData(rows) {
                     ¥${(row.profit || 0).toFixed(2)}
                 </span>
             </td>
-            <td>-</td>
+            <td>${row.created_at ? new Date(row.created_at).toLocaleString('zh-CN') : '-'}</td>
             <td>
                 <div class="action-buttons">
-                    <a href="/formal-courses/${row.id}/details" 
-                       class="btn btn-sm btn-info me-1" title="查看详情">
+                    <!-- 查看详情按钮 -->
+                    <button onclick="showCustomerDetail(${row.customer_id || 0}, ${row.id}, 'formal')" 
+                            class="btn btn-sm btn-outline-info action-btn" title="查看编辑详情">
                         <i class="fas fa-eye"></i>
-                    </a>
-                    <button onclick="editFormalCourse(${row.id})" 
-                            class="btn btn-sm btn-primary me-1" title="编辑">
-                        <i class="fas fa-edit"></i>
+                        <span class="btn-text">查看</span>
                     </button>
+                    
+                    <!-- 计算明细按钮 -->
+                    <a href="/formal-courses/${row.id}/details" 
+                       class="btn btn-sm btn-outline-secondary action-btn" title="查看计算明细">
+                        <i class="fas fa-calculator"></i>
+                        <span class="btn-text">明细</span>
+                    </a>
+                    
+                    <!-- 续课按钮 -->
+                    <a href="/renew-course/${row.id}" 
+                       class="btn btn-sm btn-outline-success action-btn" title="续课">
+                        <i class="fas fa-plus-circle"></i>
+                        <span class="btn-text">续课</span>
+                    </a>
+                    
+                    <!-- 快速编辑按钮 -->
+                    <button onclick="editFormalCourse(${row.id})" 
+                            class="btn btn-sm btn-outline-primary action-btn" title="快速编辑">
+                        <i class="fas fa-edit"></i>
+                        <span class="btn-text">编辑</span>
+                    </button>
+                    
+                    <!-- 删除按钮 -->
                     <button onclick="deleteFormalCourse(${row.id})" 
-                            class="btn btn-sm btn-danger" title="删除">
+                            class="btn btn-sm btn-outline-danger action-btn" title="删除">
                         <i class="fas fa-trash"></i>
+                        <span class="btn-text">删除</span>
                     </button>
                 </div>
             </td>
