@@ -1,18 +1,25 @@
 from flask import Flask, send_from_directory, Response
 from flask_sqlalchemy import SQLAlchemy
-from flask_migrate import Migrate
+try:
+    from flask_migrate import Migrate
+    migrate_available = True
+except ImportError:
+    migrate_available = False
+    print("警告: Flask-Migrate 未安装，数据库迁移功能不可用")
 from config import Config
 import os
 
 db = SQLAlchemy()
-migrate = Migrate()
+if migrate_available:
+    migrate = Migrate()
 
 def create_app():
     app = Flask(__name__, instance_relative_config=True)
     app.config.from_object(Config)
 
     db.init_app(app)
-    migrate.init_app(app, db)
+    if migrate_available:
+        migrate.init_app(app, db)
 
     with app.app_context():
         # 注册传统路由（向后兼容）
@@ -32,7 +39,9 @@ def create_app():
         if not os.path.exists(api_dir):
             os.makedirs(api_dir)
         
-        # 注意: 移除了 db.create_all()，现在使用 Flask-Migrate 管理数据库
+        # 如果没有 Flask-Migrate，使用传统方式创建数据库
+        if not migrate_available:
+            db.create_all()
 
     # favicon 路由，避免 /favicon.ico 404
     @app.route('/favicon.ico')
