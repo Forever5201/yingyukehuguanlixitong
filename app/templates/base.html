@@ -32,6 +32,14 @@
                 <i class="fas fa-graduation-cap"></i>
                 <span>正课管理</span>
             </a>
+            <a href="{{ url_for('employee_performance') }}" class="nav-item {{ 'active' if request.endpoint == 'employee_performance' else '' }}">
+                <i class="fas fa-chart-line"></i>
+                <span>员工业绩</span>
+            </a>
+            <a href="{{ url_for('profit_distribution') }}" class="nav-item {{ 'active' if request.endpoint == 'profit_distribution' else '' }}">
+                <i class="fas fa-coins"></i>
+                <span>股东分配</span>
+            </a>
             <a href="{{ url_for('manage_taobao_orders') }}" class="nav-item {{ 'active' if request.endpoint == 'manage_taobao_orders' else '' }}">
                 <i class="fas fa-shopping-cart"></i>
                 <span>刷单管理</span>

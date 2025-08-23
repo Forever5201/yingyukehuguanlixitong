@@ -1,0 +1,439 @@
+{% extends "base.html" %}
+
+{% block title %}续课 - {{ course.customer.name }}{% endblock %}
+{% block page_title %}续课{% endblock %}
+
+{% block content %}
+<div class="page-container">
+    <!-- 原课程信息 -->
+    <div class="original-course-section">
+        <h3><i class="fas fa-history"></i> 原课程信息</h3>
+        <div class="info-grid">
+            <div class="info-item">
+                <label>学员姓名：</label>
+                <span>{{ course.customer.name }}</span>
+            </div>
+            <div class="info-item">
+                <label>联系电话：</label>
+                <span>{{ course.customer.phone }}</span>
+            </div>
+            <div class="info-item">
+                <label>原课程类型：</label>
+                <span>{{ course.course_type }}</span>
+            </div>
+            <div class="info-item">
+                <label>原购买节数：</label>
+                <span>{{ course.sessions }} 节</span>
+            </div>
+            <div class="info-item">
+                <label>原单节售价：</label>
+                <span>¥{{ "%.2f"|format(course.price) }}</span>
+            </div>
+            <div class="info-item">
+                <label>购课时间：</label>
+                <span>{{ course.created_at.strftime('%Y-%m-%d') if course.created_at else '未知' }}</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 续课表单 -->
+    <div class="form-section">
+        <h3><i class="fas fa-plus-circle"></i> 续课信息</h3>
+        <form method="POST" onsubmit="return validateForm()">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="course_type">续课类型 <span class="required">*</span></label>
+                    <select name="course_type" id="course_type" required>
+                        <option value="">请选择续课类型</option>
+                        <option value="单词课" {% if course.course_type == '单词课' %}selected{% endif %}>单词课</option>
+                        <option value="语法课" {% if course.course_type == '语法课' %}selected{% endif %}>语法课</option>
+                        <option value="阅读课" {% if course.course_type == '阅读课' %}selected{% endif %}>阅读课</option>
+                        <option value="拼读课" {% if course.course_type == '拼读课' %}selected{% endif %}>拼读课</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="sessions">购买节数 <span class="required">*</span></label>
+                    <input type="number" name="sessions" id="sessions" min="1" required placeholder="请输入购买节数" oninput="updateProfitPreview()">
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="price">单节售价（元） <span class="required">*</span></label>
+                    <input type="number" name="price" id="price" step="0.01" min="0" required 
+                           placeholder="请输入单节售价" value="{{ course.price }}" oninput="updateProfitPreview()">
+                </div>
+                <div class="form-group">
+                    <label for="gift_sessions">赠课节数</label>
+                    <input type="number" name="gift_sessions" id="gift_sessions" min="0" value="0" placeholder="可选" oninput="updateProfitPreview()">
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="payment_channel">支付渠道 <span class="required">*</span></label>
+                    <select name="payment_channel" id="payment_channel" required onchange="updateProfitPreview()">
+                        <option value="">请选择支付渠道</option>
+                        <option value="淘宝" {% if course.payment_channel == '淘宝' %}selected{% endif %}>淘宝（扣除手续费）</option>
+                        <option value="微信" {% if course.payment_channel == '微信' %}selected{% endif %}>微信</option>
+                        <option value="支付宝" {% if course.payment_channel == '支付宝' %}selected{% endif %}>支付宝</option>
+                        <option value="现金" {% if course.payment_channel == '现金' %}selected{% endif %}>现金</option>
+                        <option value="银行转账" {% if course.payment_channel == '银行转账' %}selected{% endif %}>银行转账</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="other_cost">其他成本（元）</label>
+                    <input type="number" name="other_cost" id="other_cost" step="0.01" min="0" value="0" placeholder="可选" oninput="updateProfitPreview()">
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="assigned_employee_id">负责员工</label>
+                    <select name="assigned_employee_id" id="assigned_employee_id">
+                        <option value="">请选择负责员工</option>
+                        {% for employee in employees %}
+                        <option value="{{ employee.id }}" {% if course.assigned_employee_id == employee.id %}selected{% endif %}>
+                            {{ employee.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <!-- 续课优惠信息 -->
+            <div class="form-section">
+                <h4><i class="fas fa-gift"></i> 续课优惠（可选）</h4>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="discount_amount">优惠金额（元）</label>
+                        <input type="number" name="discount_amount" id="discount_amount" step="0.01" min="0" value="0" placeholder="如有优惠请填写" oninput="updateProfitPreview()">
+                    </div>
+                    <div class="form-group">
+                        <label for="renewal_reason">续课备注</label>
+                        <textarea name="renewal_reason" id="renewal_reason" rows="2" placeholder="可填写续课原因或备注信息"></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 利润预览 -->
+            <div class="profit-preview">
+                <h4><i class="fas fa-calculator"></i> 利润预览</h4>
+                <div id="profitPreview">
+                    <span>请填写续课信息以查看利润预览</span>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <a href="{{ url_for('manage_formal_courses') }}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> 返回
+                </a>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i> 确认续课
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+// 配置值
+let courseCostPerSession = 0;
+let taobaoFeeRate = 0.006; // 默认0.6%
+
+// 页面加载时获取配置
+window.onload = function() {
+    // 获取正课成本配置
+    fetch('/api/config/course_cost')
+        .then(response => response.json())
+        .then(data => {
+            courseCostPerSession = parseFloat(data.value) || 0;
+            updateProfitPreview();
+        })
+        .catch(error => {
+            console.error('Error fetching course cost config:', error);
+        });
+    
+    // 获取淘宝手续费率配置
+    fetch('/api/config/taobao_fee_rate')
+        .then(response => response.json())
+        .then(data => {
+            taobaoFeeRate = parseFloat(data.value) / 100 || 0.006; // 转换为小数
+            updateProfitPreview();
+        })
+        .catch(error => {
+            console.error('Error fetching taobao fee rate:', error);
+        });
+};
+
+// 更新利润预览
+function updateProfitPreview() {
+    const sessions = parseInt(document.getElementById('sessions').value) || 0;
+    const price = parseFloat(document.getElementById('price').value) || 0;
+    const giftSessions = parseInt(document.getElementById('gift_sessions').value) || 0;
+    const otherCost = parseFloat(document.getElementById('other_cost').value) || 0;
+    const paymentChannel = document.getElementById('payment_channel').value;
+    const discountAmount = parseFloat(document.getElementById('discount_amount').value) || 0;
+    
+    const preview = document.getElementById('profitPreview');
+    
+    if (sessions > 0 && price > 0) {
+        // 计算总收入（扣除优惠）
+        const totalRevenue = sessions * price - discountAmount;
+        
+        // 计算手续费
+        let feeAmount = 0;
+        if (paymentChannel === '淘宝') {
+            feeAmount = totalRevenue * taobaoFeeRate;
+        }
+        
+        // 计算总成本（包含手续费）
+        const totalSessions = sessions + giftSessions;
+        const sessionCost = totalSessions * courseCostPerSession;
+        const totalCost = sessionCost + otherCost + feeAmount;
+        
+        // 计算净利润
+        const netProfit = totalRevenue - totalCost;
+        
+        preview.innerHTML = `
+            <div class="profit-breakdown">
+                <div class="revenue-section">
+                    <div><strong>收入明细：</strong></div>
+                    <div>续课节数：${sessions} 节 × ¥${price.toFixed(2)} = ¥${(sessions * price).toFixed(2)}</div>
+                    ${discountAmount > 0 ? `<div>续课优惠：-¥${discountAmount.toFixed(2)}</div>` : ''}
+                    <div><strong>总收入：¥${totalRevenue.toFixed(2)}</strong></div>
+                </div>
+                <div class="cost-section">
+                    <div><strong>成本明细：</strong></div>
+                    <div>课程成本：${totalSessions} 节 × ¥${courseCostPerSession.toFixed(2)} = ¥${sessionCost.toFixed(2)}</div>
+                    <div>其他成本：¥${otherCost.toFixed(2)}</div>
+                    ${paymentChannel === '淘宝' ? `<div>手续费：¥${totalRevenue.toFixed(2)} × ${(taobaoFeeRate * 100).toFixed(2)}% = ¥${feeAmount.toFixed(2)}</div>` : ''}
+                    <div><strong>总成本：¥${totalCost.toFixed(2)}</strong></div>
+                </div>
+                <div class="profit-section ${netProfit >= 0 ? 'profit-positive' : 'profit-negative'}">
+                    <div><strong>净利润：¥${netProfit.toFixed(2)}</strong></div>
+                    <small>净利润 = 总收入 - 总成本</small>
+                    <div class="renewal-notice">
+                        <i class="fas fa-info-circle"></i> 
+                        <small>续课利润分配比例：股东A 40%，股东B 60%</small>
+                    </div>
+                </div>
+            </div>
+        `;
+    } else {
+        preview.innerHTML = '<span>请填写购买节数和单节售价</span>';
+    }
+}
+
+// 表单验证
+function validateForm() {
+    const sessions = document.getElementById('sessions').value;
+    const price = document.getElementById('price').value;
+    const courseType = document.getElementById('course_type').value;
+    const paymentChannel = document.getElementById('payment_channel').value;
+    
+    if (!courseType || !sessions || !price || !paymentChannel) {
+        alert('请填写所有必填项');
+        return false;
+    }
+    
+    return confirm('确认要为该学员续课吗？');
+}
+</script>
+
+<style>
+.page-container {
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.original-course-section {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    margin-bottom: 30px;
+}
+
+.original-course-section h3 {
+    margin: 0 0 20px 0;
+    color: #333;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #17a2b8;
+}
+
+.info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 15px;
+}
+
+.info-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.info-item label {
+    font-weight: 500;
+    color: #666;
+    min-width: 100px;
+}
+
+.info-item span {
+    color: #333;
+}
+
+.form-section {
+    background: white;
+    padding: 25px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    margin-bottom: 20px;
+}
+
+.form-section h3 {
+    margin: 0 0 25px 0;
+    color: #333;
+    padding-bottom: 15px;
+    border-bottom: 2px solid #28a745;
+}
+
+.form-section h4 {
+    margin: 0 0 15px 0;
+    color: #495057;
+    font-size: 1.1rem;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.form-group label {
+    margin-bottom: 8px;
+    font-weight: 500;
+    color: #495057;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+    padding: 10px 12px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    font-size: 14px;
+    transition: border-color 0.15s ease-in-out;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    outline: none;
+    border-color: #80bdff;
+    box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
+}
+
+.required {
+    color: #dc3545;
+}
+
+.profit-preview {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 8px;
+    margin: 20px 0;
+}
+
+.profit-preview h4 {
+    margin: 0 0 15px 0;
+    color: #495057;
+}
+
+.profit-breakdown {
+    display: grid;
+    gap: 15px;
+}
+
+.revenue-section,
+.cost-section,
+.profit-section {
+    padding: 15px;
+    background: white;
+    border-radius: 5px;
+}
+
+.revenue-section {
+    border-left: 4px solid #28a745;
+}
+
+.cost-section {
+    border-left: 4px solid #ffc107;
+}
+
+.profit-section {
+    border-left: 4px solid #007bff;
+}
+
+.profit-positive {
+    color: #28a745;
+}
+
+.profit-negative {
+    color: #dc3545;
+}
+
+.renewal-notice {
+    margin-top: 10px;
+    padding: 10px;
+    background: #e7f3ff;
+    border-radius: 4px;
+    color: #004085;
+}
+
+.form-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 30px;
+}
+
+.btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    font-size: 16px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+    transition: all 0.2s;
+}
+
+.btn-primary {
+    background: #007bff;
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #0056b3;
+}
+
+.btn-secondary {
+    background: #6c757d;
+    color: white;
+}
+
+.btn-secondary:hover {
+    background: #545b62;
+}
+</style>
+{% endblock %}

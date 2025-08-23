@@ -1,11 +1,12 @@
 from flask import render_template, request, redirect, url_for, jsonify, flash, make_response, send_from_directory
 from flask import current_app as app
-from .models import db, Customer, Config, TaobaoOrder, Course
-from datetime import datetime
+from .models import db, Customer, Config, TaobaoOrder, Course, Employee, CommissionConfig
+from datetime import datetime, timedelta
 import csv
 from io import StringIO, BytesIO
 import pandas as pd
 import os
+import json
 
 @app.route('/test-js')
 def test_js():
@@ -146,6 +147,453 @@ def manage_customers():
         Customer.source, Customer.created_at
     ).order_by(Customer.created_at.desc()).all()
     return render_template('customers.html', customers=customers)
+
+@app.route('/employee-performance')
+def employee_performance():
+    """员工业绩管理页面"""
+    employees = Employee.query.all()
+    
+    # 计算每个员工的基础统计数据
+    for employee in employees:
+        # 试听课统计
+        trial_courses = Course.query.filter_by(
+            assigned_employee_id=employee.id, 
+            is_trial=True
+        ).all()
+        
+        # 转化统计
+        converted_count = sum(1 for c in trial_courses if c.converted_to_course)
+        conversion_rate = (converted_count / len(trial_courses) * 100) if trial_courses else 0
+        
+        # 本月业绩（正课）
+        from datetime import datetime, timedelta
+        start_of_month = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        monthly_courses = Course.query.filter(
+            Course.assigned_employee_id == employee.id,
+            Course.is_trial == False,
+            Course.created_at >= start_of_month
+        ).all()
+        
+        monthly_revenue = sum(c.sessions * c.price for c in monthly_courses)
+        
+        employee.stats = {
+            'trial_count': len(trial_courses),
+            'conversion_rate': conversion_rate,
+            'monthly_revenue': monthly_revenue
+        }
+    
+    return render_template('employee_performance.html', employees=employees)
+
+@app.route('/api/employees', methods=['POST'])
+def create_employee():
+    """创建新员工"""
+    try:
+        name = request.form.get('name', '').strip()
+        if not name:
+            return jsonify({'success': False, 'message': '员工姓名不能为空'})
+        
+        # 检查是否已存在
+        if Employee.query.filter_by(name=name).first():
+            return jsonify({'success': False, 'message': '该员工已存在'})
+        
+        employee = Employee(name=name)
+        db.session.add(employee)
+        db.session.commit()
+        
+        return jsonify({'success': True, 'message': '员工添加成功'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)})
+
+@app.route('/api/employees/<int:employee_id>/performance')
+def get_employee_performance(employee_id):
+    """获取员工业绩详情"""
+    try:
+        employee = Employee.query.get_or_404(employee_id)
+        
+        # 获取试听课记录
+        trial_courses = Course.query.filter_by(
+            assigned_employee_id=employee_id,
+            is_trial=True
+        ).order_by(Course.created_at.desc()).all()
+        
+        # 获取正课记录
+        formal_courses = Course.query.filter_by(
+            assigned_employee_id=employee_id,
+            is_trial=False
+        ).order_by(Course.created_at.desc()).all()
+        
+        # 计算统计数据
+        trial_count = len(trial_courses)
+        converted_count = sum(1 for c in trial_courses if c.converted_to_course)
+        conversion_rate = (converted_count / trial_count * 100) if trial_count > 0 else 0
+        
+        # 计算总业绩
+        total_revenue = sum(c.sessions * c.price for c in formal_courses)
+        
+        # 获取提成配置
+        config = CommissionConfig.query.filter_by(employee_id=employee_id).first()
+        if not config:
+            config = CommissionConfig(
+                employee_id=employee_id,
+                commission_type='profit',
+                trial_rate=0,
+                new_course_rate=0,
+                renewal_rate=0,
+                base_salary=0
+            )
+        
+        # 计算提成
+        trial_commission = 0
+        new_course_commission = 0
+        renewal_commission = 0
+        
+        # 试听课提成
+        for course in trial_courses:
+            if course.trial_status == 'converted':
+                trial_commission += course.trial_price * (config.trial_rate / 100)
+        
+        # 正课提成
+        for course in formal_courses:
+            revenue = course.sessions * course.price
+            
+            # 计算利润或销售额
+            if config.commission_type == 'profit':
+                # 计算利润
+                fee = 0
+                if course.payment_channel == '淘宝':
+                    fee_rate = course.snapshot_fee_rate if course.snapshot_fee_rate else 0.006
+                    fee = revenue * fee_rate
+                profit = revenue - course.cost - fee
+                base_amount = profit
+            else:
+                # 销售额提成
+                base_amount = revenue
+            
+            # 根据课程类型计算提成
+            if course.is_renewal:
+                renewal_commission += base_amount * (config.renewal_rate / 100)
+            else:
+                new_course_commission += base_amount * (config.new_course_rate / 100)
+        
+        # 总提成和薪资
+        total_commission = trial_commission + new_course_commission + renewal_commission
+        total_salary = config.base_salary + total_commission
+        
+        # 构建返回数据
+        result = {
+            'success': True,
+            'employee_name': employee.name,
+            'stats': {
+                'trial_count': trial_count,
+                'converted_count': converted_count,
+                'conversion_rate': conversion_rate,
+                'total_revenue': total_revenue
+            },
+            'trial_courses': [{
+                'customer_name': c.customer.name,
+                'trial_price': c.trial_price,
+                'trial_status': c.trial_status,
+                'created_at': c.created_at.strftime('%Y-%m-%d'),
+                'is_converted': bool(c.converted_to_course)
+            } for c in trial_courses],
+            'formal_courses': [{
+                'customer_name': c.customer.name,
+                'course_type': c.course_type,
+                'sessions': c.sessions,
+                'total_amount': c.sessions * c.price,
+                'profit': calculate_course_profit(c),
+                'is_renewal': c.is_renewal,
+                'created_at': c.created_at.strftime('%Y-%m-%d')
+            } for c in formal_courses],
+            'commission': {
+                'trial_commission': trial_commission,
+                'new_course_commission': new_course_commission,
+                'renewal_commission': renewal_commission,
+                'total_commission': total_commission,
+                'base_salary': config.base_salary,
+                'total_salary': total_salary
+            }
+        }
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
+def calculate_course_profit(course):
+    """计算课程利润"""
+    revenue = course.sessions * course.price
+    fee = 0
+    if course.payment_channel == '淘宝':
+        fee_rate = course.snapshot_fee_rate if course.snapshot_fee_rate else 0.006
+        fee = revenue * fee_rate
+    return revenue - course.cost - fee
+
+@app.route('/api/employees/<int:employee_id>/commission-config', methods=['GET'])
+def get_commission_config(employee_id):
+    """获取员工提成配置"""
+    try:
+        config = CommissionConfig.query.filter_by(employee_id=employee_id).first()
+        if config:
+            return jsonify({
+                'success': True,
+                'config': {
+                    'commission_type': config.commission_type,
+                    'trial_rate': config.trial_rate,
+                    'new_course_rate': config.new_course_rate,
+                    'renewal_rate': config.renewal_rate,
+                    'base_salary': config.base_salary
+                }
+            })
+        else:
+            return jsonify({
+                'success': True,
+                'config': None
+            })
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
+@app.route('/api/employees/<int:employee_id>/commission-config', methods=['POST'])
+def save_commission_config(employee_id):
+    """保存员工提成配置"""
+    try:
+        # 检查员工是否存在
+        employee = Employee.query.get_or_404(employee_id)
+        
+        # 获取或创建配置
+        config = CommissionConfig.query.filter_by(employee_id=employee_id).first()
+        if not config:
+            config = CommissionConfig(employee_id=employee_id)
+            db.session.add(config)
+        
+        # 更新配置
+        config.commission_type = request.form.get('commission_type', 'profit')
+        config.trial_rate = float(request.form.get('trial_rate', 0))
+        config.new_course_rate = float(request.form.get('new_course_rate', 0))
+        config.renewal_rate = float(request.form.get('renewal_rate', 0))
+        config.base_salary = float(request.form.get('base_salary', 0))
+        
+        db.session.commit()
+        return jsonify({'success': True, 'message': '配置保存成功'})
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)})
+
+@app.route('/profit-distribution')
+def profit_distribution():
+    """股东利润分配页面"""
+    # 获取利润分配配置
+    profit_config = {
+        'new_course_shareholder_a': 50,
+        'new_course_shareholder_b': 50,
+        'renewal_shareholder_a': 40,
+        'renewal_shareholder_b': 60
+    }
+    
+    # 从Config表获取配置
+    configs = Config.query.filter(Config.key.in_([
+        'new_course_shareholder_a',
+        'new_course_shareholder_b', 
+        'renewal_shareholder_a',
+        'renewal_shareholder_b'
+    ])).all()
+    
+    for config in configs:
+        profit_config[config.key] = float(config.value)
+    
+    return render_template('profit_distribution.html', profit_config=profit_config)
+
+@app.route('/api/profit-config', methods=['POST'])
+def save_profit_config():
+    """保存利润分配配置"""
+    try:
+        # 验证比例是否正确
+        new_course_a = float(request.form.get('new_course_shareholder_a', 50))
+        new_course_b = 100 - new_course_a
+        renewal_a = float(request.form.get('renewal_shareholder_a', 40))
+        renewal_b = 100 - renewal_a
+        
+        # 保存配置
+        configs = {
+            'new_course_shareholder_a': str(new_course_a),
+            'new_course_shareholder_b': str(new_course_b),
+            'renewal_shareholder_a': str(renewal_a),
+            'renewal_shareholder_b': str(renewal_b)
+        }
+        
+        for key, value in configs.items():
+            config = Config.query.filter_by(key=key).first()
+            if config:
+                config.value = value
+            else:
+                config = Config(key=key, value=value)
+                db.session.add(config)
+        
+        db.session.commit()
+        return jsonify({'success': True, 'message': '配置保存成功'})
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)})
+
+@app.route('/api/profit-report')
+def get_profit_report():
+    """获取利润分配报表"""
+    try:
+        period = request.args.get('period', 'month')
+        
+        # 确定时间范围
+        now = datetime.now()
+        if period == 'month':
+            start_date = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            end_date = now
+        elif period == 'quarter':
+            quarter = (now.month - 1) // 3
+            start_date = datetime(now.year, quarter * 3 + 1, 1)
+            end_date = now
+        elif period == 'year':
+            start_date = datetime(now.year, 1, 1)
+            end_date = now
+        else:  # custom
+            start_date = datetime.strptime(request.args.get('start_date'), '%Y-%m-%d')
+            end_date = datetime.strptime(request.args.get('end_date'), '%Y-%m-%d')
+        
+        # 获取利润分配配置
+        profit_config = {
+            'new_course_shareholder_a': 50,
+            'new_course_shareholder_b': 50,
+            'renewal_shareholder_a': 40,
+            'renewal_shareholder_b': 60
+        }
+        
+        configs = Config.query.filter(Config.key.in_(profit_config.keys())).all()
+        for config in configs:
+            profit_config[config.key] = float(config.value)
+        
+        # 获取正课数据（非续课）
+        new_courses = Course.query.filter(
+            Course.is_trial == False,
+            Course.is_renewal == False,
+            Course.created_at >= start_date,
+            Course.created_at <= end_date
+        ).all()
+        
+        # 获取续课数据
+        renewal_courses = Course.query.filter(
+            Course.is_trial == False,
+            Course.is_renewal == True,
+            Course.created_at >= start_date,
+            Course.created_at <= end_date
+        ).all()
+        
+        # 计算正课数据
+        new_course_data = []
+        new_course_profit_total = 0
+        
+        for course in new_courses:
+            revenue = course.sessions * course.price
+            fee = 0
+            if course.payment_channel == '淘宝':
+                fee_rate = course.snapshot_fee_rate if course.snapshot_fee_rate else 0.006
+                fee = revenue * fee_rate
+            
+            cost = course.cost + fee
+            profit = revenue - cost
+            new_course_profit_total += profit
+            
+            shareholder_a = profit * profit_config['new_course_shareholder_a'] / 100
+            shareholder_b = profit * profit_config['new_course_shareholder_b'] / 100
+            
+            new_course_data.append({
+                'customer_name': course.customer.name,
+                'course_type': course.course_type,
+                'revenue': revenue,
+                'cost': cost,
+                'profit': profit,
+                'shareholder_a': shareholder_a,
+                'shareholder_b': shareholder_b,
+                'date': course.created_at.strftime('%Y-%m-%d')
+            })
+        
+        # 计算续课数据
+        renewal_data = []
+        renewal_profit_total = 0
+        
+        for course in renewal_courses:
+            revenue = course.sessions * course.price
+            
+            # 检查是否有优惠
+            discount = 0
+            if course.meta:
+                try:
+                    meta_data = json.loads(course.meta)
+                    discount = meta_data.get('discount_amount', 0)
+                except:
+                    pass
+            
+            revenue -= discount
+            
+            fee = 0
+            if course.payment_channel == '淘宝':
+                fee_rate = course.snapshot_fee_rate if course.snapshot_fee_rate else 0.006
+                fee = revenue * fee_rate
+            
+            cost = course.cost + fee
+            profit = revenue - cost
+            renewal_profit_total += profit
+            
+            shareholder_a = profit * profit_config['renewal_shareholder_a'] / 100
+            shareholder_b = profit * profit_config['renewal_shareholder_b'] / 100
+            
+            renewal_data.append({
+                'customer_name': course.customer.name,
+                'course_type': course.course_type,
+                'revenue': revenue,
+                'cost': cost,
+                'profit': profit,
+                'shareholder_a': shareholder_a,
+                'shareholder_b': shareholder_b,
+                'date': course.created_at.strftime('%Y-%m-%d')
+            })
+        
+        # 计算汇总数据
+        total_revenue = sum(c['revenue'] for c in new_course_data + renewal_data)
+        total_cost = sum(c['cost'] for c in new_course_data + renewal_data)
+        total_profit = new_course_profit_total + renewal_profit_total
+        
+        new_course_shareholder_a = new_course_profit_total * profit_config['new_course_shareholder_a'] / 100
+        new_course_shareholder_b = new_course_profit_total * profit_config['new_course_shareholder_b'] / 100
+        renewal_shareholder_a = renewal_profit_total * profit_config['renewal_shareholder_a'] / 100
+        renewal_shareholder_b = renewal_profit_total * profit_config['renewal_shareholder_b'] / 100
+        
+        result = {
+            'success': True,
+            'config': profit_config,
+            'new_courses': new_course_data,
+            'renewal_courses': renewal_data,
+            'summary': {
+                'total_revenue': total_revenue,
+                'total_cost': total_cost,
+                'total_profit': total_profit,
+                'shareholder_a_total': new_course_shareholder_a + renewal_shareholder_a,
+                'shareholder_b_total': new_course_shareholder_b + renewal_shareholder_b
+            },
+            'distribution': {
+                'new_course_profit': new_course_profit_total,
+                'new_course_shareholder_a': new_course_shareholder_a,
+                'new_course_shareholder_b': new_course_shareholder_b,
+                'renewal_profit': renewal_profit_total,
+                'renewal_shareholder_a': renewal_shareholder_a,
+                'renewal_shareholder_b': renewal_shareholder_b
+            }
+        }
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
 
 @app.route('/config', methods=['GET', 'POST'])
 def manage_config():
@@ -1080,6 +1528,81 @@ def manage_formal_courses():
                              'total_fees': total_fees
                          },
                          embedded=embedded)
+
+@app.route('/renew-course/<int:course_id>', methods=['GET', 'POST'])
+def renew_course(course_id):
+    """续课功能"""
+    course = Course.query.filter_by(id=course_id, is_trial=False).first_or_404()
+    
+    if request.method == 'POST':
+        # 创建续课记录
+        course_type = request.form['course_type']
+        sessions = int(request.form['sessions'])
+        price = float(request.form['price'])  # 单节售价
+        payment_channel = request.form['payment_channel']
+        gift_sessions = int(request.form.get('gift_sessions', 0))
+        other_cost = float(request.form.get('other_cost', 0))
+        discount_amount = float(request.form.get('discount_amount', 0))
+        renewal_reason = request.form.get('renewal_reason', '')
+        assigned_employee_id = request.form.get('assigned_employee_id')
+        
+        # 获取正课成本配置
+        course_cost_config = Config.query.filter_by(key='course_cost').first()
+        course_cost_per_session = float(course_cost_config.value) if course_cost_config else 0
+        
+        # 获取淘宝手续费率配置
+        taobao_fee_config = Config.query.filter_by(key='taobao_fee_rate').first()
+        taobao_fee_rate = float(taobao_fee_config.value) / 100 if taobao_fee_config else 0.006
+        
+        # 计算总成本（不包含手续费，手续费单独计算）
+        total_cost = (sessions + gift_sessions) * course_cost_per_session + other_cost
+        
+        # 处理员工分配
+        if assigned_employee_id and assigned_employee_id.strip():
+            assigned_employee_id = int(assigned_employee_id)
+        else:
+            assigned_employee_id = course.assigned_employee_id  # 继承原课程的员工
+        
+        # 准备元数据
+        import json
+        meta_data = {
+            'renewal_reason': renewal_reason,
+            'discount_amount': discount_amount,
+            'original_course_id': course_id,
+            'course_cost_per_session': course_cost_per_session,
+            'taobao_fee_rate': taobao_fee_rate * 100  # 存储为百分比
+        }
+        
+        # 创建续课记录
+        renewal_course = Course(
+            name=course_type + '（续课）',
+            customer_id=course.customer_id,
+            is_trial=False,
+            course_type=course_type,
+            sessions=sessions,
+            price=price,  # 存储单节售价
+            cost=total_cost,
+            gift_sessions=gift_sessions,
+            other_cost=other_cost,
+            payment_channel=payment_channel,
+            is_renewal=True,  # 标记为续课
+            renewal_from_course_id=course_id,  # 记录续课来源
+            assigned_employee_id=assigned_employee_id,
+            snapshot_course_cost=course_cost_per_session,  # 保存单节成本快照
+            snapshot_fee_rate=taobao_fee_rate,  # 保存手续费率快照（小数）
+            meta=json.dumps(meta_data, ensure_ascii=False)  # 保存续课信息
+        )
+        
+        db.session.add(renewal_course)
+        db.session.commit()
+        
+        flash(f'续课成功：{course_type}，共{sessions}节课', 'success')
+        return redirect(url_for('manage_formal_courses'))
+    
+    # 获取员工列表
+    employees = Employee.query.order_by(Employee.name).all()
+    
+    return render_template('renew_course.html', course=course, employees=employees)
 
 @app.route('/convert-trial/<int:trial_id>', methods=['GET', 'POST'])
 def convert_trial_to_course(trial_id):

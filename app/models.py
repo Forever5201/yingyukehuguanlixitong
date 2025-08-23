@@ -45,6 +45,8 @@ class Course(db.Model):
     gift_sessions = db.Column(db.Integer, default=0)  # 赠课节数
     other_cost = db.Column(db.Float, default=0)  # 其他成本
     payment_channel = db.Column(db.String(50))  # 支付渠道（淘宝、微信、支付宝、现金等）
+    is_renewal = db.Column(db.Boolean, default=False)  # 是否为续课
+    renewal_from_course_id = db.Column(db.Integer, db.ForeignKey('course.id'))  # 续课来源课程ID
     
     # 转化信息
     converted_from_trial = db.Column(db.Integer, db.ForeignKey('course.id'))  # 从哪个试听课转化而来
@@ -80,3 +82,18 @@ class Config(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     key = db.Column(db.String(50), unique=True, nullable=False)
     value = db.Column(db.String(200), nullable=False)
+
+class CommissionConfig(db.Model):
+    """员工提成配置表"""
+    id = db.Column(db.Integer, primary_key=True)
+    employee_id = db.Column(db.Integer, db.ForeignKey('employee.id'), unique=True)
+    commission_type = db.Column(db.String(20), default='profit')  # profit或sales
+    trial_rate = db.Column(db.Float, default=0)  # 试听课提成比例
+    new_course_rate = db.Column(db.Float, default=0)  # 新课提成比例
+    renewal_rate = db.Column(db.Float, default=0)  # 续课提成比例
+    base_salary = db.Column(db.Float, default=0)  # 底薪
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # 关系
+    employee = db.relationship('Employee', backref='commission_config', uselist=False)

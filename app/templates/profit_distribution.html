@@ -1,0 +1,485 @@
+{% extends "base.html" %}
+
+{% block title %}股东利润分配 - 客户管理系统{% endblock %}
+{% block page_title %}股东利润分配{% endblock %}
+
+{% block content %}
+<div class="page-container">
+    <!-- 利润分配配置 -->
+    <div class="config-section">
+        <h3><i class="fas fa-cog"></i> 利润分配配置</h3>
+        
+        <form id="profitConfigForm">
+            <div class="config-grid">
+                <!-- 正课利润分配 -->
+                <div class="config-card">
+                    <h4><i class="fas fa-graduation-cap"></i> 正课利润分配</h4>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>股东A分配比例（%）</label>
+                            <input type="number" id="new_course_shareholder_a" name="new_course_shareholder_a" 
+                                   min="0" max="100" step="0.1" value="{{ profit_config.new_course_shareholder_a }}"
+                                   oninput="updateShareholderB('new_course')">
+                        </div>
+                        <div class="form-group">
+                            <label>股东B分配比例（%）</label>
+                            <input type="number" id="new_course_shareholder_b" name="new_course_shareholder_b" 
+                                   min="0" max="100" step="0.1" value="{{ profit_config.new_course_shareholder_b }}"
+                                   readonly style="background: #e9ecef;">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 续课利润分配 -->
+                <div class="config-card">
+                    <h4><i class="fas fa-redo"></i> 续课利润分配</h4>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>股东A分配比例（%）</label>
+                            <input type="number" id="renewal_shareholder_a" name="renewal_shareholder_a" 
+                                   min="0" max="100" step="0.1" value="{{ profit_config.renewal_shareholder_a }}"
+                                   oninput="updateShareholderB('renewal')">
+                        </div>
+                        <div class="form-group">
+                            <label>股东B分配比例（%）</label>
+                            <input type="number" id="renewal_shareholder_b" name="renewal_shareholder_b" 
+                                   min="0" max="100" step="0.1" value="{{ profit_config.renewal_shareholder_b }}"
+                                   readonly style="background: #e9ecef;">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <button type="button" class="btn btn-primary" onclick="saveProfitConfig()">
+                <i class="fas fa-save"></i> 保存配置
+            </button>
+        </form>
+    </div>
+
+    <!-- 利润报表 -->
+    <div class="report-section">
+        <div class="report-header">
+            <h3><i class="fas fa-chart-bar"></i> 利润分配报表</h3>
+            <div class="period-selector">
+                <select id="reportPeriod" onchange="loadProfitReport()">
+                    <option value="month">本月</option>
+                    <option value="quarter">本季度</option>
+                    <option value="year">本年度</option>
+                    <option value="custom">自定义</option>
+                </select>
+                <div id="customDateRange" style="display: none;">
+                    <input type="date" id="startDate" onchange="loadProfitReport()">
+                    <span>至</span>
+                    <input type="date" id="endDate" onchange="loadProfitReport()">
+                </div>
+            </div>
+        </div>
+
+        <!-- 总览卡片 -->
+        <div class="summary-cards">
+            <div class="summary-card">
+                <div class="card-icon">
+                    <i class="fas fa-money-bill-wave"></i>
+                </div>
+                <div class="card-content">
+                    <h4>总收入</h4>
+                    <p id="totalRevenue">¥0.00</p>
+                </div>
+            </div>
+            <div class="summary-card">
+                <div class="card-icon">
+                    <i class="fas fa-coins"></i>
+                </div>
+                <div class="card-content">
+                    <h4>总成本</h4>
+                    <p id="totalCost">¥0.00</p>
+                </div>
+            </div>
+            <div class="summary-card">
+                <div class="card-icon">
+                    <i class="fas fa-chart-line"></i>
+                </div>
+                <div class="card-content">
+                    <h4>总利润</h4>
+                    <p id="totalProfit">¥0.00</p>
+                </div>
+            </div>
+            <div class="summary-card">
+                <div class="card-icon">
+                    <i class="fas fa-user"></i>
+                </div>
+                <div class="card-content">
+                    <h4>股东A收益</h4>
+                    <p id="shareholderAProfit">¥0.00</p>
+                </div>
+            </div>
+            <div class="summary-card">
+                <div class="card-icon">
+                    <i class="fas fa-user"></i>
+                </div>
+                <div class="card-content">
+                    <h4>股东B收益</h4>
+                    <p id="shareholderBProfit">¥0.00</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 详细报表 -->
+        <div class="detail-tables">
+            <ul class="nav nav-tabs">
+                <li class="nav-item">
+                    <a class="nav-link active" data-toggle="tab" href="#newCourseTab">正课明细</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" data-toggle="tab" href="#renewalTab">续课明细</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" data-toggle="tab" href="#summaryTab">分配汇总</a>
+                </li>
+            </ul>
+
+            <div class="tab-content">
+                <!-- 正课明细 -->
+                <div id="newCourseTab" class="tab-pane active">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>学员姓名</th>
+                                <th>课程类型</th>
+                                <th>收入</th>
+                                <th>成本</th>
+                                <th>利润</th>
+                                <th>股东A分配</th>
+                                <th>股东B分配</th>
+                                <th>日期</th>
+                            </tr>
+                        </thead>
+                        <tbody id="newCourseTableBody">
+                            <!-- 动态加载 -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- 续课明细 -->
+                <div id="renewalTab" class="tab-pane">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>学员姓名</th>
+                                <th>课程类型</th>
+                                <th>收入</th>
+                                <th>成本</th>
+                                <th>利润</th>
+                                <th>股东A分配</th>
+                                <th>股东B分配</th>
+                                <th>日期</th>
+                            </tr>
+                        </thead>
+                        <tbody id="renewalTableBody">
+                            <!-- 动态加载 -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- 分配汇总 -->
+                <div id="summaryTab" class="tab-pane">
+                    <div class="distribution-summary">
+                        <h4>利润分配汇总</h4>
+                        <div class="summary-grid">
+                            <div class="summary-section">
+                                <h5>正课利润分配</h5>
+                                <div class="summary-item">
+                                    <span>总利润：</span>
+                                    <span id="newCourseProfit">¥0.00</span>
+                                </div>
+                                <div class="summary-item">
+                                    <span>股东A（<span id="newCourseRatioA">50</span>%）：</span>
+                                    <span id="newCourseShareA">¥0.00</span>
+                                </div>
+                                <div class="summary-item">
+                                    <span>股东B（<span id="newCourseRatioB">50</span>%）：</span>
+                                    <span id="newCourseShareB">¥0.00</span>
+                                </div>
+                            </div>
+                            <div class="summary-section">
+                                <h5>续课利润分配</h5>
+                                <div class="summary-item">
+                                    <span>总利润：</span>
+                                    <span id="renewalProfit">¥0.00</span>
+                                </div>
+                                <div class="summary-item">
+                                    <span>股东A（<span id="renewalRatioA">40</span>%）：</span>
+                                    <span id="renewalShareA">¥0.00</span>
+                                </div>
+                                <div class="summary-item">
+                                    <span>股东B（<span id="renewalRatioB">60</span>%）：</span>
+                                    <span id="renewalShareB">¥0.00</span>
+                                </div>
+                            </div>
+                            <div class="summary-section total">
+                                <h5>总计</h5>
+                                <div class="summary-item">
+                                    <span>股东A总收益：</span>
+                                    <span id="totalShareA">¥0.00</span>
+                                </div>
+                                <div class="summary-item">
+                                    <span>股东B总收益：</span>
+                                    <span id="totalShareB">¥0.00</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// 更新股东B的比例
+function updateShareholderB(type) {
+    const shareholderA = parseFloat(document.getElementById(`${type}_shareholder_a`).value) || 0;
+    const shareholderB = 100 - shareholderA;
+    document.getElementById(`${type}_shareholder_b`).value = shareholderB.toFixed(1);
+}
+
+// 保存利润分配配置
+function saveProfitConfig() {
+    const formData = new FormData(document.getElementById('profitConfigForm'));
+    
+    fetch('/api/profit-config', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('配置保存成功');
+            loadProfitReport(); // 重新加载报表
+        } else {
+            alert(data.message || '保存失败');
+        }
+    });
+}
+
+// 切换时间段选择
+document.getElementById('reportPeriod').addEventListener('change', function() {
+    document.getElementById('customDateRange').style.display = 
+        this.value === 'custom' ? 'inline-block' : 'none';
+});
+
+// 加载利润报表
+function loadProfitReport() {
+    const period = document.getElementById('reportPeriod').value;
+    let params = { period: period };
+    
+    if (period === 'custom') {
+        params.start_date = document.getElementById('startDate').value;
+        params.end_date = document.getElementById('endDate').value;
+    }
+    
+    fetch('/api/profit-report?' + new URLSearchParams(params))
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                updateReportDisplay(data);
+            }
+        });
+}
+
+// 更新报表显示
+function updateReportDisplay(data) {
+    // 更新总览卡片
+    document.getElementById('totalRevenue').textContent = '¥' + data.summary.total_revenue.toFixed(2);
+    document.getElementById('totalCost').textContent = '¥' + data.summary.total_cost.toFixed(2);
+    document.getElementById('totalProfit').textContent = '¥' + data.summary.total_profit.toFixed(2);
+    document.getElementById('shareholderAProfit').textContent = '¥' + data.summary.shareholder_a_total.toFixed(2);
+    document.getElementById('shareholderBProfit').textContent = '¥' + data.summary.shareholder_b_total.toFixed(2);
+    
+    // 更新正课明细表格
+    const newCourseTableBody = document.getElementById('newCourseTableBody');
+    newCourseTableBody.innerHTML = '';
+    data.new_courses.forEach(course => {
+        const row = `
+            <tr>
+                <td>${course.customer_name}</td>
+                <td>${course.course_type}</td>
+                <td>¥${course.revenue.toFixed(2)}</td>
+                <td>¥${course.cost.toFixed(2)}</td>
+                <td>¥${course.profit.toFixed(2)}</td>
+                <td>¥${course.shareholder_a.toFixed(2)}</td>
+                <td>¥${course.shareholder_b.toFixed(2)}</td>
+                <td>${course.date}</td>
+            </tr>
+        `;
+        newCourseTableBody.innerHTML += row;
+    });
+    
+    // 更新续课明细表格
+    const renewalTableBody = document.getElementById('renewalTableBody');
+    renewalTableBody.innerHTML = '';
+    data.renewal_courses.forEach(course => {
+        const row = `
+            <tr>
+                <td>${course.customer_name}</td>
+                <td>${course.course_type}</td>
+                <td>¥${course.revenue.toFixed(2)}</td>
+                <td>¥${course.cost.toFixed(2)}</td>
+                <td>¥${course.profit.toFixed(2)}</td>
+                <td>¥${course.shareholder_a.toFixed(2)}</td>
+                <td>¥${course.shareholder_b.toFixed(2)}</td>
+                <td>${course.date}</td>
+            </tr>
+        `;
+        renewalTableBody.innerHTML += row;
+    });
+    
+    // 更新分配汇总
+    document.getElementById('newCourseProfit').textContent = '¥' + data.distribution.new_course_profit.toFixed(2);
+    document.getElementById('newCourseShareA').textContent = '¥' + data.distribution.new_course_shareholder_a.toFixed(2);
+    document.getElementById('newCourseShareB').textContent = '¥' + data.distribution.new_course_shareholder_b.toFixed(2);
+    document.getElementById('renewalProfit').textContent = '¥' + data.distribution.renewal_profit.toFixed(2);
+    document.getElementById('renewalShareA').textContent = '¥' + data.distribution.renewal_shareholder_a.toFixed(2);
+    document.getElementById('renewalShareB').textContent = '¥' + data.distribution.renewal_shareholder_b.toFixed(2);
+    document.getElementById('totalShareA').textContent = '¥' + data.summary.shareholder_a_total.toFixed(2);
+    document.getElementById('totalShareB').textContent = '¥' + data.summary.shareholder_b_total.toFixed(2);
+    
+    // 更新比例显示
+    document.getElementById('newCourseRatioA').textContent = data.config.new_course_shareholder_a;
+    document.getElementById('newCourseRatioB').textContent = data.config.new_course_shareholder_b;
+    document.getElementById('renewalRatioA').textContent = data.config.renewal_shareholder_a;
+    document.getElementById('renewalRatioB').textContent = data.config.renewal_shareholder_b;
+}
+
+// 页面加载时初始化
+document.addEventListener('DOMContentLoaded', function() {
+    loadProfitReport();
+});
+</script>
+
+<style>
+.config-section {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    margin-bottom: 30px;
+}
+
+.config-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+.config-card {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 8px;
+    border: 1px solid #dee2e6;
+}
+
+.config-card h4 {
+    margin: 0 0 15px 0;
+    color: #495057;
+}
+
+.report-section {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.report-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.period-selector {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.summary-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.summary-card {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.card-icon {
+    width: 50px;
+    height: 50px;
+    background: #007bff;
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+}
+
+.card-content h4 {
+    margin: 0;
+    font-size: 14px;
+    color: #6c757d;
+}
+
+.card-content p {
+    margin: 5px 0 0 0;
+    font-size: 24px;
+    font-weight: bold;
+    color: #333;
+}
+
+.distribution-summary {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 8px;
+}
+
+.summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+    margin-top: 20px;
+}
+
+.summary-section {
+    background: white;
+    padding: 15px;
+    border-radius: 5px;
+}
+
+.summary-section h5 {
+    margin: 0 0 15px 0;
+    color: #495057;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.summary-section.total {
+    background: #e7f3ff;
+}
+
+.summary-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 5px 0;
+}
+</style>
+{% endblock %}
