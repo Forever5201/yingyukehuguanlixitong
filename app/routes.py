@@ -1345,6 +1345,10 @@ def api_formal_courses_stats():
         taobao_fee_config = Config.query.filter_by(key='taobao_fee_rate').first()
         default_fee_rate = float(taobao_fee_config.value) / 100 if taobao_fee_config else 0.006
         
+        # 获取正课成本配置
+        course_cost_config = Config.query.filter_by(key='course_cost').first()
+        course_cost_per_session = float(course_cost_config.value) if course_cost_config else 0
+        
         # 计算统计数据
         total_revenue = 0
         total_cost = 0
@@ -1364,9 +1368,15 @@ def api_formal_courses_stats():
                 fee = revenue * fee_rate
             
             # 计算成本（使用基础成本和自定义成本）
-            base_cost = (course.sessions + course.gift_sessions) * course.cost_per_session if course.cost_per_session else 0
-            custom_cost = course.custom_course_cost if course.custom_course_cost else 0
-            course_cost = base_cost if course.use_base_cost else custom_cost
+            if course.custom_course_cost:
+                # 使用自定义成本
+                course_cost = course.custom_course_cost
+            elif course.snapshot_course_cost:
+                # 使用快照成本
+                course_cost = (course.sessions + course.gift_sessions) * course.snapshot_course_cost + (course.other_cost or 0)
+            else:
+                # 使用配置的成本
+                course_cost = (course.sessions + course.gift_sessions) * course_cost_per_session + (course.other_cost or 0)
             
             # 总成本包含手续费
             cost = course_cost + fee
@@ -1731,6 +1741,10 @@ def api_formal_courses_status_stats():
         taobao_fee_config = Config.query.filter_by(key='taobao_fee_rate').first()
         default_fee_rate = float(taobao_fee_config.value) / 100 if taobao_fee_config else 0.006
         
+        # 获取正课成本配置
+        course_cost_config = Config.query.filter_by(key='course_cost').first()
+        course_cost_per_session = float(course_cost_config.value) if course_cost_config else 0
+        
         # 计算统计数据
         status_stats = {
             'paid': {'count': 0, 'revenue': 0, 'cost': 0, 'fees': 0},
@@ -1751,9 +1765,15 @@ def api_formal_courses_status_stats():
                 fee = revenue * fee_rate
             
             # 计算成本（使用基础成本和自定义成本）
-            base_cost = (course.sessions + course.gift_sessions) * course.cost_per_session if course.cost_per_session else 0
-            custom_cost = course.custom_course_cost if course.custom_course_cost else 0
-            course_cost = base_cost if course.use_base_cost else custom_cost
+            if course.custom_course_cost:
+                # 使用自定义成本
+                course_cost = course.custom_course_cost
+            elif course.snapshot_course_cost:
+                # 使用快照成本
+                course_cost = (course.sessions + course.gift_sessions) * course.snapshot_course_cost + (course.other_cost or 0)
+            else:
+                # 使用配置的成本
+                course_cost = (course.sessions + course.gift_sessions) * course_cost_per_session + (course.other_cost or 0)
             
             # 总成本包含手续费
             cost = course_cost + fee
@@ -1822,9 +1842,17 @@ def api_trial_courses_status_stats():
         }
         calc_rows = []
         
+        # 初始化统计变量
+        total_revenue = 0
+        total_cost = 0
+        total_profit = 0
+        total_fees = 0
+        
         for course in courses:
-            # 计算收入
-            revenue = course.sessions * course.price
+            # 计算收入（处理None值）
+            sessions = course.sessions or 0
+            price = course.price or 0
+            revenue = sessions * price
             
             # 计算手续费
             fee = 0
@@ -1834,27 +1862,33 @@ def api_trial_courses_status_stats():
                 fee = revenue * fee_rate
             
             # 计算成本（course.cost已包含课时成本和其他成本）
-            cost = course.cost + fee  # 总成本包含手续费
+            cost = (course.cost or 0) + fee  # 总成本包含手续费
             
             # 计算利润
             profit = revenue - cost
             
             # 累加统计
-            if course.status == 'paid':
+            if course.trial_status == 'registered':
                 status_stats['paid']['count'] += 1
                 status_stats['paid']['revenue'] += revenue
                 status_stats['paid']['cost'] += cost
                 status_stats['paid']['fees'] += fee
-            elif course.status == 'unpaid':
+            elif course.trial_status == 'not_registered':
                 status_stats['unpaid']['count'] += 1
                 status_stats['unpaid']['revenue'] += revenue
                 status_stats['unpaid']['cost'] += cost
                 status_stats['unpaid']['fees'] += fee
-            elif course.status == 'refunded':
+            elif course.trial_status == 'refunded':
                 status_stats['refunded']['count'] += 1
                 status_stats['refunded']['revenue'] += revenue
                 status_stats['refunded']['cost'] += cost
                 status_stats['refunded']['fees'] += fee
+            
+            # 累加总体统计
+            total_revenue += revenue
+            total_cost += cost
+            total_profit += profit
+            total_fees += fee
             
             # 构建行数据
             calc_rows.append({
@@ -1883,7 +1917,7 @@ def api_trial_courses_status_stats():
                 'total_profit': round(total_profit, 2),
                 'total_fees': round(total_fees, 2)
             },
-            'rows': rows
+            'rows': calc_rows
         })
         
     except Exception as e:
@@ -1908,7 +1942,6 @@ def manage_formal_courses():
     # 计算正课统计
     formal_stats_query = db.session.query(
         db.func.count(Course.id).label('total_courses'),
-        db.func.coalesce(db.func.sum(Course.cost), 0).label('total_cost'),
         db.func.coalesce(db.func.sum(Course.sessions), 0).label('total_sessions'),
         db.func.coalesce(db.func.sum(Course.gift_sessions), 0).label('total_gift_sessions')
     ).filter(Course.is_trial == False)
@@ -1920,10 +1953,15 @@ def manage_formal_courses():
     courses = courses_query.all()
     total_revenue = 0
     total_fees = 0
+    total_cost = 0
     
     # 获取淘宝手续费率配置
     taobao_fee_config = Config.query.filter_by(key='taobao_fee_rate').first()
     taobao_fee_rate = float(taobao_fee_config.value) / 100 if taobao_fee_config else 0.006  # 转换为小数
+    
+    # 获取正课成本配置
+    course_cost_config = Config.query.filter_by(key='course_cost').first()
+    course_cost_per_session = float(course_cost_config.value) if course_cost_config else 0
     
     for course in courses:
         # 计算基础收入：购买节数 × 单节售价
@@ -1938,9 +1976,16 @@ def manage_formal_courses():
             actual_revenue = base_revenue
             
         total_revenue += actual_revenue
+        
+        # 计算成本
+        course_cost = course.cost if course.cost is not None else 0
+        if course_cost == 0:
+            # 如果cost字段为空，使用配置的成本计算
+            course_cost = (course.sessions + course.gift_sessions) * course_cost_per_session + (course.other_cost or 0)
+        total_cost += course_cost
     
     # 计算利润
-    total_profit = total_revenue - (formal_stats.total_cost or 0)
+    total_profit = total_revenue - total_cost
     
     return render_template('formal_courses.html', 
                          formal_courses=formal_courses,
@@ -1949,7 +1994,7 @@ def manage_formal_courses():
                          stats={
                              'total_courses': formal_stats.total_courses or 0,
                              'total_revenue': total_revenue,
-                             'total_cost': formal_stats.total_cost or 0,
+                             'total_cost': total_cost,
                              'total_profit': total_profit,
                              'total_sessions': formal_stats.total_sessions or 0,
                              'total_gift_sessions': formal_stats.total_gift_sessions or 0,
