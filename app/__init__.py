@@ -21,11 +21,11 @@ def create_app():
     if migrate_available:
         migrate.init_app(app, db)
 
-    # 重要修改：将路由导入移出app_context
-    # 这样可以确保测试时路由能正确加载
-    
-    # 注册传统路由（向后兼容）
-    from . import routes
+    # 重要修改：在app_context中导入routes
+    # 因为routes.py使用了current_app装饰器
+    with app.app_context():
+        # 注册传统路由（向后兼容）
+        from . import routes
     
     # 注册新的统一API蓝图
     from .api.course_controller import course_api
