@@ -56,6 +56,7 @@ class TestRefundFunctionality(unittest.TestCase):
             
             # 创建正课
             self.course = Course(
+                name='测试正课',  # 添加name字段
                 customer_id=self.customer.id,
                 is_trial=False,
                 course_type='一对一',
