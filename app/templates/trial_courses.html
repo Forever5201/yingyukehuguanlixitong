@@ -579,7 +579,7 @@
                 </thead>
                 <tbody>
                     {% for course, customer in trial_courses %}
-                    <tr>
+                    <tr data-course-id="{{ course.id }}">
                         <td>{{ customer.name }}</td>
                         <td>{{ customer.gender or '-' }}</td>
                         <td>{{ customer.grade or '-' }}</td>
@@ -2639,7 +2639,153 @@ document.addEventListener('DOMContentLoaded', function() {
 </style>
 
 <script>
-// 分配员工
+    // 为编辑表单添加提交事件处理器
+    document.addEventListener('DOMContentLoaded', function() {
+        const editTrialForm = document.getElementById('editTrialForm');
+        if (editTrialForm) {
+            editTrialForm.addEventListener('submit', function(e) {
+                e.preventDefault(); // 阻止默认提交
+                
+                const formData = new FormData(this);
+                const courseId = formData.get('course_id');
+                
+                // 显示加载状态
+                const submitBtn = this.querySelector('button[type="submit"]');
+                const originalText = submitBtn.innerHTML;
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 保存中...';
+                submitBtn.disabled = true;
+                
+                // 发送AJAX请求
+                fetch('/trial-courses', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // 更新页面内容
+                        updateTrialCourseRow(courseId, formData);
+                        updateStatistics();
+                        
+                        // 显示成功消息
+                        showAlert('保存成功！', 'success');
+                        
+                        // 关闭模态框
+                        closeEditModal();
+                    } else {
+                        showAlert(data.message || '保存失败', 'danger');
+                    }
+                })
+                .catch(error => {
+                    console.error('保存失败:', error);
+                    showAlert('保存失败：' + error.message, 'danger');
+                })
+                .finally(() => {
+                    // 恢复按钮状态
+                    submitBtn.innerHTML = originalText;
+                    submitBtn.disabled = false;
+                });
+            });
+        }
+    });
+
+    // 更新表格行数据
+    function updateTrialCourseRow(courseId, formData) {
+        const row = document.querySelector(`tr[data-course-id="${courseId}"]`);
+        if (row) {
+            // 更新学员姓名
+            const nameCell = row.cells[0];
+            if (nameCell) nameCell.textContent = formData.get('customer_name');
+            
+            // 更新性别
+            const genderCell = row.cells[1];
+            if (genderCell) genderCell.textContent = formData.get('customer_gender') || '-';
+            
+            // 更新年级
+            const gradeCell = row.cells[2];
+            if (gradeCell) gradeCell.textContent = formData.get('customer_grade') || '-';
+            
+            // 更新地区
+            const regionCell = row.cells[3];
+            if (regionCell) regionCell.textContent = formData.get('customer_region') || '-';
+            
+            // 更新试听课售价
+            const priceCell = row.cells[6];
+            if (priceCell) priceCell.textContent = '¥' + parseFloat(formData.get('trial_price')).toFixed(2);
+            
+            // 更新渠道来源
+            const sourceCell = row.cells[7];
+            if (sourceCell) sourceCell.textContent = formData.get('source');
+        }
+    }
+
+    // 更新统计信息
+    function updateStatistics() {
+        // 重新计算统计数据
+        const tableRows = document.querySelectorAll('.data-table tbody tr');
+        let totalRevenue = 0;
+        
+        tableRows.forEach(row => {
+            if (row.cells.length > 1) {
+                const price = parseFloat(row.cells[6].textContent.replace('¥', '')) || 0;
+                totalRevenue += price;
+            }
+        });
+        
+        // 更新统计卡片
+        const revenueCard = document.querySelector('.stat-card:nth-child(2) h3');
+        if (revenueCard) revenueCard.textContent = '¥' + totalRevenue.toFixed(2);
+        
+        // 更新状态统计
+        updateStatusStatistics();
+    }
+
+    // 更新状态统计
+    function updateStatusStatistics() {
+        const tableRows = document.querySelectorAll('.data-table tbody tr');
+        const statusStats = {
+            'registered': { count: 0, revenue: 0 },
+            'not_registered': { count: 0, revenue: 0 },
+            'refunded': { count: 0, revenue: 0 },
+            'converted': { count: 0, revenue: 0 },
+            'no_action': { count: 0, revenue: 0 }
+        };
+        
+        tableRows.forEach(row => {
+            if (row.cells.length > 1) {
+                const statusSelect = row.cells[10].querySelector('.status-select');
+                const price = parseFloat(row.cells[6].textContent.replace('¥', '')) || 0;
+                
+                if (statusSelect) {
+                    const status = statusSelect.value;
+                    if (statusStats[status]) {
+                        statusStats[status].count++;
+                        statusStats[status].revenue += price;
+                    }
+                }
+            }
+        });
+        
+        // 更新状态统计显示
+        Object.keys(statusStats).forEach(status => {
+            const countElement = document.querySelector(`.status-stat-card.${status} .stat-row:nth-child(1) span:last-child`);
+            const revenueElement = document.querySelector(`.status-stat-card.${status} .stat-row:nth-child(2) span:last-child`);
+            
+            if (countElement) countElement.textContent = statusStats[status].count;
+            if (revenueElement) revenueElement.textContent = '¥' + statusStats[status].revenue.toFixed(2);
+        });
+    }
+
+    // 关闭编辑模态框
+    function closeEditModal() {
+        const modal = document.getElementById('editTrialModal');
+        if (modal) {
+            modal.style.display = 'none';
+            document.body.style.overflow = 'auto';
+        }
+    }
+
+    // 分配员工
 function assignEmployee(courseId, employeeId) {
     if (!confirm('确定要将该试听课分配给此员工吗？')) {
         // 恢复原选项

@@ -137,13 +137,13 @@ def manage_customers():
         # 验证必填字段
         if not name or not phone:
             flash('请填写客户姓名和联系电话！', 'error')
-            return redirect(url_for('manage_customers'))
+            return redirect(url_for('main.manage_customers'))
         
         # 检查手机号是否已存在
         existing_customer = Customer.query.filter_by(phone=phone).first()
         if existing_customer:
             flash(f'手机号 {phone} 已存在，客户：{existing_customer.name}', 'error')
-            return redirect(url_for('manage_customers'))
+            return redirect(url_for('main.manage_customers'))
         
         new_customer = Customer(
             name=name, 
@@ -156,7 +156,7 @@ def manage_customers():
         db.session.add(new_customer)
         db.session.commit()
         flash(f'客户 {name} 添加成功！', 'success')
-        return redirect(url_for('manage_customers'))
+        return redirect(url_for('main.manage_customers'))
 
     # 使用分页和选择性字段查询
     customers = Customer.query.with_entities(
@@ -643,7 +643,7 @@ def manage_config():
             db.session.commit()
             flash('基础配置已更新', 'success')
             
-        return redirect(url_for('manage_config'))
+        return redirect(url_for('main.manage_config'))
 
     # 获取所有配置
     config_keys = [
@@ -717,7 +717,7 @@ def manage_taobao_orders():
             db.session.add(new_order)
         
         db.session.commit()
-        return redirect(url_for('manage_taobao_orders'))
+        return redirect(url_for('main.manage_taobao_orders'))
     
     # 计算统计数据
     from sqlalchemy import case
@@ -1129,7 +1129,7 @@ def manage_trial_courses():
             # 验证必填字段（只验证联系电话）
             if not new_customer_phone:
                 flash('请填写联系电话！', 'error')
-                return redirect(url_for('manage_trial_courses'))
+                return redirect(url_for('main.manage_trial_courses'))
             
             # 如果姓名为空，使用手机号作为临时姓名
             if not new_customer_name:
@@ -1139,7 +1139,7 @@ def manage_trial_courses():
             existing_customer = Customer.query.filter_by(phone=new_customer_phone).first()
             if existing_customer:
                 flash(f'手机号 {new_customer_phone} 已存在，学员：{existing_customer.name}', 'error')
-                return redirect(url_for('manage_trial_courses'))
+                return redirect(url_for('main.manage_trial_courses'))
             
             # 创建新客户
             new_customer = Customer(
@@ -1160,7 +1160,7 @@ def manage_trial_courses():
             customer = Customer.query.get(customer_id)
             flash(f'学员 {customer.name} 已有试听课记录，无法重复添加！', 'error')
             db.session.rollback()  # 回滚事务，避免新客户被创建
-            return redirect(url_for('manage_trial_courses'))
+            return redirect(url_for('main.manage_trial_courses'))
         
         # 获取试听课成本配置
         trial_cost_config = Config.query.filter_by(key='trial_cost').first()
@@ -1191,12 +1191,43 @@ def manage_trial_courses():
         db.session.add(new_trial)
         db.session.commit()
         
-        if not request.form.get('customer_id'):
-            flash(f'新学员 {new_customer_name} 和试听课记录添加成功！', 'success')
+        # 检查是否是编辑请求
+        course_id = request.form.get('course_id')
+        if course_id:
+            # 编辑现有试听课
+            try:
+                course = Course.query.get(course_id)
+                if not course or not course.is_trial:
+                    return jsonify({'success': False, 'message': '试听课不存在'})
+                
+                # 更新课程信息
+                course.trial_price = trial_price
+                course.source = source
+                
+                # 更新客户信息
+                customer = Customer.query.get(course.customer_id)
+                if customer:
+                    customer.name = request.form.get('customer_name', customer.name)
+                    customer.phone = request.form.get('customer_phone', customer.phone)
+                    customer.gender = request.form.get('customer_gender', customer.gender)
+                    customer.grade = request.form.get('customer_grade', customer.grade)
+                    customer.region = request.form.get('customer_region', customer.region)
+                    customer.has_tutoring_experience = request.form.get('has_tutoring_experience', customer.has_tutoring_experience)
+                
+                db.session.commit()
+                return jsonify({'success': True, 'message': '更新成功'})
+                
+            except Exception as e:
+                db.session.rollback()
+                return jsonify({'success': False, 'message': f'更新失败：{str(e)}'})
         else:
-            flash('试听课记录添加成功！', 'success')
-        
-        return redirect(url_for('manage_trial_courses'))
+            # 新增试听课
+            if not request.form.get('customer_id'):
+                flash(f'新学员 {new_customer_name} 和试听课记录添加成功！', 'success')
+            else:
+                flash('试听课记录添加成功！', 'success')
+            
+            return redirect(url_for('main.manage_trial_courses'))
     
     embedded = request.args.get('embedded', 'false').lower() == 'true'
     debug_mode = request.args.get('debug', '0') in ('1', 'true', 'True')
@@ -2113,7 +2144,7 @@ def renew_course(course_id):
         db.session.commit()
         
         flash(f'续课成功：{course_type}，共{sessions}节课', 'success')
-        return redirect(url_for('manage_formal_courses'))
+        return redirect(url_for('main.manage_formal_courses'))
     
     # 获取员工列表
     employees = Employee.query.order_by(Employee.name).all()
@@ -2185,7 +2216,7 @@ def convert_trial_to_course(trial_id):
         db.session.commit()
         
         flash(f'试听课已成功转化为正课：{course_type}', 'success')
-        return redirect(url_for('manage_trial_courses'))
+        return redirect(url_for('main.manage_trial_courses'))
     
     return render_template('convert_trial.html', trial_course=trial_course)
 
