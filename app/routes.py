@@ -270,20 +270,26 @@ def manage_taobao_orders():
 @app.route('/api/taobao-orders/<int:order_id>', methods=['GET'])
 def get_taobao_order(order_id):
     """获取单个淘宝订单详情"""
-    order = TaobaoOrder.query.get_or_404(order_id)
-    return jsonify({
-        'id': order.id,
-        'customer_name': order.name,  # 修正字段名匹配前端期望
-        'level': order.level,
-        'amount': order.amount,
-        'commission': order.commission,
-        'taobao_fee': order.taobao_fee,
-        'evaluated': order.evaluated,
-        'order_time': order.order_time.isoformat() if order.order_time else None,
-        'settled': order.settled,
-        'settled_at': order.settled_at.isoformat() if order.settled_at else None,
-        'created_at': order.created_at.isoformat() if order.created_at else None
-    })
+    try:
+        order = TaobaoOrder.query.get_or_404(order_id)
+        return jsonify({
+            'success': True,
+            'order': {
+                'id': order.id,
+                'name': order.name,
+                'level': order.level,
+                'amount': order.amount,
+                'commission': order.commission,
+                'taobao_fee': order.taobao_fee,
+                'evaluated': order.evaluated,
+                'order_time': order.order_time.isoformat() if order.order_time else None,
+                'settled': order.settled,
+                'settled_at': order.settled_at.isoformat() if order.settled_at else None,
+                'created_at': order.created_at.isoformat() if order.created_at else None
+            }
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 @app.route('/api/taobao-orders/<int:order_id>', methods=['PUT'])
 def update_taobao_order(order_id):
@@ -507,6 +513,49 @@ def export_formal_courses():
         return response
     except Exception as e:
         return jsonify({'error': f'导出失败: {str(e)}'}), 500
+
+@app.route('/api/customers/<int:customer_id>', methods=['GET'])
+def get_customer_api(customer_id):
+    """获取客户详情API"""
+    try:
+        customer = Customer.query.get_or_404(customer_id)
+        return jsonify({
+            'success': True,
+            'customer': {
+                'id': customer.id,
+                'name': customer.name,
+                'phone': customer.phone,
+                'gender': customer.gender,
+                'grade': customer.grade,
+                'region': customer.region,
+                'source': customer.source,
+                'has_tutoring_experience': customer.has_tutoring_experience,
+                'created_at': customer.created_at.isoformat() if customer.created_at else None
+            }
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/api/customers/<int:customer_id>', methods=['PUT'])
+def update_customer_api(customer_id):
+    """更新客户信息API"""
+    try:
+        customer = Customer.query.get_or_404(customer_id)
+        
+        # 更新客户信息
+        customer.name = request.form.get('name', customer.name)
+        customer.phone = request.form.get('phone', customer.phone)
+        customer.gender = request.form.get('gender', customer.gender)
+        customer.grade = request.form.get('grade', customer.grade)
+        customer.region = request.form.get('region', customer.region)
+        customer.source = request.form.get('source', customer.source)
+        customer.has_tutoring_experience = request.form.get('has_tutoring_experience', customer.has_tutoring_experience)
+        
+        db.session.commit()
+        return jsonify({'success': True, 'message': '客户信息更新成功'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 @app.route('/api/customers/<int:customer_id>', methods=['DELETE'])
 def delete_customer_api(customer_id):
@@ -1103,7 +1152,9 @@ def get_trial_course(course_id):
             'trial_status': course.trial_status,
             'refund_amount': course.refund_amount,
             'refund_fee': course.refund_fee,
+            'refund_channel': course.refund_channel,
             'converted_to_course': course.converted_to_course,
+            'custom_trial_cost': course.custom_trial_cost,
             'created_at': course.created_at.isoformat() if course.created_at else None
         }
         
@@ -1197,12 +1248,16 @@ def get_formal_course(course_id):
         course = Course.query.filter_by(id=course_id, is_trial=False).first_or_404()
         
         course_data = {
+            'success': True,
             'id': course.id,
+            'customer_id': course.customer.id,
             'customer_name': course.customer.name,
             'customer_phone': course.customer.phone,
             'customer_gender': course.customer.gender,
             'customer_grade': course.customer.grade,
             'customer_region': course.customer.region,
+            'customer_source': course.customer.source,
+            'customer_has_tutoring_experience': course.customer.has_tutoring_experience,
             'course_type': course.course_type,
             'sessions': course.sessions,
             'gift_sessions': course.gift_sessions,
@@ -1210,15 +1265,13 @@ def get_formal_course(course_id):
             'payment_channel': course.payment_channel,
             'cost': course.cost,
             'other_cost': course.other_cost,
+            'custom_course_cost': course.custom_course_cost,
             'source': '试听课转化' if course.converted_from_trial else '直接报名',
             'converted_from_trial': course.converted_from_trial,
             'created_at': course.created_at.isoformat() if course.created_at else None
         }
         
-        return jsonify({
-            'success': True,
-            'course': course_data
-        })
+        return jsonify(course_data)
         
     except Exception as e:
         return jsonify({'success': False, 'message': f'获取课程信息失败：{str(e)}'})
@@ -1258,21 +1311,38 @@ def update_trial_course(course_id):
     try:
         # 更新客户信息
         customer = course.customer
-        customer.name = request.form['customer_name'].strip()
-        customer.phone = request.form['customer_phone'].strip()
-        customer.gender = request.form.get('customer_gender') or None
-        customer.grade = request.form.get('customer_grade') or None
-        customer.region = request.form.get('customer_region') or None
+        customer.name = request.form.get('name', request.form.get('customer_name', customer.name)).strip()
+        customer.phone = request.form.get('phone', request.form.get('customer_phone', customer.phone)).strip()
+        customer.gender = request.form.get('gender', request.form.get('customer_gender')) or None
+        customer.grade = request.form.get('grade', request.form.get('customer_grade')) or None
+        customer.region = request.form.get('region', request.form.get('customer_region')) or None
+        customer.source = request.form.get('source', customer.source) or None
+        customer.has_tutoring_experience = request.form.get('has_tutoring_experience', customer.has_tutoring_experience) or None
         
         # 更新试听课信息
-        course.trial_price = float(request.form['trial_price'])
-        course.source = request.form['source']
+        course.trial_price = float(request.form.get('trial_price', course.trial_price))
+        course.source = request.form.get('source', course.source)
+        course.trial_status = request.form.get('trial_status', course.trial_status)
+        
+        # 更新自定义成本（如果提供）
+        custom_trial_cost = request.form.get('trial_cost')
+        if custom_trial_cost and custom_trial_cost.strip():
+            course.custom_trial_cost = float(custom_trial_cost)
+        
+        # 更新退费信息（如果是退费状态）
+        if course.trial_status == 'refunded':
+            course.refund_amount = float(request.form.get('refund_amount', 0))
+            course.refund_fee = float(request.form.get('refund_fee', 0))
+            course.refund_channel = request.form.get('refund_channel')
         
         # 计算试听课成本
-        # 统一规则：course.cost 仅存储“基础试听课成本”，不包含任何渠道手续费，防止与统计中的手续费重复计算
-        base_trial_cost_config = Config.query.filter_by(key='trial_cost').first()
-        base_trial_cost = float(base_trial_cost_config.value) if base_trial_cost_config else 0
-        course.cost = base_trial_cost
+        # 统一规则：course.cost 仅存储"基础试听课成本"，不包含任何渠道手续费，防止与统计中的手续费重复计算
+        if course.custom_trial_cost is not None:
+            course.cost = course.custom_trial_cost
+        else:
+            base_trial_cost_config = Config.query.filter_by(key='trial_cost').first()
+            base_trial_cost = float(base_trial_cost_config.value) if base_trial_cost_config else 0
+            course.cost = base_trial_cost
         
         db.session.commit()
         return jsonify({'success': True, 'message': '试听课信息更新成功'})
@@ -1289,45 +1359,41 @@ def update_formal_course(course_id):
     try:
         # 更新客户信息
         customer = course.customer
-        customer.name = request.form['customer_name'].strip()
-        customer.phone = request.form['customer_phone'].strip()
-        customer.gender = request.form.get('customer_gender') or None
-        customer.grade = request.form.get('customer_grade') or None
-        customer.region = request.form.get('customer_region') or None
+        customer.name = request.form.get('name', request.form.get('customer_name', customer.name)).strip()
+        customer.phone = request.form.get('phone', request.form.get('customer_phone', customer.phone)).strip()
+        customer.gender = request.form.get('gender', request.form.get('customer_gender')) or None
+        customer.grade = request.form.get('grade', request.form.get('customer_grade')) or None
+        customer.region = request.form.get('region', request.form.get('customer_region')) or None
+        customer.source = request.form.get('source', customer.source) or None
+        customer.has_tutoring_experience = request.form.get('has_tutoring_experience', customer.has_tutoring_experience) or None
         
         # 更新正课信息
-        course.course_type = request.form['course_type']
-        course.name = request.form['course_type']  # 保持name字段同步
-        course.sessions = int(request.form['sessions'])
-        course.gift_sessions = int(request.form.get('gift_sessions', 0))
-        course.price = float(request.form['price'])
-        course.payment_channel = request.form['payment_channel']
-        course.other_cost = float(request.form.get('other_cost', 0))
+        course.course_type = request.form.get('course_type', course.course_type)
+        course.sessions = int(request.form.get('sessions', course.sessions))
+        course.price = float(request.form.get('price', course.price))
+        course.gift_sessions = int(request.form.get('gift_sessions', course.gift_sessions))
+        course.other_cost = float(request.form.get('other_cost', course.other_cost))
+        course.payment_channel = request.form.get('payment_channel', course.payment_channel)
         
-        # 重新计算成本
-        course_cost_config = Config.query.filter_by(key='course_cost').first()
-        course_cost_per_session = float(course_cost_config.value) if course_cost_config else 0
+        # 更新自定义成本（如果提供）
+        custom_course_cost = request.form.get('course_cost_per_session')
+        if custom_course_cost and custom_course_cost.strip():
+            course.custom_course_cost = float(custom_course_cost)
+            course.snapshot_course_cost = float(custom_course_cost)
         
-        # 计算总成本（购买节数 + 赠课节数）* 单节成本 + 其他成本
+        # 重新计算正课成本
+        # 获取单节成本
+        if course.custom_course_cost is not None:
+            course_cost_per_session = course.custom_course_cost
+        elif course.snapshot_course_cost:
+            course_cost_per_session = course.snapshot_course_cost
+        else:
+            course_cost_config = Config.query.filter_by(key='course_cost').first()
+            course_cost_per_session = float(course_cost_config.value) if course_cost_config else 0
+        
+        # 计算总成本
         total_cost = (course.sessions + course.gift_sessions) * course_cost_per_session + course.other_cost
         course.cost = total_cost
-        
-
-        
-        # 更新来源信息
-        source = request.form.get('source')
-        if source == '试听课转化':
-            # 如果改为试听课转化但之前不是，需要处理转化关系
-            if not course.converted_from_trial:
-                # 这里可以根据需要添加逻辑来关联试听课
-                pass
-        else:
-            # 如果改为直接报名，清除转化关系
-            if course.converted_from_trial:
-                trial_course = Course.query.get(course.converted_from_trial)
-                if trial_course:
-                    trial_course.converted_to_course = None
-                course.converted_from_trial = None
         
         db.session.commit()
         return jsonify({'success': True, 'message': '正课信息更新成功'})

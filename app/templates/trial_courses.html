@@ -628,8 +628,12 @@
                         </td>
                         <td>
                             <div class="action-buttons">
+                                <button onclick="showCustomerDetail({{ customer.id }}, {{ course.id }}, 'trial')" 
+                                        class="btn btn-sm btn-info" title="查看详情">
+                                    <i class="fas fa-eye"></i>
+                                </button>
                                 <button onclick="editTrialCourse({{ course.id }})" 
-                                        class="btn btn-sm btn-primary" title="编辑详情">
+                                        class="btn btn-sm btn-primary" title="快速编辑">
                                     <i class="fas fa-edit"></i>
                                 </button>
                                 {% if not course.converted_to_course %}
@@ -2578,4 +2582,8 @@ document.addEventListener('DOMContentLoaded', function() {
     box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
 }
 </style>
+
+<!-- 引入学员详情模态框 -->
+{% include 'components/customer_detail_modal.html' %}
+
 {% endblock %}

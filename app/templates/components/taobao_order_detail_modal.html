@@ -1,0 +1,263 @@
+<!-- 淘宝订单详情模态框 -->
+<div id="taobaoOrderDetailModal" class="modal fade" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-shopping-cart"></i> 刷单详情
+                </h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="taobaoOrderDetailForm">
+                    <input type="hidden" id="order_detail_id" name="order_id">
+                    
+                    <div class="section-card">
+                        <h6 class="section-title">
+                            <i class="fas fa-info-circle"></i> 订单信息
+                        </h6>
+                        <div class="form-row">
+                            <div class="form-group col-md-6">
+                                <label>刷手旺旺名 <span class="required">*</span></label>
+                                <input type="text" class="form-control" id="order_detail_name" name="name" required>
+                            </div>
+                            <div class="form-group col-md-6">
+                                <label>刷单级别 <span class="required">*</span></label>
+                                <select class="form-control" id="order_detail_level" name="level" required>
+                                    <option value="">请选择</option>
+                                    <option value="初级">初级</option>
+                                    <option value="中级">中级</option>
+                                    <option value="高级">高级</option>
+                                    <option value="精刷">精刷</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group col-md-4">
+                                <label>订单金额 <span class="required">*</span></label>
+                                <div class="input-group">
+                                    <div class="input-group-prepend">
+                                        <span class="input-group-text">¥</span>
+                                    </div>
+                                    <input type="number" class="form-control" id="order_detail_amount" 
+                                           name="amount" step="0.01" required>
+                                </div>
+                            </div>
+                            <div class="form-group col-md-4">
+                                <label>佣金金额 <span class="required">*</span></label>
+                                <div class="input-group">
+                                    <div class="input-group-prepend">
+                                        <span class="input-group-text">¥</span>
+                                    </div>
+                                    <input type="number" class="form-control" id="order_detail_commission" 
+                                           name="commission" step="0.01" required>
+                                </div>
+                            </div>
+                            <div class="form-group col-md-4">
+                                <label>淘宝手续费</label>
+                                <div class="input-group">
+                                    <div class="input-group-prepend">
+                                        <span class="input-group-text">¥</span>
+                                    </div>
+                                    <input type="number" class="form-control" id="order_detail_taobao_fee" 
+                                           name="taobao_fee" step="0.01" value="0">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group col-md-4">
+                                <label>是否评价</label>
+                                <select class="form-control" id="order_detail_evaluated" name="evaluated">
+                                    <option value="0">否</option>
+                                    <option value="1">是</option>
+                                </select>
+                            </div>
+                            <div class="form-group col-md-4">
+                                <label>刷单时间 <span class="required">*</span></label>
+                                <input type="datetime-local" class="form-control" id="order_detail_order_time" 
+                                       name="order_time" required>
+                            </div>
+                            <div class="form-group col-md-4">
+                                <label>结算状态</label>
+                                <select class="form-control" id="order_detail_settled" name="settled">
+                                    <option value="0">未结算</option>
+                                    <option value="1">已结算</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-row" id="settlementInfo" style="display: none;">
+                            <div class="form-group col-md-12">
+                                <label>结算时间</label>
+                                <input type="datetime-local" class="form-control" id="order_detail_settled_at" 
+                                       name="settled_at">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 费用计算预览 -->
+                    <div class="section-card">
+                        <h6 class="section-title">
+                            <i class="fas fa-calculator"></i> 费用明细
+                        </h6>
+                        <div id="orderCostPreview">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="cost-item">
+                                        <span>订单金额：</span>
+                                        <span id="preview_amount">¥0.00</span>
+                                    </div>
+                                    <div class="cost-item">
+                                        <span>佣金金额：</span>
+                                        <span id="preview_commission">¥0.00</span>
+                                    </div>
+                                    <div class="cost-item">
+                                        <span>淘宝手续费：</span>
+                                        <span id="preview_fee">¥0.00</span>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="cost-total">
+                                        <span>总成本：</span>
+                                        <span id="preview_total" class="text-danger">¥0.00</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                    <i class="fas fa-times"></i> 取消
+                </button>
+                <button type="button" class="btn btn-primary" onclick="saveTaobaoOrderDetail()">
+                    <i class="fas fa-save"></i> 保存
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.cost-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 5px 0;
+    border-bottom: 1px solid #eee;
+}
+
+.cost-total {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px;
+    background: #f8f9fa;
+    border-radius: 5px;
+    font-weight: bold;
+    font-size: 1.1em;
+}
+</style>
+
+<script>
+// 显示订单详情
+function showOrderDetail(orderId) {
+    // 重置表单
+    document.getElementById('taobaoOrderDetailForm').reset();
+    
+    // 加载订单数据
+    fetch(`/api/taobao-orders/${orderId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const order = data.order;
+                document.getElementById('order_detail_id').value = order.id;
+                document.getElementById('order_detail_name').value = order.name;
+                document.getElementById('order_detail_level').value = order.level;
+                document.getElementById('order_detail_amount').value = order.amount;
+                document.getElementById('order_detail_commission').value = order.commission;
+                document.getElementById('order_detail_taobao_fee').value = order.taobao_fee || 0;
+                document.getElementById('order_detail_evaluated').value = order.evaluated ? '1' : '0';
+                document.getElementById('order_detail_settled').value = order.settled ? '1' : '0';
+                
+                // 处理时间格式
+                if (order.order_time) {
+                    const orderTime = new Date(order.order_time);
+                    document.getElementById('order_detail_order_time').value = 
+                        orderTime.toISOString().slice(0, 16);
+                }
+                
+                if (order.settled && order.settled_at) {
+                    document.getElementById('settlementInfo').style.display = 'flex';
+                    const settledTime = new Date(order.settled_at);
+                    document.getElementById('order_detail_settled_at').value = 
+                        settledTime.toISOString().slice(0, 16);
+                }
+                
+                updateOrderCostPreview();
+            }
+        });
+    
+    // 显示模态框
+    $('#taobaoOrderDetailModal').modal('show');
+}
+
+// 监听表单变化
+document.addEventListener('DOMContentLoaded', function() {
+    // 监听金额变化
+    ['order_detail_amount', 'order_detail_commission', 'order_detail_taobao_fee'].forEach(id => {
+        const element = document.getElementById(id);
+        if (element) {
+            element.addEventListener('input', updateOrderCostPreview);
+        }
+    });
+    
+    // 监听结算状态变化
+    const settledSelect = document.getElementById('order_detail_settled');
+    if (settledSelect) {
+        settledSelect.addEventListener('change', function() {
+            document.getElementById('settlementInfo').style.display = 
+                this.value === '1' ? 'flex' : 'none';
+        });
+    }
+});
+
+// 更新费用预览
+function updateOrderCostPreview() {
+    const amount = parseFloat(document.getElementById('order_detail_amount').value) || 0;
+    const commission = parseFloat(document.getElementById('order_detail_commission').value) || 0;
+    const fee = parseFloat(document.getElementById('order_detail_taobao_fee').value) || 0;
+    const total = commission + fee;
+    
+    document.getElementById('preview_amount').textContent = `¥${amount.toFixed(2)}`;
+    document.getElementById('preview_commission').textContent = `¥${commission.toFixed(2)}`;
+    document.getElementById('preview_fee').textContent = `¥${fee.toFixed(2)}`;
+    document.getElementById('preview_total').textContent = `¥${total.toFixed(2)}`;
+}
+
+// 保存订单详情
+function saveTaobaoOrderDetail() {
+    const formData = new FormData(document.getElementById('taobaoOrderDetailForm'));
+    const orderId = formData.get('order_id');
+    
+    fetch(`/api/taobao-orders/${orderId}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams(formData)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            $('#taobaoOrderDetailModal').modal('hide');
+            location.reload();
+        } else {
+            alert(result.message || '保存失败');
+        }
+    })
+    .catch(error => {
+        alert('保存失败：' + error.message);
+    });
+}
+</script>

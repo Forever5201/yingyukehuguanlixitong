@@ -34,6 +34,7 @@ class Course(db.Model):
     refund_amount = db.Column(db.Float, default=0)  # 退费金额
     refund_fee = db.Column(db.Float, default=0)  # 退费手续费
     refund_channel = db.Column(db.String(50))  # 退款渠道（微信、淘宝、支付宝等）
+    custom_trial_cost = db.Column(db.Float)  # 自定义试听课成本
     
     # 正课信息
     course_type = db.Column(db.String(50))  # 课程类型（单词课、语法课、阅读课、拼读课）
@@ -52,6 +53,7 @@ class Course(db.Model):
     snapshot_course_cost = db.Column(db.Float, default=0)  # 转正时的单节成本快照
     snapshot_fee_rate = db.Column(db.Float, default=0)  # 转正时的手续费率快照(小数)
     meta = db.Column(db.Text)  # 扩展信息JSON
+    custom_course_cost = db.Column(db.Float)  # 自定义正课单节成本
     
     # 时间信息
     created_at = db.Column(db.DateTime, default=datetime.utcnow)

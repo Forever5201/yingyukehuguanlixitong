@@ -1,0 +1,535 @@
+<!-- 学员详情模态框组件 -->
+<div id="customerDetailModal" class="modal fade" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-user-circle"></i> 学员详情
+                </h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="customerDetailForm">
+                    <input type="hidden" id="detail_customer_id" name="customer_id">
+                    <input type="hidden" id="detail_course_id" name="course_id">
+                    
+                    <!-- 学员基本信息 -->
+                    <div class="section-card">
+                        <h6 class="section-title">
+                            <i class="fas fa-info-circle"></i> 基本信息
+                        </h6>
+                        <div class="form-row">
+                            <div class="form-group col-md-6">
+                                <label>姓名 <span class="required">*</span></label>
+                                <input type="text" class="form-control" id="detail_name" name="name" required>
+                            </div>
+                            <div class="form-group col-md-6">
+                                <label>电话 <span class="required">*</span></label>
+                                <input type="text" class="form-control" id="detail_phone" name="phone" required>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group col-md-4">
+                                <label>性别</label>
+                                <select class="form-control" id="detail_gender" name="gender">
+                                    <option value="">请选择</option>
+                                    <option value="男">男</option>
+                                    <option value="女">女</option>
+                                </select>
+                            </div>
+                            <div class="form-group col-md-4">
+                                <label>年级</label>
+                                <input type="text" class="form-control" id="detail_grade" name="grade">
+                            </div>
+                            <div class="form-group col-md-4">
+                                <label>地区</label>
+                                <input type="text" class="form-control" id="detail_region" name="region">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group col-md-6">
+                                <label>渠道来源</label>
+                                <select class="form-control" id="detail_source" name="source">
+                                    <option value="">请选择</option>
+                                    <option value="淘宝">淘宝</option>
+                                    <option value="视频号">视频号</option>
+                                    <option value="抖音">抖音</option>
+                                    <option value="小红书">小红书</option>
+                                    <option value="其他">其他</option>
+                                </select>
+                            </div>
+                            <div class="form-group col-md-6">
+                                <label>是否参加过英语课外辅导</label>
+                                <select class="form-control" id="detail_tutoring_exp" name="has_tutoring_experience">
+                                    <option value="">请选择</option>
+                                    <option value="是">是</option>
+                                    <option value="否">否</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 试听课信息（如果有） -->
+                    <div id="trialCourseSection" class="section-card" style="display: none;">
+                        <h6 class="section-title">
+                            <i class="fas fa-headphones"></i> 试听课信息
+                        </h6>
+                        <div class="form-row">
+                            <div class="form-group col-md-4">
+                                <label>试听价格</label>
+                                <input type="number" class="form-control" id="detail_trial_price" name="trial_price" step="0.01">
+                            </div>
+                            <div class="form-group col-md-4">
+                                <label>试听状态</label>
+                                <select class="form-control" id="detail_trial_status" name="trial_status">
+                                    <option value="registered">已报名</option>
+                                    <option value="attended">已试听</option>
+                                    <option value="converted">已转化</option>
+                                    <option value="cancelled">已取消</option>
+                                    <option value="refunded">已退费</option>
+                                </select>
+                            </div>
+                            <div class="form-group col-md-4">
+                                <label>试听课成本</label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" id="detail_trial_cost" 
+                                           name="trial_cost" step="0.01" 
+                                           placeholder="留空使用系统默认">
+                                    <div class="input-group-append">
+                                        <span class="input-group-text" id="default_trial_cost_hint">
+                                            默认: ¥<span id="system_trial_cost">0</span>
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-row" id="refundSection" style="display: none;">
+                            <div class="form-group col-md-4">
+                                <label>退费金额</label>
+                                <input type="number" class="form-control" id="detail_refund_amount" name="refund_amount" step="0.01">
+                            </div>
+                            <div class="form-group col-md-4">
+                                <label>退费手续费</label>
+                                <input type="number" class="form-control" id="detail_refund_fee" name="refund_fee" step="0.01">
+                            </div>
+                            <div class="form-group col-md-4">
+                                <label>退款渠道</label>
+                                <select class="form-control" id="detail_refund_channel" name="refund_channel">
+                                    <option value="">请选择</option>
+                                    <option value="微信">微信</option>
+                                    <option value="淘宝">淘宝</option>
+                                    <option value="支付宝">支付宝</option>
+                                    <option value="其他">其他</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 正课信息（如果有） -->
+                    <div id="formalCourseSection" class="section-card" style="display: none;">
+                        <h6 class="section-title">
+                            <i class="fas fa-graduation-cap"></i> 正课信息
+                        </h6>
+                        <div class="form-row">
+                            <div class="form-group col-md-4">
+                                <label>课程类型</label>
+                                <select class="form-control" id="detail_course_type" name="course_type">
+                                    <option value="">请选择</option>
+                                    <option value="单词课">单词课</option>
+                                    <option value="语法课">语法课</option>
+                                    <option value="阅读课">阅读课</option>
+                                    <option value="拼读课">拼读课</option>
+                                </select>
+                            </div>
+                            <div class="form-group col-md-4">
+                                <label>购买节数</label>
+                                <input type="number" class="form-control" id="detail_sessions" name="sessions" min="1">
+                            </div>
+                            <div class="form-group col-md-4">
+                                <label>赠课节数</label>
+                                <input type="number" class="form-control" id="detail_gift_sessions" name="gift_sessions" min="0">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group col-md-4">
+                                <label>单节售价</label>
+                                <input type="number" class="form-control" id="detail_price" name="price" step="0.01">
+                            </div>
+                            <div class="form-group col-md-4">
+                                <label>支付渠道</label>
+                                <select class="form-control" id="detail_payment_channel" name="payment_channel">
+                                    <option value="">请选择</option>
+                                    <option value="淘宝">淘宝</option>
+                                    <option value="微信">微信</option>
+                                    <option value="支付宝">支付宝</option>
+                                    <option value="现金">现金</option>
+                                    <option value="银行转账">银行转账</option>
+                                </select>
+                            </div>
+                            <div class="form-group col-md-4">
+                                <label>其他成本</label>
+                                <input type="number" class="form-control" id="detail_other_cost" name="other_cost" step="0.01">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group col-md-6">
+                                <label>正课单节成本</label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" id="detail_course_cost" 
+                                           name="course_cost_per_session" step="0.01" 
+                                           placeholder="留空使用系统默认">
+                                    <div class="input-group-append">
+                                        <span class="input-group-text" id="default_course_cost_hint">
+                                            默认: ¥<span id="system_course_cost">0</span>
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 利润预览（如果是正课） -->
+                    <div id="profitPreviewSection" class="section-card" style="display: none;">
+                        <h6 class="section-title">
+                            <i class="fas fa-calculator"></i> 利润预览
+                        </h6>
+                        <div id="profitPreviewContent"></div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                    <i class="fas fa-times"></i> 取消
+                </button>
+                <button type="button" class="btn btn-primary" onclick="saveCustomerDetail()">
+                    <i class="fas fa-save"></i> 保存
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.section-card {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.section-title {
+    margin: 0 0 15px 0;
+    color: #495057;
+    font-weight: 600;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #dee2e6;
+}
+
+.required {
+    color: #dc3545;
+}
+
+.input-group-text {
+    font-size: 0.875rem;
+    background: #e9ecef;
+}
+
+#profitPreviewContent {
+    background: white;
+    padding: 15px;
+    border-radius: 5px;
+    border: 1px solid #dee2e6;
+}
+
+.profit-positive {
+    color: #28a745;
+}
+
+.profit-negative {
+    color: #dc3545;
+}
+</style>
+
+<script>
+let currentDetailData = {};
+let systemConfigs = {
+    trial_cost: 0,
+    course_cost: 0,
+    taobao_fee_rate: 0.006
+};
+
+// 初始化获取系统配置
+function loadSystemConfigs() {
+    // 获取试听课成本
+    fetch('/api/config/trial_cost')
+        .then(response => response.json())
+        .then(data => {
+            systemConfigs.trial_cost = parseFloat(data.value) || 0;
+            document.getElementById('system_trial_cost').textContent = systemConfigs.trial_cost.toFixed(2);
+        });
+    
+    // 获取正课成本
+    fetch('/api/config/course_cost')
+        .then(response => response.json())
+        .then(data => {
+            systemConfigs.course_cost = parseFloat(data.value) || 0;
+            document.getElementById('system_course_cost').textContent = systemConfigs.course_cost.toFixed(2);
+        });
+    
+    // 获取淘宝手续费率
+    fetch('/api/config/taobao_fee_rate')
+        .then(response => response.json())
+        .then(data => {
+            systemConfigs.taobao_fee_rate = (parseFloat(data.value) || 0.6) / 100;
+        });
+}
+
+// 显示学员详情模态框
+function showCustomerDetail(customerId, courseId = null, courseType = null) {
+    // 重置表单
+    document.getElementById('customerDetailForm').reset();
+    currentDetailData = { customerId, courseId, courseType };
+    
+    // 根据类型显示不同的区块
+    document.getElementById('trialCourseSection').style.display = 'none';
+    document.getElementById('formalCourseSection').style.display = 'none';
+    document.getElementById('profitPreviewSection').style.display = 'none';
+    document.getElementById('refundSection').style.display = 'none';
+    
+    // 加载数据
+    if (courseType === 'trial' && courseId) {
+        loadTrialCourseDetail(courseId);
+    } else if (courseType === 'formal' && courseId) {
+        loadFormalCourseDetail(courseId);
+    } else {
+        loadCustomerDetail(customerId);
+    }
+    
+    // 显示模态框
+    $('#customerDetailModal').modal('show');
+}
+
+// 加载试听课详情
+function loadTrialCourseDetail(courseId) {
+    fetch(`/api/trial-courses/${courseId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // 填充客户信息
+                fillCustomerData(data.customer);
+                
+                // 填充试听课信息
+                document.getElementById('detail_course_id').value = data.course.id;
+                document.getElementById('detail_trial_price').value = data.course.trial_price;
+                document.getElementById('detail_trial_status').value = data.course.trial_status;
+                
+                // 如果有自定义成本，显示它
+                if (data.course.custom_trial_cost !== undefined && data.course.custom_trial_cost !== null) {
+                    document.getElementById('detail_trial_cost').value = data.course.custom_trial_cost;
+                }
+                
+                // 如果是退费状态，显示退费信息
+                if (data.course.trial_status === 'refunded') {
+                    document.getElementById('refundSection').style.display = 'flex';
+                    document.getElementById('detail_refund_amount').value = data.course.refund_amount || 0;
+                    document.getElementById('detail_refund_fee').value = data.course.refund_fee || 0;
+                    document.getElementById('detail_refund_channel').value = data.course.refund_channel || '';
+                }
+                
+                // 显示试听课区块
+                document.getElementById('trialCourseSection').style.display = 'block';
+                
+                // 监听状态变化
+                document.getElementById('detail_trial_status').onchange = function() {
+                    document.getElementById('refundSection').style.display = 
+                        this.value === 'refunded' ? 'flex' : 'none';
+                };
+            }
+        });
+}
+
+// 加载正课详情
+function loadFormalCourseDetail(courseId) {
+    fetch(`/api/formal-courses/${courseId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // 填充客户信息
+                fillCustomerData({
+                    id: data.customer_id,
+                    name: data.customer_name,
+                    phone: data.customer_phone,
+                    gender: data.customer_gender,
+                    grade: data.customer_grade,
+                    region: data.customer_region,
+                    source: data.customer_source,
+                    has_tutoring_experience: data.customer_has_tutoring_experience
+                });
+                
+                // 填充正课信息
+                document.getElementById('detail_course_id').value = data.id;
+                document.getElementById('detail_course_type').value = data.course_type;
+                document.getElementById('detail_sessions').value = data.sessions;
+                document.getElementById('detail_gift_sessions').value = data.gift_sessions;
+                document.getElementById('detail_price').value = data.price;
+                document.getElementById('detail_payment_channel').value = data.payment_channel;
+                document.getElementById('detail_other_cost').value = data.other_cost;
+                
+                // 如果有自定义成本，显示它
+                if (data.custom_course_cost !== undefined && data.custom_course_cost !== null) {
+                    document.getElementById('detail_course_cost').value = data.custom_course_cost;
+                }
+                
+                // 显示正课区块和利润预览
+                document.getElementById('formalCourseSection').style.display = 'block';
+                document.getElementById('profitPreviewSection').style.display = 'block';
+                
+                // 更新利润预览
+                updateProfitPreview();
+                
+                // 监听变化以更新利润预览
+                ['detail_sessions', 'detail_gift_sessions', 'detail_price', 
+                 'detail_payment_channel', 'detail_other_cost', 'detail_course_cost'].forEach(id => {
+                    document.getElementById(id).onchange = updateProfitPreview;
+                    document.getElementById(id).oninput = updateProfitPreview;
+                });
+            }
+        });
+}
+
+// 加载客户详情
+function loadCustomerDetail(customerId) {
+    fetch(`/api/customers/${customerId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                fillCustomerData(data.customer);
+            }
+        });
+}
+
+// 填充客户数据
+function fillCustomerData(customer) {
+    document.getElementById('detail_customer_id').value = customer.id;
+    document.getElementById('detail_name').value = customer.name || '';
+    document.getElementById('detail_phone').value = customer.phone || '';
+    document.getElementById('detail_gender').value = customer.gender || '';
+    document.getElementById('detail_grade').value = customer.grade || '';
+    document.getElementById('detail_region').value = customer.region || '';
+    document.getElementById('detail_source').value = customer.source || '';
+    document.getElementById('detail_tutoring_exp').value = customer.has_tutoring_experience || '';
+}
+
+// 更新利润预览
+function updateProfitPreview() {
+    const sessions = parseInt(document.getElementById('detail_sessions').value) || 0;
+    const giftSessions = parseInt(document.getElementById('detail_gift_sessions').value) || 0;
+    const price = parseFloat(document.getElementById('detail_price').value) || 0;
+    const paymentChannel = document.getElementById('detail_payment_channel').value;
+    const otherCost = parseFloat(document.getElementById('detail_other_cost').value) || 0;
+    const customCourseCost = parseFloat(document.getElementById('detail_course_cost').value);
+    const courseCostPerSession = isNaN(customCourseCost) ? systemConfigs.course_cost : customCourseCost;
+    
+    if (sessions > 0 && price > 0) {
+        const totalRevenue = sessions * price;
+        let feeAmount = 0;
+        
+        if (paymentChannel === '淘宝') {
+            feeAmount = totalRevenue * systemConfigs.taobao_fee_rate;
+        }
+        
+        const totalSessions = sessions + giftSessions;
+        const sessionCost = totalSessions * courseCostPerSession;
+        const totalCost = sessionCost + otherCost + feeAmount;
+        const netProfit = totalRevenue - totalCost;
+        
+        document.getElementById('profitPreviewContent').innerHTML = `
+            <div class="row">
+                <div class="col-md-6">
+                    <strong>收入明细：</strong>
+                    <div>购买节数：${sessions} 节 × ¥${price.toFixed(2)} = ¥${totalRevenue.toFixed(2)}</div>
+                </div>
+                <div class="col-md-6">
+                    <strong>成本明细：</strong>
+                    <div>课程成本：${totalSessions} 节 × ¥${courseCostPerSession.toFixed(2)} = ¥${sessionCost.toFixed(2)}</div>
+                    <div>其他成本：¥${otherCost.toFixed(2)}</div>
+                    ${paymentChannel === '淘宝' ? `<div>手续费：¥${feeAmount.toFixed(2)}</div>` : ''}
+                    <div>总成本：¥${totalCost.toFixed(2)}</div>
+                </div>
+            </div>
+            <div class="mt-3 text-center">
+                <h5 class="${netProfit >= 0 ? 'profit-positive' : 'profit-negative'}">
+                    净利润：¥${netProfit.toFixed(2)}
+                </h5>
+            </div>
+        `;
+    } else {
+        document.getElementById('profitPreviewContent').innerHTML = 
+            '<div class="text-muted text-center">请填写购买节数和单节售价</div>';
+    }
+}
+
+// 保存学员详情
+function saveCustomerDetail() {
+    const formData = new FormData(document.getElementById('customerDetailForm'));
+    const data = Object.fromEntries(formData);
+    
+    // 根据不同类型调用不同的API
+    let apiUrl = '';
+    let method = 'PUT';
+    
+    if (currentDetailData.courseType === 'trial') {
+        apiUrl = `/api/trial-courses/${data.course_id}`;
+    } else if (currentDetailData.courseType === 'formal') {
+        apiUrl = `/api/formal-courses/${data.course_id}`;
+    } else {
+        apiUrl = `/api/customers/${data.customer_id}`;
+    }
+    
+    // 发送请求
+    fetch(apiUrl, {
+        method: method,
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            showAlert('保存成功', 'success');
+            $('#customerDetailModal').modal('hide');
+            // 刷新页面或更新表格
+            setTimeout(() => location.reload(), 500);
+        } else {
+            showAlert(result.message || '保存失败', 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showAlert('保存失败：' + error.message, 'danger');
+    });
+}
+
+// 显示提示信息
+function showAlert(message, type) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="close" data-dismiss="alert">
+            <span>&times;</span>
+        </button>
+    `;
+    document.querySelector('.modal-body').insertBefore(alertDiv, document.querySelector('.modal-body').firstChild);
+    
+    setTimeout(() => alertDiv.remove(), 3000);
+}
+
+// 页面加载时初始化
+document.addEventListener('DOMContentLoaded', function() {
+    loadSystemConfigs();
+});
+</script>
