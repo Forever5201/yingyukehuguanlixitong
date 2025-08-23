@@ -598,25 +598,64 @@ def get_profit_report():
 @app.route('/config', methods=['GET', 'POST'])
 def manage_config():
     if request.method == 'POST':
-        # 获取表单数据并更新或创建配置项
-        for key in ['trial_cost', 'course_cost', 'taobao_fee_rate']:
-            config_item = Config.query.filter_by(key=key).first()
-            if not config_item:
-                config_item = Config(key=key)
-                db.session.add(config_item)
-            config_item.value = request.form[key]
-        db.session.commit()
+        config_type = request.form.get('config_type', 'basic')
+        
+        if config_type == 'profit_distribution':
+            # 处理股东利润分配配置
+            configs_to_save = {
+                'shareholder_a_name': request.form.get('shareholder_a_name', '股东A'),
+                'shareholder_b_name': request.form.get('shareholder_b_name', '股东B'),
+                'new_course_shareholder_a': request.form.get('new_course_shareholder_a', '50'),
+                'new_course_shareholder_b': str(100 - float(request.form.get('new_course_shareholder_a', '50'))),
+                'renewal_shareholder_a': request.form.get('renewal_shareholder_a', '40'),
+                'renewal_shareholder_b': str(100 - float(request.form.get('renewal_shareholder_a', '40')))
+            }
+            
+            for key, value in configs_to_save.items():
+                config = Config.query.filter_by(key=key).first()
+                if config:
+                    config.value = value
+                else:
+                    config = Config(key=key, value=value)
+                    db.session.add(config)
+            
+            db.session.commit()
+            flash('股东配置已更新', 'success')
+        else:
+            # 处理基础配置
+            for key in ['trial_cost', 'course_cost', 'taobao_fee_rate']:
+                config_item = Config.query.filter_by(key=key).first()
+                if not config_item:
+                    config_item = Config(key=key)
+                    db.session.add(config_item)
+                config_item.value = request.form[key]
+            db.session.commit()
+            flash('基础配置已更新', 'success')
+            
         return redirect(url_for('manage_config'))
 
-    # 查询现有配置，如果不存在则提供默认值
-    trial_cost = Config.query.filter_by(key='trial_cost').first()
-    course_cost = Config.query.filter_by(key='course_cost').first()
-    taobao_fee_rate = Config.query.filter_by(key='taobao_fee_rate').first()
+    # 获取所有配置
+    config_keys = [
+        'trial_cost', 'course_cost', 'taobao_fee_rate',
+        'shareholder_a_name', 'shareholder_b_name',
+        'new_course_shareholder_a', 'new_course_shareholder_b',
+        'renewal_shareholder_a', 'renewal_shareholder_b'
+    ]
     
+    configs = Config.query.filter(Config.key.in_(config_keys)).all()
+    config_dict = {c.key: c.value for c in configs}
+    
+    # 设置默认值
     config = {
-        'trial_cost': trial_cost.value if trial_cost else '0',
-        'course_cost': course_cost.value if course_cost else '0',
-        'taobao_fee_rate': taobao_fee_rate.value if taobao_fee_rate else '0'
+        'trial_cost': config_dict.get('trial_cost', '0'),
+        'course_cost': config_dict.get('course_cost', '0'),
+        'taobao_fee_rate': config_dict.get('taobao_fee_rate', '0'),
+        'shareholder_a_name': config_dict.get('shareholder_a_name', '股东A'),
+        'shareholder_b_name': config_dict.get('shareholder_b_name', '股东B'),
+        'new_course_shareholder_a': config_dict.get('new_course_shareholder_a', '50'),
+        'new_course_shareholder_b': config_dict.get('new_course_shareholder_b', '50'),
+        'renewal_shareholder_a': config_dict.get('renewal_shareholder_a', '40'),
+        'renewal_shareholder_b': config_dict.get('renewal_shareholder_b', '60')
     }
     
     return render_template('config.html', config=config)

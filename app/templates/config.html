@@ -143,5 +143,160 @@ document.getElementById('taobao_fee_rate')?.addEventListener('input', updateSumm
 window.addEventListener('DOMContentLoaded', () => {
     updateSummary();
 });
+
+// 更新股东B的比例
+function updateShareholderB(type) {
+    const shareholderA = parseFloat(document.getElementById(`${type}_shareholder_a`).value) || 0;
+    const shareholderB = 100 - shareholderA;
+    document.getElementById(`${type}_shareholder_b`).value = shareholderB.toFixed(1);
+}
 </script>
+
+    <!-- 股东利润分配配置 -->
+    <div class="config-card">
+        <div class="config-header">
+            <h2><i class="fas fa-coins"></i> 股东利润分配配置</h2>
+            <p class="config-description">设置股东信息和利润分配比例</p>
+        </div>
+        
+        <form action="{{ url_for('manage_config') }}" method="post" class="config-form">
+            <input type="hidden" name="config_type" value="profit_distribution">
+            
+            <div class="form-section">
+                <!-- 股东信息 -->
+                <h3><i class="fas fa-users"></i> 股东信息</h3>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="shareholder_a_name">
+                            <i class="fas fa-user"></i>
+                            股东A名称
+                        </label>
+                        <input type="text" 
+                               id="shareholder_a_name" 
+                               name="shareholder_a_name" 
+                               value="{{ config.shareholder_a_name or '股东A' }}" 
+                               class="form-control"
+                               placeholder="请输入股东A名称">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="shareholder_b_name">
+                            <i class="fas fa-user"></i>
+                            股东B名称
+                        </label>
+                        <input type="text" 
+                               id="shareholder_b_name" 
+                               name="shareholder_b_name" 
+                               value="{{ config.shareholder_b_name or '股东B' }}" 
+                               class="form-control"
+                               placeholder="请输入股东B名称">
+                    </div>
+                </div>
+
+                <!-- 正课利润分配 -->
+                <h3><i class="fas fa-graduation-cap"></i> 正课利润分配</h3>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="new_course_shareholder_a" class="shareholder-a-label">
+                            <span class="shareholder-a-name">{{ config.shareholder_a_name or '股东A' }}</span>分配比例 (%)
+                        </label>
+                        <div class="input-group">
+                            <input type="number" 
+                                   id="new_course_shareholder_a" 
+                                   name="new_course_shareholder_a" 
+                                   value="{{ config.new_course_shareholder_a or 50 }}" 
+                                   step="0.1" 
+                                   min="0"
+                                   max="100"
+                                   class="form-control"
+                                   oninput="updateShareholderB('new_course')">
+                            <span class="input-suffix">%</span>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="new_course_shareholder_b" class="shareholder-b-label">
+                            <span class="shareholder-b-name">{{ config.shareholder_b_name or '股东B' }}</span>分配比例 (%)
+                        </label>
+                        <div class="input-group">
+                            <input type="number" 
+                                   id="new_course_shareholder_b" 
+                                   name="new_course_shareholder_b" 
+                                   value="{{ config.new_course_shareholder_b or 50 }}" 
+                                   class="form-control"
+                                   readonly
+                                   style="background: #e9ecef;">
+                            <span class="input-suffix">%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 续课利润分配 -->
+                <h3><i class="fas fa-redo"></i> 续课利润分配</h3>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="renewal_shareholder_a" class="shareholder-a-label">
+                            <span class="shareholder-a-name">{{ config.shareholder_a_name or '股东A' }}</span>分配比例 (%)
+                        </label>
+                        <div class="input-group">
+                            <input type="number" 
+                                   id="renewal_shareholder_a" 
+                                   name="renewal_shareholder_a" 
+                                   value="{{ config.renewal_shareholder_a or 40 }}" 
+                                   step="0.1" 
+                                   min="0"
+                                   max="100"
+                                   class="form-control"
+                                   oninput="updateShareholderB('renewal')">
+                            <span class="input-suffix">%</span>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="renewal_shareholder_b" class="shareholder-b-label">
+                            <span class="shareholder-b-name">{{ config.shareholder_b_name or '股东B' }}</span>分配比例 (%)
+                        </label>
+                        <div class="input-group">
+                            <input type="number" 
+                                   id="renewal_shareholder_b" 
+                                   name="renewal_shareholder_b" 
+                                   value="{{ config.renewal_shareholder_b or 60 }}" 
+                                   class="form-control"
+                                   readonly
+                                   style="background: #e9ecef;">
+                            <span class="input-suffix">%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i> 保存股东配置
+                </button>
+                <a href="{{ url_for('profit_distribution') }}" class="btn btn-secondary" style="margin-left: 10px;">
+                    <i class="fas fa-chart-bar"></i> 查看利润分配报表
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+// 监听股东名称变化，实时更新标签
+document.getElementById('shareholder_a_name')?.addEventListener('input', function() {
+    const name = this.value || '股东A';
+    document.querySelectorAll('.shareholder-a-name').forEach(el => {
+        el.textContent = name;
+    });
+});
+
+document.getElementById('shareholder_b_name')?.addEventListener('input', function() {
+    const name = this.value || '股东B';
+    document.querySelectorAll('.shareholder-b-name').forEach(el => {
+        el.textContent = name;
+    });
+});
+</script>
+
 {% endblock %}
