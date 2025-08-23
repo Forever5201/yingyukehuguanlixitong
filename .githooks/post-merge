@@ -1,0 +1,30 @@
+#!/bin/bash
+# Git post-merge hook - 在git pull/merge后自动运行
+# 这个脚本会在每次git pull成功后自动执行
+
+echo "🔍 检查数据库更新..."
+
+# 检查是否有数据库相关文件的更改
+if git diff HEAD@{1} --name-only | grep -E "(schema\.sql|models\.py)" > /dev/null; then
+    echo "📦 检测到数据库结构变更，准备自动迁移..."
+    
+    # 检查是否存在Python
+    if command -v python &> /dev/null || command -v python3 &> /dev/null; then
+        # 优先使用python3
+        PYTHON_CMD=$(command -v python3 || command -v python)
+        
+        # 运行自动迁移脚本
+        echo "🚀 运行数据库迁移..."
+        $PYTHON_CMD auto_migrate.py
+        
+        if [ $? -eq 0 ]; then
+            echo "✅ 数据库迁移成功！"
+        else
+            echo "❌ 数据库迁移失败，请手动运行: python auto_migrate.py"
+        fi
+    else
+        echo "⚠️  未找到Python，请手动运行: python auto_migrate.py"
+    fi
+else
+    echo "✅ 没有数据库结构变更，无需迁移"
+fi
