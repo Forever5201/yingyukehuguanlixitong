@@ -1467,11 +1467,11 @@ def api_formal_courses_stats():
         
         # 获取淘宝手续费率配置（用于旧数据）
         taobao_fee_config = Config.query.filter_by(key='taobao_fee_rate').first()
-        default_fee_rate = float(taobao_fee_config.value) / 100 if taobao_fee_config else 0.006
+        default_fee_rate = safe_float(taobao_fee_config.value, 0.6) / 100 if taobao_fee_config else 0.006
         
         # 获取正课成本配置
         course_cost_config = Config.query.filter_by(key='course_cost').first()
-        course_cost_per_session = float(course_cost_config.value) if course_cost_config else 0
+        course_cost_per_session = safe_float(course_cost_config.value, 0) if course_cost_config else 0
         
         # 计算统计数据
         total_revenue = 0
@@ -1491,16 +1491,20 @@ def api_formal_courses_stats():
             # 计算手续费（用于显示）
             fee = 0
             if course.payment_channel == '淘宝':
-                fee_rate = course.snapshot_fee_rate if course.snapshot_fee_rate else default_fee_rate
-                fee = course.sessions * course.price * fee_rate  # 基于原始金额计算
+                fee_rate = course.snapshot_fee_rate if getattr(course, 'snapshot_fee_rate', None) else default_fee_rate
+                fee = safe_int(course.sessions, 0) * safe_float(course.price, 0) * fee_rate  # 基于原始金额计算
             
             # 课程成本（用于显示）
-            if course.custom_course_cost:
-                course_cost = course.custom_course_cost
-            elif course.snapshot_course_cost:
-                course_cost = (course.sessions + course.gift_sessions) * course.snapshot_course_cost + (course.other_cost or 0)
-            else:
-                course_cost = (course.sessions + course.gift_sessions) * course_cost_per_session + (course.other_cost or 0)
+            # 课时成本（不含其他成本、手续费）用于显示
+            other_cost_val = safe_float(course.other_cost, 0)
+            # 利用统一计算结果反推课时成本，避免因退费查询遗漏造成口径不一致
+            adjusted_course_cost = max(0, safe_float(cost, 0) - safe_float(fee, 0) - other_cost_val)
+            # 计入收入节数（购买节数 − 已完成退费节数）
+            refunds_completed = CourseRefund.query.filter_by(course_id=course.id, status='completed').all()
+            refunded_sessions = sum(safe_int(r.refund_sessions, 0) for r in refunds_completed)
+            counted_sessions = max(0, safe_int(course.sessions, 0) - refunded_sessions)
+            # other_cost 单独返回；总成本 cost 已含手续费
+            course_cost = adjusted_course_cost + other_cost_val
             
             # 累加统计
             total_revenue += revenue
@@ -1511,17 +1515,20 @@ def api_formal_courses_stats():
             # 构建行数据
             rows.append({
                 'id': course.id,
-                'customer_id': course.customer.id,
-                'customer_name': course.customer.name,
+                'customer_id': course.customer.id if getattr(course, 'customer', None) else None,
+                'customer_name': course.customer.name if getattr(course, 'customer', None) else '-',
                 'course_type': course.course_type,
-                'sessions': course.sessions,
-                'gift_sessions': course.gift_sessions,
-                'price': course.price,
+                'sessions': safe_int(course.sessions, 0),
+                'gift_sessions': safe_int(course.gift_sessions, 0),
+                'price': safe_float(course.price, 0),
                 'payment_channel': course.payment_channel,
                 'fee': fee,
                 'course_cost': course_cost,
+                'adjusted_course_cost': adjusted_course_cost,
+                'other_cost': other_cost_val,
                 'revenue': revenue,
                 'profit': profit,
+                'counted_sessions': counted_sessions,
                 'has_refund': profit_info['has_refund'],
                 'refund_amount': profit_info.get('refund_info', {}).get('amount', 0),
                 'created_at': course.created_at.isoformat() if course.created_at else None,
@@ -1648,6 +1655,81 @@ def create_employee():
             'success': True, 
             'message': '员工添加成功',
             'employee': {'id': employee.id, 'name': employee.name}
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@main_bp.route('/api/courses/refunds/<int:refund_id>', methods=['PATCH'])
+def edit_refund(refund_id):
+    """编辑退费记录的节数与金额"""
+    try:
+        refund = CourseRefund.query.get_or_404(refund_id)
+        course = Course.query.get_or_404(refund.course_id)
+
+        data = request.get_json(silent=True) or {}
+        new_sessions = data.get('refund_sessions', None)
+        new_amount = data.get('refund_amount', None)
+
+        if new_sessions is None and new_amount is None:
+            return jsonify({'success': False, 'message': '缺少可更新字段'}), 400
+
+        # 计算可用上限：允许把本记录的原节数释放后再计算
+        existing_refunds = CourseRefund.query.filter(
+            CourseRefund.course_id == course.id,
+            CourseRefund.status == 'completed',
+            CourseRefund.id != refund.id
+        ).all()
+        other_refunded = sum(safe_int(r.refund_sessions, 0) for r in existing_refunds)
+        max_sessions = max(0, safe_int(course.sessions, 0) - other_refunded)
+
+        if new_sessions is not None:
+            new_sessions_int = safe_int(new_sessions, -1)
+            if new_sessions_int <= 0 or new_sessions_int > max_sessions:
+                return jsonify({'success': False, 'message': f'退费节数无效，允许区间为 1..{max_sessions}'}), 409
+            refund.refund_sessions = new_sessions_int
+            # 若未提供金额，按单价计算
+            if new_amount is None:
+                refund.refund_amount = new_sessions_int * safe_float(course.price, 0)
+
+        if new_amount is not None:
+            amount = safe_float(new_amount, None)
+            if amount is None or amount < 0:
+                return jsonify({'success': False, 'message': '退费金额必须为非负数字'}), 400
+            refund.refund_amount = amount
+
+        db.session.commit()
+
+        # 返回最新统计
+        profit_info = calculate_course_profit_with_refund(course)
+        refund_history = CourseRefund.query.filter_by(course_id=course.id).order_by(CourseRefund.refund_date.desc()).all()
+        total_refunded_sessions = sum(safe_int(r.refund_sessions, 0) for r in refund_history if r.status == 'completed')
+        total_refunded_amount = sum(safe_float(r.refund_amount, 0) for r in refund_history if r.status == 'completed')
+        refundable_sessions = calculate_refundable_sessions(course)
+
+        return jsonify({
+            'success': True,
+            'refund': {
+                'id': refund.id,
+                'refund_sessions': refund.refund_sessions,
+                'refund_amount': refund.refund_amount
+            },
+            'calculations': profit_info,
+            'refund_summary': {
+                'total_refunded_sessions': total_refunded_sessions,
+                'total_refunded_amount': total_refunded_amount,
+                'refundable_sessions': refundable_sessions
+            },
+            'refund_history': [
+                {
+                    'id': r.id,
+                    'sessions': r.refund_sessions,
+                    'amount': r.refund_amount,
+                    'reason': r.refund_reason,
+                    'date': (r.refund_date.strftime('%Y-%m-%d %H:%M:%S') if r.refund_date else None),
+                    'status': r.status
+                } for r in refund_history
+            ]
         })
     except Exception as e:
         db.session.rollback()
@@ -2333,25 +2415,57 @@ def formal_course_details(course_id):
         except:
             pass
     
-    # 计算展示信息
+    # 计算展示信息（与列表页保持一致逻辑，考虑退费）
     sessions = safe_int(course.sessions, 0)
     price = safe_float(course.price, 0)
-    revenue = sessions * price
+    original_revenue = sessions * price
     fee = 0
+    fee_rate = 0
+    if course.payment_channel == '淘宝':
+        fee_rate = course.snapshot_fee_rate if getattr(course, 'snapshot_fee_rate', None) else 0.006
+        fee = original_revenue * fee_rate
     
-    # 使用快照费率计算手续费
-    if course.payment_channel == '淘宝' and course.snapshot_fee_rate:
-        fee = revenue * course.snapshot_fee_rate
+    profit_info = calculate_course_profit_with_refund(course)
+    revenue = profit_info['revenue']
+    total_cost = profit_info['cost']  # 已包含手续费
+    profit = profit_info['profit']
     
-    # 总成本（包含手续费）
-    cost = safe_float(course.cost, 0)
-    total_cost = cost + fee
-    profit = revenue - total_cost
+    # 计算用于展示的课时成本（从实际成本中扣除手续费与其他成本后的课时部分）
+    other_cost = safe_float(course.other_cost, 0)
+    session_cost = max(0, total_cost - fee - other_cost)
+    
+    # 计入收入的节数（用于详情页显示）
+    refunds_completed = CourseRefund.query.filter_by(course_id=course.id, status='completed').all()
+    total_refunded_sessions = sum(safe_int(r.refund_sessions, 0) for r in refunds_completed)
+    counted_sessions = max(0, sessions - total_refunded_sessions)
     
     # 课时成本
     course_cost_per_session = course.snapshot_course_cost if course.snapshot_course_cost else 0
-    total_sessions = course.sessions + course.gift_sessions
-    session_cost = total_sessions * course_cost_per_session
+    # 生效单节成本与来源：自定义 > 快照 > 配置
+    effective_cost_per_session = None
+    effective_cost_source = '配置'
+    if getattr(course, 'custom_course_cost', None) is not None:
+        effective_cost_per_session = safe_float(course.custom_course_cost, 0)
+        effective_cost_source = '自定义'
+    elif getattr(course, 'snapshot_course_cost', None) is not None:
+        effective_cost_per_session = safe_float(course.snapshot_course_cost, 0)
+        effective_cost_source = '快照'
+    else:
+        cfg = Config.query.filter_by(key='course_cost').first()
+        effective_cost_per_session = safe_float(cfg.value, 0) if cfg else 0
+        effective_cost_source = '配置'
+    # 用于显示：按计入节数反推当期单节成本（避免标签与数值不一致）
+    display_cost_per_session = (session_cost / counted_sessions) if counted_sessions > 0 else course_cost_per_session
+    
+    # 退费记录与统计
+    refund_history = CourseRefund.query.filter_by(course_id=course.id).order_by(CourseRefund.refund_date.desc()).all()
+    total_refunded_sessions = sum(safe_int(r.refund_sessions, 0) for r in refund_history if r.status == 'completed')
+    total_refunded_amount = sum(safe_float(r.refund_amount, 0) for r in refund_history if r.status == 'completed')
+    refundable_sessions = 0
+    try:
+        refundable_sessions = calculate_refundable_sessions(course)
+    except Exception:
+        refundable_sessions = max(0, safe_int(course.sessions, 0) - total_refunded_sessions)
     
     return render_template('formal_course_details.html',
                          course=course,
@@ -2365,7 +2479,19 @@ def formal_course_details(course_id):
                              'total_cost': total_cost,
                              'profit': profit,
                              'course_cost_per_session': course_cost_per_session,
-                             'fee_rate': course.snapshot_fee_rate * 100 if course.snapshot_fee_rate else 0
+                             'fee_rate': round(fee_rate * 100, 2),
+                             'counted_sessions': counted_sessions,
+                             'display_cost_per_session': display_cost_per_session
+                         },
+                         effective_cost_per_session=effective_cost_per_session,
+                         effective_cost_source=effective_cost_source,
+                         refund_history=refund_history,
+                         refund_summary={
+                             'total_refunded_sessions': total_refunded_sessions,
+                             'total_refunded_amount': total_refunded_amount,
+                             'refundable_sessions': refundable_sessions,
+                             'unit_price': safe_float(course.price, 0),
+                             'max_refund_amount': refundable_sessions * safe_float(course.price, 0)
                          })
 
 @main_bp.route('/api/formal-courses/<int:course_id>', methods=['GET'])
@@ -2402,6 +2528,55 @@ def get_formal_course(course_id):
         
     except Exception as e:
         return jsonify({'success': False, 'message': f'获取课程信息失败：{str(e)}'})
+
+@main_bp.route('/api/formal-courses/<int:course_id>/costs', methods=['PUT'])
+def update_formal_course_costs(course_id):
+    """更新正课成本与其他成本（部分更新）"""
+    try:
+        course = Course.query.filter_by(id=course_id, is_trial=False).first_or_404()
+        data = request.get_json(silent=True) or {}
+        custom_course_cost = data.get('custom_course_cost', None)
+        other_cost = data.get('other_cost', None)
+
+        if custom_course_cost is not None:
+            val = safe_float(custom_course_cost, None)
+            if val is None or val < 0:
+                return jsonify({'success': False, 'message': '正课成本必须为非负数字'}), 400
+            course.custom_course_cost = val
+        if other_cost is not None:
+            val = safe_float(other_cost, None)
+            if val is None or val < 0:
+                return jsonify({'success': False, 'message': '其他成本必须为非负数字'}), 400
+            course.other_cost = val
+
+        db.session.commit()
+
+        # 变更后返回最新统计
+        profit_info = calculate_course_profit_with_refund(course)
+
+        # 退费摘要
+        refunds = CourseRefund.query.filter_by(course_id=course.id).order_by(CourseRefund.refund_date.desc()).all()
+        total_refunded_sessions = sum(safe_int(r.refund_sessions, 0) for r in refunds if r.status == 'completed')
+        total_refunded_amount = sum(safe_float(r.refund_amount, 0) for r in refunds if r.status == 'completed')
+        refundable_sessions = calculate_refundable_sessions(course)
+
+        return jsonify({
+            'success': True,
+            'course': {
+                'id': course.id,
+                'custom_course_cost': course.custom_course_cost,
+                'other_cost': course.other_cost,
+            },
+            'calculations': profit_info,
+            'refund_summary': {
+                'total_refunded_sessions': total_refunded_sessions,
+                'total_refunded_amount': total_refunded_amount,
+                'refundable_sessions': refundable_sessions
+            }
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 @main_bp.route('/api/formal-courses/<int:course_id>', methods=['DELETE'])
 def delete_formal_course(course_id):
@@ -2683,11 +2858,12 @@ def calculate_refundable_sessions(course):
         status='completed'
     ).all()
     
-    total_refunded = sum(r.refund_sessions for r in existing_refunds)
+    # 兼容空值，避免 None 导致求和错误
+    total_refunded = sum(safe_int(r.refund_sessions, 0) for r in existing_refunds)
     
     # 可退费节数 = 购买节数 - 已退费节数
     # 注意：赠送节数不参与退费
-    refundable = course.sessions - total_refunded
+    refundable = safe_int(course.sessions, 0) - total_refunded
     
     return max(0, refundable)
 
@@ -2711,19 +2887,19 @@ def get_refund_info(course_id):
             'success': True,
             'data': {
                 'course_id': course.id,
-                'customer_name': course.customer.name,
+                'customer_name': course.customer.name if getattr(course, 'customer', None) else '-',
                 'course_type': course.course_type,
-                'purchased_sessions': course.sessions,
-                'refunded_sessions': course.sessions - refundable_sessions,
-                'refundable_sessions': refundable_sessions,
-                'unit_price': course.price,
-                'max_refund_amount': refundable_sessions * course.price,
+                'purchased_sessions': safe_int(course.sessions, 0),
+                'refunded_sessions': max(0, safe_int(course.sessions, 0) - safe_int(refundable_sessions, 0)),
+                'refundable_sessions': safe_int(refundable_sessions, 0),
+                'unit_price': safe_float(course.price, 0),
+                'max_refund_amount': safe_int(refundable_sessions, 0) * safe_float(course.price, 0),
                 'refund_history': [{
                     'id': r.id,
-                    'sessions': r.refund_sessions,
-                    'amount': r.refund_amount,
+                    'sessions': safe_int(r.refund_sessions, 0),
+                    'amount': safe_float(r.refund_amount, 0),
                     'reason': r.refund_reason,
-                    'date': r.refund_date.strftime('%Y-%m-%d %H:%M:%S'),
+                    'date': (r.refund_date.strftime('%Y-%m-%d %H:%M:%S') if getattr(r, 'refund_date', None) else None),
                     'status': r.status
                 } for r in refund_history]
             }

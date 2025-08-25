@@ -102,6 +102,22 @@
                 <label>报名时间：</label>
                 <span>{{ course.created_at.strftime('%Y-%m-%d %H:%M') if course.created_at else '未知' }}</span>
             </div>
+            <div class="info-item">
+                <label>正课成本(单节)：</label>
+                <input id="inputCustomCost" type="number" step="0.01" min="0" value="{{ course.custom_course_cost if course.custom_course_cost is not none else '' }}" placeholder="{{ '%.2f'|format(effective_cost_per_session) }} ({{ effective_cost_source }})" style="width:200px;" />
+            </div>
+            <div class="info-item">
+                <label>当前生效成本：</label>
+                <span>¥{{ '%.2f'|format(effective_cost_per_session) }}（{{ effective_cost_source }}）</span>
+            </div>
+            <div class="info-item">
+                <label>其他成本：</label>
+                <input id="inputOtherCost" type="number" step="0.01" min="0" value="{{ course.other_cost if course.other_cost is not none else 0 }}" style="width:140px;" />
+            </div>
+            <div class="info-item">
+                <button id="btnSaveCosts" class="btn btn-primary">保存成本</button>
+                <span id="costSaveMsg" style="margin-left:10px;color:#28a745;display:none;">已保存</span>
+            </div>
         </div>
     </div>
 
@@ -112,8 +128,8 @@
         <div class="calc-section">
             <h4>收入明细</h4>
             <div class="calc-item">
-                <span>购买节数 × 单节售价：</span>
-                <span>{{ course.sessions }} × ¥{{ "%.2f"|format(course.price) }} = ¥{{ "%.2f"|format(calculations.revenue) }}</span>
+                <span>计入收入节数 × 单节售价：</span>
+                <span>{{ calculations.counted_sessions }} × ¥{{ "%.2f"|format(course.price) }} = ¥{{ "%.2f"|format(calculations.revenue) }}</span>
             </div>
             <div class="calc-total">
                 <span>总收入：</span>
@@ -124,7 +140,7 @@
         <div class="calc-section">
             <h4>成本明细</h4>
             <div class="calc-item">
-                <span>课时成本（{{ course.sessions + course.gift_sessions }}节 × ¥{{ "%.2f"|format(calculations.course_cost_per_session) }}）：</span>
+                <span>课时成本（{{ calculations.counted_sessions }}节 × ¥{{ "%.2f"|format(calculations.display_cost_per_session) }}）：</span>
                 <span>¥{{ "%.2f"|format(calculations.session_cost) }}</span>
             </div>
             <div class="calc-item">
@@ -150,6 +166,80 @@
                 <span>¥{{ "%.2f"|format(calculations.profit) }}</span>
             </div>
         </div>
+    </div>
+
+    <!-- 退费记录 -->
+    <div class="detail-section">
+        <h3><i class="fas fa-undo-alt"></i> 退费信息</h3>
+        <div class="refund-summary">
+            <div class="summary-item">
+                <div class="summary-label">已退费节数</div>
+                <div class="summary-value">{{ refund_summary.total_refunded_sessions }} 节</div>
+            </div>
+            <div class="summary-item">
+                <div class="summary-label">已退费金额</div>
+                <div class="summary-value">¥{{ "%.2f"|format(refund_summary.total_refunded_amount) }}</div>
+            </div>
+            <div class="summary-item">
+                <div class="summary-label">可退费节数</div>
+                <div class="summary-value highlight">{{ refund_summary.refundable_sessions }} 节</div>
+            </div>
+        </div>
+
+        {% if refund_history and refund_history|length > 0 %}
+        <div style="margin-top: 15px;" class="refund-grid">
+            <table class="table table-striped refund-table">
+                <thead>
+                    <tr>
+                        <th>时间</th>
+                        <th>退费节数</th>
+                        <th>退费金额</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in refund_history %}
+                    <tr>
+                        <td>{{ r.refund_date.strftime('%Y-%m-%d %H:%M:%S') if r.refund_date else '-' }}</td>
+                        <td>
+                            <input type="number" min="1" step="1" value="{{ r.refund_sessions }}" id="rf_sessions_{{ r.id }}" class="rf-input rf-input--short" />
+                        </td>
+                        <td>
+                            <input type="number" min="0" step="0.01" value="{{ '%.2f'|format(r.refund_amount or 0) }}" id="rf_amount_{{ r.id }}" class="rf-input rf-input--amount" />
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            <table class="table table-striped refund-table">
+                <thead>
+                    <tr>
+                        <th>手续费</th>
+                        <th>渠道</th>
+                        <th>状态</th>
+                        <th>操作人</th>
+                        <th>备注</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in refund_history %}
+                    <tr>
+                        <td class="text-right">¥{{ "%.2f"|format(r.refund_fee or 0) }}</td>
+                        <td>{{ r.refund_channel or '-' }}</td>
+                        <td>{{ r.status }}</td>
+                        <td>{{ r.operator_name or '-' }}</td>
+                        <td>{{ r.remark or '' }}</td>
+                        <td>
+                            <button class="btn btn-sm btn-primary rf-save" onclick="saveRefund({{ r.id }})">保存</button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div style="margin-top: 10px; color: #666;">暂无退费记录</div>
+        {% endif %}
     </div>
 
     <!-- 扩展信息（如果有） -->
@@ -252,7 +342,141 @@
 .status-converted { background: #e8f5e9; color: #388e3c; }
 .status-cancelled { background: #fce4ec; color: #c2185b; }
 .status-refunded { background: #fff3e0; color: #f57c00; }
+
+/* 退费信息优化样式 */
+.refund-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.summary-item {
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 14px 16px;
+}
+
+.summary-label {
+    color: #6c757d;
+    font-size: 12px;
+    letter-spacing: .2px;
+}
+
+.summary-value {
+    margin-top: 4px;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.refund-table {
+    margin-top: 8px;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.refund-table thead th {
+    background: #f8f9fb;
+}
+
+.refund-table th, .refund-table td {
+    vertical-align: middle;
+    padding: 12px 14px;
+    line-height: 1.4;
+    font-size: 14px;
+}
+
+.refund-table tbody tr { height: 48px; }
+
+.rf-input {
+    padding: 8px 10px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    height: 36px;
+}
+
+.rf-input--short { width: 110px; }
+.rf-input--amount { width: 140px; text-align: right; }
+
+.rf-save {
+    padding: 6px 12px;
+}
+
+.refund-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+@media (max-width: 900px) {
+    .refund-grid {
+        grid-template-columns: 1fr;
+    }
+}
 </style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const btn = document.getElementById('btnSaveCosts');
+    if (btn) {
+        btn.addEventListener('click', async function () {
+            const customCost = document.getElementById('inputCustomCost').value;
+            const otherCost = document.getElementById('inputOtherCost').value;
+            btn.disabled = true;
+            try {
+                const resp = await fetch('/api/formal-courses/{{ course.id }}/costs', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        custom_course_cost: customCost === '' ? null : Number(customCost),
+                        other_cost: otherCost === '' ? null : Number(otherCost)
+                    })
+                });
+                const data = await resp.json();
+                if (!resp.ok || !data.success) {
+                    alert(data.message || '保存失败');
+                } else {
+                    const msg = document.getElementById('costSaveMsg');
+                    if (msg) { msg.style.display = 'inline'; setTimeout(()=>{ msg.style.display = 'none'; }, 1200); }
+                    location.reload();
+                }
+            } catch (e) {
+                alert('网络错误，稍后再试');
+            } finally {
+                btn.disabled = false;
+            }
+        });
+    }
+});
+
+async function saveRefund(id) {
+    const btns = document.querySelectorAll('button');
+    btns.forEach(b => b.disabled = true);
+    const sEl = document.getElementById('rf_sessions_' + id);
+    const aEl = document.getElementById('rf_amount_' + id);
+    try {
+        const payload = {};
+        if (sEl && sEl.value !== '') payload.refund_sessions = Number(sEl.value);
+        if (aEl && aEl.value !== '') payload.refund_amount = Number(aEl.value);
+        const resp = await fetch('/api/courses/refunds/' + id, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const data = await resp.json();
+        if (!resp.ok || !data.success) {
+            alert(data.message || '保存失败');
+        } else {
+            location.reload();
+        }
+    } catch (e) {
+        alert('网络错误，稍后再试');
+    } finally {
+        btns.forEach(b => b.disabled = false);
+    }
+}
+</script>
 {% endblock %}
 
 
