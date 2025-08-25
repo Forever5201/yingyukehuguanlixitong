@@ -727,7 +727,9 @@ def manage_config():
         'new_course_shareholder_a': config_dict.get('new_course_shareholder_a', '50'),
         'new_course_shareholder_b': config_dict.get('new_course_shareholder_b', '50'),
         'renewal_shareholder_a': config_dict.get('renewal_shareholder_a', '40'),
-        'renewal_shareholder_b': config_dict.get('renewal_shareholder_b', '60')
+        'renewal_shareholder_b': config_dict.get('renewal_shareholder_b', '60'),
+        # 刷单商品列表（JSON 或逗号分隔）
+        'shuadan_products': config_dict.get('shuadan_products', '')
     }
     
     return render_template('config.html', config=config)
@@ -738,6 +740,7 @@ def manage_taobao_orders():
         order_id = request.form.get('order_id')
         name = request.form['customer_name']
         level = request.form['level']
+        product_name = request.form.get('product_name')
         amount = float(request.form['amount'])
         commission = float(request.form.get('commission', 0))
         evaluated = bool(request.form.get('evaluated'))
@@ -759,6 +762,7 @@ def manage_taobao_orders():
             if order:
                 order.name = name
                 order.level = level
+                order.product_name = product_name
                 order.amount = amount
                 order.commission = commission
                 # 重新计算手续费
@@ -769,6 +773,7 @@ def manage_taobao_orders():
             new_order = TaobaoOrder(
                 name=name,
                 level=level,
+                product_name=product_name,
                 amount=amount,
                 commission=commission,
                 taobao_fee=taobao_fee,
@@ -800,9 +805,19 @@ def manage_taobao_orders():
     pending_principal = (stats.pending_amount or 0) + (stats.pending_commission or 0)
     settled_principal = (stats.settled_amount or 0) + (stats.settled_commission or 0)
     
+    # 读取刷单商品配置（系统配置中 key=shuadan_products，value为JSON数组或逗号分隔字符串）
+    import json
+    products_cfg = Config.query.filter_by(key='shuadan_products').first()
+    product_list = []
+    if products_cfg and products_cfg.value:
+        try:
+            product_list = json.loads(products_cfg.value)
+        except Exception:
+            product_list = [s.strip() for s in products_cfg.value.split(',') if s.strip()]
+
     # 使用分页和选择性字段查询
     orders = TaobaoOrder.query.with_entities(
-        TaobaoOrder.id, TaobaoOrder.name, TaobaoOrder.level,
+        TaobaoOrder.id, TaobaoOrder.name, TaobaoOrder.level, TaobaoOrder.product_name,
         TaobaoOrder.amount, TaobaoOrder.commission, TaobaoOrder.taobao_fee,
         TaobaoOrder.evaluated, TaobaoOrder.order_time, TaobaoOrder.settled, 
         TaobaoOrder.settled_at, TaobaoOrder.created_at
@@ -810,6 +825,7 @@ def manage_taobao_orders():
     
     return render_template('taobao_orders.html', 
                          orders=orders,
+                         products=product_list,
                          stats={
                              'total_count': stats.total_count or 0,
                              'total_amount': stats.total_amount or 0,
@@ -837,6 +853,7 @@ def get_taobao_order(order_id):
                 'id': order.id,
                 'name': order.name,
                 'level': order.level,
+                'product_name': order.product_name,
                 'amount': order.amount,
                 'commission': order.commission,
                 'taobao_fee': order.taobao_fee,

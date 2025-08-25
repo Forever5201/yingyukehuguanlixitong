@@ -70,6 +70,8 @@ class TaobaoOrder(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100))
     level = db.Column(db.String(50))
+    # 刷单商品名称（来自系统配置，可为空以兼容历史数据）
+    product_name = db.Column(db.String(100))
     amount = db.Column(db.Float)
     commission = db.Column(db.Float)  # 佣金金额
     taobao_fee = db.Column(db.Float, default=0)  # 淘宝手续费

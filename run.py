@@ -75,6 +75,13 @@ def check_and_initialize_database():
                 cursor.execute("ALTER TABLE taobao_order ADD COLUMN taobao_fee FLOAT DEFAULT 0")
                 conn.commit()
                 print("数据库结构更新完成！")
+
+            # 检查 product_name 字段（刷单商品名称）
+            if columns and 'product_name' not in columns:
+                print("检测到数据库结构需要更新，添加 product_name 字段...")
+                cursor.execute("ALTER TABLE taobao_order ADD COLUMN product_name VARCHAR(100)")
+                conn.commit()
+                print("数据库结构更新完成！")
             
             # 兜底检查：如果 course_refund 表仍不存在，提示信息
             cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='course_refund'")
