@@ -2819,13 +2819,21 @@ function assignEmployee(courseId, employeeId, forceUpdate = false) {
     if (typeof event !== 'undefined' && event && event.target) {
         selectElement = event.target;
     } else {
-        selectElement = document.querySelector(`select[data-course-id="${courseId}"]`);
+        // 查找员工分配的select元素 - 需要更精确的选择器
+        selectElement = document.querySelector(`select.employee-select[data-course-id="${courseId}"]`);
     }
     
     // 确保找到了select元素
     if (!selectElement) {
-        console.error(`无法找到课程ID ${courseId} 的选择框`);
-        showAlert('操作失败：无法找到选择框', 'danger');
+        console.error(`无法找到课程ID ${courseId} 的员工选择框`);
+        showAlert('操作失败：无法找到员工选择框', 'danger');
+        return;
+    }
+    
+    // 确保是select元素并且有options
+    if (!selectElement.tagName || selectElement.tagName.toLowerCase() !== 'select' || !selectElement.options) {
+        console.error(`找到的元素不是有效的select元素`, selectElement);
+        showAlert('操作失败：选择框无效', 'danger');
         return;
     }
     
@@ -2917,9 +2925,29 @@ function assignEmployee(courseId, employeeId, forceUpdate = false) {
 function handleAssignmentConflict(courseId, newEmployeeId, conflictData) {
     const message = conflictData.conflict_info.message;
     
+    // 获取新员工名称 - 从当前页面的员工列表中查找
+    let newEmployeeName = "未知员工";
+    if (newEmployeeId) {
+        // 尝试从任意一个员工select中找到员工名称
+        const anyEmployeeSelect = document.querySelector('select.employee-select');
+        if (anyEmployeeSelect && anyEmployeeSelect.options) {
+            const option = Array.from(anyEmployeeSelect.options).find(opt => opt.value === String(newEmployeeId));
+            if (option) {
+                newEmployeeName = option.text.replace('✅ ', '').replace('🚫 ', '').trim();
+            }
+        }
+    }
+    
+    // 保存必要信息到对话框元素上
+    const dialogId = 'conflictDialog';
+    
     // 创建冲突解决对话框
     const dialog = `
-        <div id="conflictDialog" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); 
+        <div id="${dialogId}" 
+             data-course-id="${courseId}" 
+             data-employee-id="${newEmployeeId || ''}"
+             data-employee-name="${newEmployeeName}"
+             style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); 
                     background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
                     z-index: 1000; min-width: 400px; max-width: 500px;">
             <h4 style="color: #ff6b6b; margin-bottom: 15px;">
@@ -2936,7 +2964,7 @@ function handleAssignmentConflict(courseId, newEmployeeId, conflictData) {
                 <button onclick="closeConflictDialog()" class="btn btn-secondary" style="margin-right: 10px;">
                     保持现状
                 </button>
-                <button onclick="forceAssignEmployee(${courseId}, ${newEmployeeId ? `'${newEmployeeId}'` : 'null'})" class="btn btn-warning">
+                <button onclick="forceAssignEmployeeFromDialog()" class="btn btn-warning">
                     <i class="fas fa-sync"></i> 统一更新为新员工
                 </button>
             </div>
@@ -2961,6 +2989,54 @@ function closeConflictDialog() {
 function forceAssignEmployee(courseId, employeeId) {
     closeConflictDialog();
     assignEmployee(courseId, employeeId, true);
+}
+
+// 从对话框触发强制分配
+function forceAssignEmployeeFromDialog() {
+    const dialog = document.getElementById('conflictDialog');
+    if (!dialog) {
+        console.error('无法找到冲突对话框');
+        return;
+    }
+    
+    const courseId = dialog.getAttribute('data-course-id');
+    const employeeId = dialog.getAttribute('data-employee-id') || null;
+    const employeeName = dialog.getAttribute('data-employee-name');
+    
+    console.log(`强制分配: 课程ID=${courseId}, 员工ID=${employeeId}, 员工名称=${employeeName}`);
+    
+    closeConflictDialog();
+    
+    // 直接发送请求，避免再次查找DOM元素
+    fetch(`/api/trial-courses/${courseId}/assign`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            employee_id: employeeId || null,
+            force_update: true
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data && data.success) {
+            showAlert(data.message || '分配成功', 'success');
+            // 显示更新详情
+            if (data.details && data.details.updated_courses_count > 1) {
+                showAlert(`共更新了 ${data.details.updated_courses_count} 个相关课程`, 'info');
+            }
+            // 刷新页面
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            showAlert(data.message || '分配失败', 'danger');
+            location.reload();
+        }
+    })
+    .catch(error => {
+        showAlert('分配失败：' + error.message, 'danger');
+        location.reload();
+    });
 }
 
 // 显示提示信息
