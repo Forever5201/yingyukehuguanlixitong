@@ -2814,11 +2814,36 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // 分配员工
 function assignEmployee(courseId, employeeId, forceUpdate = false) {
-    // 获取当前选中的选项文本
-    const selectElement = event.target || document.querySelector(`select[data-course-id="${courseId}"]`);
-    const selectedText = employeeId ? selectElement.options[selectElement.selectedIndex].text : "未分配";
+    // 获取select元素 - 优先从event获取，否则通过courseId查找
+    let selectElement = null;
+    if (typeof event !== 'undefined' && event && event.target) {
+        selectElement = event.target;
+    } else {
+        selectElement = document.querySelector(`select[data-course-id="${courseId}"]`);
+    }
+    
+    // 确保找到了select元素
+    if (!selectElement) {
+        console.error(`无法找到课程ID ${courseId} 的选择框`);
+        showAlert('操作失败：无法找到选择框', 'danger');
+        return;
+    }
+    
+    // 获取员工名称 - 需要更安全的方式
+    let selectedText = "未分配";
+    if (employeeId) {
+        // 查找对应的option
+        const option = Array.from(selectElement.options).find(opt => opt.value === String(employeeId));
+        if (option) {
+            selectedText = option.text.replace('✅ ', '').replace('🚫 ', '').trim();
+        } else {
+            // 如果在select中找不到，可能是因为员工列表不完整
+            selectedText = `员工ID: ${employeeId}`;
+        }
+    }
+    
     const currentText = selectElement.getAttribute('data-original-value') || 
-                       (selectElement.options[0].selected ? "未分配" : selectElement.options[selectElement.selectedIndex].text);
+                       (selectElement.options[0].selected ? "未分配" : selectElement.options[selectElement.selectedIndex].text.replace('✅ ', '').replace('🚫 ', '').trim());
     
     // 如果不是强制更新，先确认
     if (!forceUpdate) {
@@ -2911,7 +2936,7 @@ function handleAssignmentConflict(courseId, newEmployeeId, conflictData) {
                 <button onclick="closeConflictDialog()" class="btn btn-secondary" style="margin-right: 10px;">
                     保持现状
                 </button>
-                <button onclick="forceAssignEmployee(${courseId}, '${newEmployeeId}')" class="btn btn-warning">
+                <button onclick="forceAssignEmployee(${courseId}, ${newEmployeeId ? `'${newEmployeeId}'` : 'null'})" class="btn btn-warning">
                     <i class="fas fa-sync"></i> 统一更新为新员工
                 </button>
             </div>
