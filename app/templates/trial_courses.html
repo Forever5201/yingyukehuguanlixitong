@@ -558,10 +558,31 @@
             </div>
         </div>
         
+        <!-- 批量操作工具栏 -->
+        <div class="batch-operations mb-3" id="batchOperations" style="display: none;">
+            <div class="alert alert-info d-flex align-items-center" style="margin-bottom: 10px;">
+                <span style="margin-right: auto;">已选择 <strong id="selectedCount">0</strong> 个试听课</span>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn-primary" onclick="batchAssignEmployee()" style="padding: 5px 15px; border-radius: 4px; border: none;">
+                        <i class="fas fa-user-tag"></i> 批量分配员工
+                    </button>
+                    <button class="btn-warning" onclick="batchUnassign()" style="padding: 5px 15px; border-radius: 4px; border: none;">
+                        <i class="fas fa-user-slash"></i> 批量取消分配
+                    </button>
+                    <button class="btn-secondary" onclick="clearSelection()" style="padding: 5px 15px; border-radius: 4px; border: none;">
+                        <i class="fas fa-times"></i> 取消选择
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <div class="table-container">
             <table class="data-table">
                 <thead>
                     <tr>
+                        <th width="40">
+                            <input type="checkbox" id="selectAll" onchange="toggleSelectAll()">
+                        </th>
                         <th>学员姓名</th>
                         <th>性别</th>
                         <th>年级</th>
@@ -580,6 +601,9 @@
                 <tbody>
                     {% for course, customer in trial_courses %}
                     <tr data-course-id="{{ course.id }}">
+                        <td>
+                            <input type="checkbox" class="course-checkbox" value="{{ course.id }}" onchange="updateSelection()">
+                        </td>
                         <td>{{ customer.name }}</td>
                         <td>{{ customer.gender or '-' }}</td>
                         <td>{{ customer.grade or '-' }}</td>
@@ -639,14 +663,17 @@
                         </td>
                         <td>
                             <div class="employee-assign">
-                                <select class="form-control form-control-sm employee-select" 
+                                <select class="form-control form-control-sm employee-select {% if not course.assigned_employee_id %}text-muted{% endif %}" 
                                         data-course-id="{{ course.id }}" 
+                                        data-original-value="{% if course.assigned_employee %}{{ course.assigned_employee.name }}{% else %}未分配{% endif %}"
                                         onchange="assignEmployee('{{ course.id }}', this.value)">
-                                    <option value="">未分配</option>
+                                    <option value="" {% if not course.assigned_employee_id %}selected{% endif %}>
+                                        🚫 未分配
+                                    </option>
                                     {% for employee in employees %}
                                     <option value="{{ employee.id }}" 
                                             {% if course.assigned_employee_id == employee.id %}selected{% endif %}>
-                                        {{ employee.name }}
+                                        ✅ {{ employee.name }}
                                     </option>
                                     {% endfor %}
                                 </select>
@@ -2787,11 +2814,30 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // 分配员工
 function assignEmployee(courseId, employeeId) {
-    if (!confirm('确定要将该试听课分配给此员工吗？')) {
+    // 获取当前选中的选项文本
+    const selectElement = event.target;
+    const selectedText = employeeId ? selectElement.options[selectElement.selectedIndex].text : "未分配";
+    const currentText = selectElement.getAttribute('data-original-value') || 
+                       (selectElement.options[0].selected ? "未分配" : selectElement.options[selectElement.selectedIndex].text);
+    
+    // 构建确认消息
+    let confirmMessage = '';
+    if (employeeId) {
+        confirmMessage = `确定要将该试听课分配给【${selectedText}】吗？`;
+    } else {
+        confirmMessage = `确定要取消该试听课的员工分配吗？\n当前负责员工：${currentText}`;
+    }
+    
+    confirmMessage += '\n\n注意：如果该试听课已转化为正课，相关的正课和续课也将同时更新。';
+    
+    if (!confirm(confirmMessage)) {
         // 恢复原选项
         location.reload();
         return;
     }
+    
+    // 显示加载状态
+    selectElement.disabled = true;
     
     fetch(`/api/trial-courses/${courseId}/assign`, {
         method: 'POST',
@@ -2805,7 +2851,10 @@ function assignEmployee(courseId, employeeId) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            showAlert('分配成功', 'success');
+            showAlert(data.message || '分配成功', 'success');
+            // 更新原始值属性，避免重复加载
+            selectElement.setAttribute('data-original-value', selectedText);
+            selectElement.disabled = false;
         } else {
             showAlert(data.message || '分配失败', 'danger');
             location.reload();
@@ -2831,6 +2880,163 @@ function showAlert(message, type) {
     document.body.appendChild(alertDiv);
     
     setTimeout(() => alertDiv.remove(), 3000);
+}
+
+// ========== 批量操作功能 ==========
+let selectedCourses = new Set();
+
+function toggleSelectAll() {
+    const selectAll = document.getElementById('selectAll');
+    const checkboxes = document.querySelectorAll('.course-checkbox');
+    
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = selectAll.checked;
+        if (selectAll.checked) {
+            selectedCourses.add(checkbox.value);
+        } else {
+            selectedCourses.delete(checkbox.value);
+        }
+    });
+    
+    updateSelection();
+}
+
+function updateSelection() {
+    selectedCourses.clear();
+    const checkboxes = document.querySelectorAll('.course-checkbox:checked');
+    
+    checkboxes.forEach(checkbox => {
+        selectedCourses.add(checkbox.value);
+    });
+    
+    const count = selectedCourses.size;
+    document.getElementById('selectedCount').textContent = count;
+    document.getElementById('batchOperations').style.display = count > 0 ? 'block' : 'none';
+    
+    // 更新全选框状态
+    const allCheckboxes = document.querySelectorAll('.course-checkbox');
+    const selectAll = document.getElementById('selectAll');
+    selectAll.checked = count > 0 && count === allCheckboxes.length;
+    selectAll.indeterminate = count > 0 && count < allCheckboxes.length;
+}
+
+function clearSelection() {
+    selectedCourses.clear();
+    document.querySelectorAll('.course-checkbox').forEach(checkbox => {
+        checkbox.checked = false;
+    });
+    document.getElementById('selectAll').checked = false;
+    updateSelection();
+}
+
+function batchAssignEmployee() {
+    if (selectedCourses.size === 0) return;
+    
+    // 创建员工选择对话框
+    const employees = [
+        {% for employee in employees %}
+        {id: {{ employee.id }}, name: '{{ employee.name }}'},
+        {% endfor %}
+    ];
+    
+    let options = employees.map(emp => 
+        `<option value="${emp.id}">${emp.name}</option>`
+    ).join('');
+    
+    const dialog = `
+        <div id="batchAssignDialog" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); 
+                    background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                    z-index: 1000; min-width: 300px;">
+            <h4>批量分配员工</h4>
+            <p>将选中的 ${selectedCourses.size} 个试听课分配给：</p>
+            <select id="batchEmployeeSelect" class="form-control">
+                <option value="">选择员工</option>
+                ${options}
+            </select>
+            <div style="margin-top: 15px; text-align: right;">
+                <button onclick="closeBatchDialog()" class="btn btn-secondary" style="margin-right: 10px;">取消</button>
+                <button onclick="confirmBatchAssign()" class="btn btn-primary">确认分配</button>
+            </div>
+        </div>
+        <div id="dialogOverlay" onclick="closeBatchDialog()" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; 
+                                       background: rgba(0,0,0,0.5); z-index: 999;"></div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', dialog);
+}
+
+function batchUnassign() {
+    if (selectedCourses.size === 0) return;
+    
+    if (!confirm(`确定要取消这 ${selectedCourses.size} 个试听课的员工分配吗？\n\n注意：相关的正课和续课也将同时取消分配。`)) {
+        return;
+    }
+    
+    processBatchUpdate(null);
+}
+
+function closeBatchDialog() {
+    const overlay = document.getElementById('dialogOverlay');
+    const dialog = document.getElementById('batchAssignDialog');
+    if (overlay) overlay.remove();
+    if (dialog) dialog.remove();
+}
+
+function confirmBatchAssign() {
+    const employeeId = document.getElementById('batchEmployeeSelect').value;
+    if (!employeeId) {
+        alert('请选择员工');
+        return;
+    }
+    
+    closeBatchDialog();
+    processBatchUpdate(employeeId);
+}
+
+function processBatchUpdate(employeeId) {
+    const courseIds = Array.from(selectedCourses);
+    let completed = 0;
+    let failed = 0;
+    
+    // 显示进度
+    showAlert(`正在处理 ${courseIds.length} 个试听课...`, 'info');
+    
+    // 依次处理每个课程
+    courseIds.forEach((courseId, index) => {
+        setTimeout(() => {
+            fetch(`/api/trial-courses/${courseId}/assign`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({employee_id: employeeId || null})
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    completed++;
+                } else {
+                    failed++;
+                }
+                
+                // 处理完成
+                if (completed + failed === courseIds.length) {
+                    if (failed === 0) {
+                        showAlert(`成功处理 ${completed} 个试听课`, 'success');
+                    } else {
+                        showAlert(`处理完成：成功 ${completed} 个，失败 ${failed} 个`, 'warning');
+                    }
+                    
+                    // 刷新页面
+                    setTimeout(() => location.reload(), 1500);
+                }
+            })
+            .catch(error => {
+                failed++;
+                if (completed + failed === courseIds.length) {
+                    showAlert(`处理出错，请重试`, 'danger');
+                }
+            });
+        }, index * 100); // 每个请求间隔100ms，避免并发过多
+    });
 }
 </script>
 

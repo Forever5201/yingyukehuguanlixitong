@@ -2809,7 +2809,7 @@ def update_formal_course(course_id):
 
 @main_bp.route('/api/trial-courses/<int:course_id>/assign', methods=['POST'])
 def assign_trial_course(course_id):
-    """分配试听课给员工"""
+    """分配试听课给员工（包含级联更新）"""
     course = Course.query.filter_by(id=course_id, is_trial=True).first_or_404()
     
     try:
@@ -2818,19 +2818,65 @@ def assign_trial_course(course_id):
         
         # 如果employee_id为空字符串或None，则清除分配
         if employee_id == '' or employee_id is None:
-            course.assigned_employee_id = None
+            new_employee_id = None
         else:
             # 验证员工是否存在
             employee = Employee.query.get(employee_id)
             if not employee:
                 return jsonify({'success': False, 'message': '员工不存在'}), 400
-            course.assigned_employee_id = employee_id
+            new_employee_id = employee_id
         
-        db.session.commit()
-        return jsonify({'success': True, 'message': '分配成功'})
+        # 使用事务确保所有更新要么全部成功，要么全部失败
+        from .services import TransactionService
+        
+        @TransactionService.transactional
+        def update_course_assignment():
+            # 记录原员工ID用于日志
+            old_employee_id = course.assigned_employee_id
+            old_employee_name = course.assigned_employee.name if course.assigned_employee else "未分配"
+            new_employee_name = employee.name if new_employee_id else "未分配"
+            
+            # 1. 更新试听课
+            course.assigned_employee_id = new_employee_id
+            
+            # 2. 如果试听课已转化为正课，同步更新正课
+            if course.converted_to_course:
+                formal_course = Course.query.get(course.converted_to_course)
+                if formal_course:
+                    formal_course.assigned_employee_id = new_employee_id
+                    
+                    # 3. 查找并更新所有续课
+                    def update_renewal_chain(course_id):
+                        renewals = Course.query.filter_by(
+                            renewal_from_course_id=course_id,
+                            is_trial=False
+                        ).all()
+                        for renewal in renewals:
+                            renewal.assigned_employee_id = new_employee_id
+                            # 递归更新续课的续课
+                            update_renewal_chain(renewal.id)
+                    
+                    update_renewal_chain(formal_course.id)
+            
+            # 记录操作日志（可选）
+            print(f"试听课ID {course_id} 的负责员工从 {old_employee_name} 更改为 {new_employee_name}")
+            
+            return {
+                'old_employee': old_employee_name,
+                'new_employee': new_employee_name,
+                'affected_courses': 1  # 可以统计实际影响的课程数
+            }
+        
+        # 执行更新
+        result = update_course_assignment()
+        
+        return jsonify({
+            'success': True, 
+            'message': f'已将试听课从 {result["old_employee"]} 分配给 {result["new_employee"]}',
+            'details': result
+        })
         
     except Exception as e:
-        db.session.rollback()
         return jsonify({'success': False, 'message': f'分配失败：{str(e)}'})
 
 @main_bp.route('/api/trial-courses/<int:course_id>/status', methods=['PUT'])
