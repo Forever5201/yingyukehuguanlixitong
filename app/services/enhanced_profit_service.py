@@ -107,17 +107,20 @@ class EnhancedProfitService(ProfitService):
             # 总收入 = 课程收入 + 刷单金额
             total_revenue = base_report['summary']['total_revenue'] + taobao_cost['total_amount']
             
-            # 总成本 = 课程成本 + 刷单金额 + 刷单佣金 + 刷单手续费 + 员工成本
-            total_cost = (base_report['summary']['total_cost'] + 
-                         taobao_cost['total_amount'] +  # 刷单金额作为成本
-                         taobao_cost['total_cost'] +    # 刷单佣金和手续费
-                         employee_cost['total_cost'])    # 员工成本
-            
-            # 5. 计算净利润
-            net_profit = total_revenue - total_cost
-            
-            # 6. 计算试听课收入和正课收入的详细分类
+            # 5. 计算试听课收入和正课收入的详细分类
             revenue_detail = cls.calculate_revenue_detail(start_date, end_date)
+            
+            # 6. 总成本 = 课程成本（不含手续费） + 所有手续费 + 刷单金额 + 刷单佣金 + 刷单手续费 + 员工成本
+            # 从base_report中减去已计算的手续费，避免重复
+            course_cost_without_fee = base_report['summary']['total_cost'] - base_report.get('total_fee', 0)
+            total_cost = (course_cost_without_fee +          # 课程成本（不含手续费）
+                         revenue_detail['total_fee'] +        # 所有课程手续费
+                         taobao_cost['total_amount'] +        # 刷单金额作为成本
+                         taobao_cost['total_cost'] +          # 刷单佣金和手续费
+                         employee_cost['total_cost'])          # 员工成本
+            
+            # 7. 计算净利润
+            net_profit = total_revenue - total_cost
             
             # 7. 重新计算股东分配（基于净利润中的新课和续课部分）
             # 计算新课和续课的净利润比例
@@ -148,7 +151,8 @@ class EnhancedProfitService(ProfitService):
                     'refund_amount': revenue_detail['refund_amount']
                 },
                 'cost': {
-                    'course_cost': base_report['summary']['total_cost'],
+                    'course_cost': course_cost_without_fee,  # 课程成本（不含手续费）
+                    'total_fee': revenue_detail['total_fee'],  # 所有手续费总和
                     'taobao_order_amount': taobao_cost['total_amount'],  # 刷单金额计入成本
                     'taobao_commission': taobao_cost['total_commission'],
                     'taobao_fee': taobao_cost['total_fee'],
@@ -255,21 +259,42 @@ class EnhancedProfitService(ProfitService):
             new_course_revenue = 0
             renewal_revenue = 0
             refund_amount = 0
+            total_fee = 0  # 总手续费
             
             for course in courses:
                 if course.is_trial:
                     trial_revenue += cls.safe_float(course.trial_price, 0)
+                    # 试听课也可能有手续费
+                    if course.payment_channel == '淘宝':
+                        trial_price = cls.safe_float(course.trial_price, 0)
+                        fee_rate = cls.safe_float(course.snapshot_fee_rate, 0.006)
+                        total_fee += trial_price * fee_rate
                 else:
                     revenue = cls.safe_float(course.sessions, 0) * cls.safe_float(course.price, 0)
                     if course.is_renewal:
                         renewal_revenue += revenue
                     else:
                         new_course_revenue += revenue
+                    
+                    # 正课和续课的手续费
+                    if course.payment_channel == '淘宝':
+                        fee_rate = cls.safe_float(course.snapshot_fee_rate, 0.006)
+                        total_fee += revenue * fee_rate
                 
-                # 计算退费
+                # 计算退费（修正公式）
                 if course.refunds:
                     for refund in course.refunds:
-                        refund_amount += cls.safe_float(refund.refund_amount, 0)
+                        # 退费金额 = 退费节数 × 课程售价 - 退费手续费
+                        refund_sessions = cls.safe_float(refund.refund_sessions, 0)
+                        course_price = cls.safe_float(course.price, 0)
+                        refund_fee = cls.safe_float(refund.refund_fee, 0)
+                        
+                        # 正确的退费金额计算
+                        calculated_refund_amount = refund_sessions * course_price - refund_fee
+                        refund_amount += calculated_refund_amount
+                        
+                        # 退费手续费也计入总手续费
+                        total_fee += refund_fee
             
             return {
                 'trial_revenue': trial_revenue,
@@ -277,7 +302,8 @@ class EnhancedProfitService(ProfitService):
                 'renewal_revenue': renewal_revenue,
                 'total_revenue': trial_revenue + new_course_revenue + renewal_revenue,
                 'refund_amount': refund_amount,
-                'net_revenue': trial_revenue + new_course_revenue + renewal_revenue - refund_amount
+                'net_revenue': trial_revenue + new_course_revenue + renewal_revenue - refund_amount,
+                'total_fee': total_fee  # 新增总手续费
             }
             
         except Exception as e:
@@ -288,5 +314,6 @@ class EnhancedProfitService(ProfitService):
                 'renewal_revenue': 0,
                 'total_revenue': 0,
                 'refund_amount': 0,
-                'net_revenue': 0
+                'net_revenue': 0,
+                'total_fee': 0
             }

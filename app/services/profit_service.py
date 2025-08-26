@@ -281,6 +281,7 @@ class ProfitService:
             # 统计数据
             total_revenue = 0
             total_cost = 0
+            total_fee = 0  # 新增总手续费
             total_profit = 0
             trial_profit = 0
             new_course_profit = 0
@@ -290,7 +291,8 @@ class ProfitService:
                 profit_info = cls.calculate_course_profit(course)
                 
                 total_revenue += profit_info['actual_revenue']
-                total_cost += profit_info['cost'] + profit_info['fee']
+                total_cost += profit_info['cost']
+                total_fee += profit_info['fee']  # 单独统计手续费
                 total_profit += profit_info['profit']
                 
                 if course.is_trial:
@@ -307,7 +309,8 @@ class ProfitService:
             return {
                 'summary': {
                     'total_revenue': total_revenue,
-                    'total_cost': total_cost,
+                    'total_cost': total_cost + total_fee,  # 总成本包含手续费
+                    'total_fee': total_fee,  # 单独返回手续费
                     'total_profit': total_profit,
                     'course_count': len(courses)
                 },
