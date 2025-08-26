@@ -2863,7 +2863,11 @@ function assignEmployee(courseId, employeeId, forceUpdate = false) {
             confirmMessage = `确定要取消该试听课的员工分配吗？\n当前负责员工：${currentText}`;
         }
         
-        confirmMessage += '\n\n注意：如果该试听课已转化为正课，相关的正课和续课也将同时更新。';
+        if (employeeId) {
+            confirmMessage += '\n\n注意：该客户的所有课程（包括独立创建的正课）都将分配给此员工。';
+        } else {
+            confirmMessage += '\n\n注意：该客户的所有课程都将变为未分配状态。';
+        }
         
         if (!confirm(confirmMessage)) {
             // 恢复原选项

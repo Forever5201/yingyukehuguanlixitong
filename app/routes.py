@@ -2866,7 +2866,37 @@ def assign_trial_course(course_id):
         # 2. 根据策略更新正课和续课
         updated_courses = [course.id]  # 记录更新的课程ID
         
-        if course.converted_to_course:
+        # 新增：基于客户的级联更新（更新同一客户的所有课程）
+        if course.customer_id and (force_update or new_employee_id is None):
+            # 当强制更新或设为未分配时，更新该客户的所有正课
+            customer_formal_courses = Course.query.filter_by(
+                customer_id=course.customer_id,
+                is_trial=False
+            ).all()
+            
+            for formal in customer_formal_courses:
+                formal.assigned_employee_id = new_employee_id
+                updated_courses.append(formal.id)
+                
+                # 更新续课链
+                def update_renewal_chain(course_id):
+                    renewals = Course.query.filter_by(
+                        renewal_from_course_id=course_id,
+                        is_trial=False
+                    ).all()
+                    for renewal in renewals:
+                        renewal.assigned_employee_id = new_employee_id
+                        if renewal.id not in updated_courses:
+                            updated_courses.append(renewal.id)
+                        # 递归更新续课的续课
+                        update_renewal_chain(renewal.id)
+                
+                update_renewal_chain(formal.id)
+            
+            print(f"基于客户关系：更新了客户 {course.customer.name if course.customer else '未知'} 的所有 {len(customer_formal_courses)} 个正课")
+        
+        # 保留原有的基于转化关系的更新逻辑
+        elif course.converted_to_course:
             formal_course = Course.query.get(course.converted_to_course)
             if formal_course:
                 # 三种情况的处理：
