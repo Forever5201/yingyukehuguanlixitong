@@ -110,10 +110,6 @@
                     <td class="amount" id="taobaoCommission">¥0</td>
                 </tr>
                 <tr>
-                    <td>刷单手续费</td>
-                    <td class="amount" id="taobaoFee">¥0</td>
-                </tr>
-                <tr>
                     <td>员工基本工资</td>
                     <td class="amount" id="employeeSalary">¥0</td>
                 </tr>
@@ -527,7 +523,6 @@ function displayReport(report) {
     document.getElementById('courseCostDetail').textContent = formatCurrency(report.cost.course_cost);
     document.getElementById('totalFee').textContent = formatCurrency(report.cost.total_fee);
     document.getElementById('taobaoCommission').textContent = formatCurrency(report.cost.taobao_commission);
-    document.getElementById('taobaoFee').textContent = formatCurrency(report.cost.taobao_fee);
     document.getElementById('employeeSalary').textContent = formatCurrency(report.cost.employee_salary);
     document.getElementById('employeeCommission').textContent = formatCurrency(report.cost.employee_commission);
     document.getElementById('totalCostDetail').textContent = formatCurrency(report.cost.total_cost);
@@ -573,7 +568,6 @@ function exportReport() {
     csv += `课程成本,${currentReport.cost.course_cost}\n`;
     csv += `总手续费,${currentReport.cost.total_fee}\n`;
     csv += `刷单佣金,${currentReport.cost.taobao_commission}\n`;
-    csv += `刷单手续费,${currentReport.cost.taobao_fee}\n`;
     csv += `员工工资,${currentReport.cost.employee_salary}\n`;
     csv += `员工提成,${currentReport.cost.employee_commission}\n`;
     csv += `总成本,${currentReport.cost.total_cost}\n\n`;

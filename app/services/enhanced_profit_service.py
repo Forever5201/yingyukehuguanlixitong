@@ -113,10 +113,12 @@ class EnhancedProfitService(ProfitService):
             # 6. 总成本 = 课程成本（不含手续费） + 所有手续费 + 刷单佣金 + 刷单手续费 + 员工成本
             # 从base_report中减去已计算的手续费，避免重复
             course_cost_without_fee = base_report['summary']['total_cost'] - base_report.get('total_fee', 0)
+            # 计算总手续费（包含课程手续费和刷单手续费）
+            total_fee_all = revenue_detail['total_fee'] + taobao_cost['total_fee']
             total_cost = (course_cost_without_fee +          # 课程成本（不含手续费）
-                         revenue_detail['total_fee'] +        # 所有课程手续费
-                         taobao_cost['total_cost'] +          # 刷单佣金和手续费
-                         employee_cost['total_cost'])          # 员工成本
+                         total_fee_all +                      # 总手续费（课程+刷单）
+                         taobao_cost['total_commission'] +   # 刷单佣金
+                         employee_cost['total_cost'])         # 员工成本
             
             # 7. 计算净利润
             net_profit = total_revenue - total_cost
@@ -144,7 +146,7 @@ class EnhancedProfitService(ProfitService):
                 },
                 'cost': {
                     'course_cost': course_cost_without_fee,  # 课程成本（不含手续费）
-                    'total_fee': revenue_detail['total_fee'] + taobao_cost['total_fee'],  # 总手续费（包含所有手续费）
+                    'total_fee': total_fee_all,  # 总手续费（包含所有手续费）
                     'taobao_commission': taobao_cost['total_commission'],
                     'taobao_fee': taobao_cost['total_fee'],
                     'employee_salary': employee_cost['total_salary'],
