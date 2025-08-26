@@ -82,6 +82,8 @@
             document.querySelector('.main-content').style.display='block';
         });
     </script>
+    <!-- 添加API兼容层 -->
+    <script src="{{ url_for('static', filename='js/api-compatibility.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/course-management.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/app.js') }}" defer></script>
 </body>
