@@ -2813,27 +2813,30 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // 分配员工
-function assignEmployee(courseId, employeeId) {
+function assignEmployee(courseId, employeeId, forceUpdate = false) {
     // 获取当前选中的选项文本
-    const selectElement = event.target;
+    const selectElement = event.target || document.querySelector(`select[data-course-id="${courseId}"]`);
     const selectedText = employeeId ? selectElement.options[selectElement.selectedIndex].text : "未分配";
     const currentText = selectElement.getAttribute('data-original-value') || 
                        (selectElement.options[0].selected ? "未分配" : selectElement.options[selectElement.selectedIndex].text);
     
-    // 构建确认消息
-    let confirmMessage = '';
-    if (employeeId) {
-        confirmMessage = `确定要将该试听课分配给【${selectedText}】吗？`;
-    } else {
-        confirmMessage = `确定要取消该试听课的员工分配吗？\n当前负责员工：${currentText}`;
-    }
-    
-    confirmMessage += '\n\n注意：如果该试听课已转化为正课，相关的正课和续课也将同时更新。';
-    
-    if (!confirm(confirmMessage)) {
-        // 恢复原选项
-        location.reload();
-        return;
+    // 如果不是强制更新，先确认
+    if (!forceUpdate) {
+        // 构建确认消息
+        let confirmMessage = '';
+        if (employeeId) {
+            confirmMessage = `确定要将该试听课分配给【${selectedText}】吗？`;
+        } else {
+            confirmMessage = `确定要取消该试听课的员工分配吗？\n当前负责员工：${currentText}`;
+        }
+        
+        confirmMessage += '\n\n注意：如果该试听课已转化为正课，相关的正课和续课也将同时更新。';
+        
+        if (!confirm(confirmMessage)) {
+            // 恢复原选项
+            location.reload();
+            return;
+        }
     }
     
     // 显示加载状态
@@ -2845,17 +2848,36 @@ function assignEmployee(courseId, employeeId) {
             'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-            employee_id: employeeId || null
+            employee_id: employeeId || null,
+            force_update: forceUpdate
         })
     })
-    .then(response => response.json())
+    .then(response => {
+        if (response.status === 409) {
+            // 处理冲突情况
+            return response.json().then(data => {
+                handleAssignmentConflict(courseId, employeeId, data);
+                selectElement.disabled = false;
+            });
+        }
+        return response.json();
+    })
     .then(data => {
-        if (data.success) {
+        if (data && data.success) {
             showAlert(data.message || '分配成功', 'success');
-            // 更新原始值属性，避免重复加载
+            // 显示更新详情
+            if (data.details && data.details.updated_courses_count > 1) {
+                showAlert(`共更新了 ${data.details.updated_courses_count} 个相关课程`, 'info');
+            }
+            // 更新原始值属性
             selectElement.setAttribute('data-original-value', selectedText);
             selectElement.disabled = false;
-        } else {
+            
+            // 如果解决了冲突，刷新页面
+            if (data.details && data.details.resolved_conflict) {
+                setTimeout(() => location.reload(), 1500);
+            }
+        } else if (data && !data.conflict) {
             showAlert(data.message || '分配失败', 'danger');
             location.reload();
         }
@@ -2864,6 +2886,56 @@ function assignEmployee(courseId, employeeId) {
         showAlert('分配失败：' + error.message, 'danger');
         location.reload();
     });
+}
+
+// 处理员工分配冲突
+function handleAssignmentConflict(courseId, newEmployeeId, conflictData) {
+    const message = conflictData.conflict_info.message;
+    
+    // 创建冲突解决对话框
+    const dialog = `
+        <div id="conflictDialog" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); 
+                    background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                    z-index: 1000; min-width: 400px; max-width: 500px;">
+            <h4 style="color: #ff6b6b; margin-bottom: 15px;">
+                <i class="fas fa-exclamation-triangle"></i> 发现数据不一致
+            </h4>
+            <p style="margin-bottom: 15px;">${message}</p>
+            <div style="background: #f8f9fa; padding: 10px; border-radius: 4px; margin-bottom: 15px;">
+                <small>
+                    <strong>说明：</strong>这个试听课对应的正课已经分配给了其他员工。
+                    这可能是历史数据导致的。您可以选择：
+                </small>
+            </div>
+            <div style="text-align: right;">
+                <button onclick="closeConflictDialog()" class="btn btn-secondary" style="margin-right: 10px;">
+                    保持现状
+                </button>
+                <button onclick="forceAssignEmployee(${courseId}, '${newEmployeeId}')" class="btn btn-warning">
+                    <i class="fas fa-sync"></i> 统一更新为新员工
+                </button>
+            </div>
+        </div>
+        <div id="conflictOverlay" onclick="closeConflictDialog()" 
+             style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; 
+                    background: rgba(0,0,0,0.5); z-index: 999;"></div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', dialog);
+}
+
+// 关闭冲突对话框
+function closeConflictDialog() {
+    const overlay = document.getElementById('conflictOverlay');
+    const dialog = document.getElementById('conflictDialog');
+    if (overlay) overlay.remove();
+    if (dialog) dialog.remove();
+}
+
+// 强制分配员工（解决冲突）
+function forceAssignEmployee(courseId, employeeId) {
+    closeConflictDialog();
+    assignEmployee(courseId, employeeId, true);
 }
 
 // 显示提示信息

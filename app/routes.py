@@ -2809,12 +2809,13 @@ def update_formal_course(course_id):
 
 @main_bp.route('/api/trial-courses/<int:course_id>/assign', methods=['POST'])
 def assign_trial_course(course_id):
-    """分配试听课给员工（包含级联更新）"""
+    """分配试听课给员工（智能处理历史数据）"""
     course = Course.query.filter_by(id=course_id, is_trial=True).first_or_404()
     
     try:
         data = request.get_json()
         employee_id = data.get('employee_id')
+        force_update = data.get('force_update', False)  # 是否强制更新所有相关课程
         
         # 如果employee_id为空字符串或None，则清除分配
         if employee_id == '' or employee_id is None:
@@ -2832,47 +2833,114 @@ def assign_trial_course(course_id):
         old_employee_id = course.assigned_employee_id
         old_employee_name = course.assigned_employee.name if course.assigned_employee else "未分配"
         
-        # 直接在当前session中执行更新
+        # 检查是否存在数据不一致的情况
+        conflict_info = None
+        if course.converted_to_course:
+            formal_course = Course.query.get(course.converted_to_course)
+            if formal_course and formal_course.assigned_employee_id != course.assigned_employee_id:
+                # 发现不一致：正课已经有不同的员工
+                formal_employee_name = formal_course.assigned_employee.name if formal_course.assigned_employee else "未分配"
+                
+                if formal_course.assigned_employee_id and new_employee_id != formal_course.assigned_employee_id:
+                    # 试听课要分配的员工与正课现有员工不同
+                    conflict_info = {
+                        'has_conflict': True,
+                        'formal_employee': formal_employee_name,
+                        'formal_employee_id': formal_course.assigned_employee_id,
+                        'message': f'正课已分配给【{formal_employee_name}】，是否要统一更改为【{new_employee_name}】？'
+                    }
+                    
+                    # 如果没有强制更新标志，返回冲突信息让用户确认
+                    if not force_update:
+                        return jsonify({
+                            'success': False,
+                            'conflict': True,
+                            'conflict_info': conflict_info,
+                            'message': conflict_info['message']
+                        }), 409  # 409 Conflict
+        
+        # 执行更新
         # 1. 更新试听课
         course.assigned_employee_id = new_employee_id
         
-        # 2. 如果试听课已转化为正课，同步更新正课
+        # 2. 根据策略更新正课和续课
+        updated_courses = [course.id]  # 记录更新的课程ID
+        
         if course.converted_to_course:
             formal_course = Course.query.get(course.converted_to_course)
             if formal_course:
-                formal_course.assigned_employee_id = new_employee_id
+                # 三种情况的处理：
+                # a) force_update=True：强制更新所有相关课程
+                # b) 正课未分配：自动更新
+                # c) 正课已分配给相同员工：跳过更新（已经一致）
                 
-                # 3. 查找并更新所有续课
-                def update_renewal_chain(course_id):
-                    renewals = Course.query.filter_by(
-                        renewal_from_course_id=course_id,
-                        is_trial=False
-                    ).all()
-                    for renewal in renewals:
-                        renewal.assigned_employee_id = new_employee_id
-                        # 递归更新续课的续课
-                        update_renewal_chain(renewal.id)
+                should_update_formal = False
+                update_reason = ""
                 
-                update_renewal_chain(formal_course.id)
+                if force_update:
+                    should_update_formal = True
+                    update_reason = "强制更新"
+                elif formal_course.assigned_employee_id is None:
+                    should_update_formal = True
+                    update_reason = "正课未分配，自动同步"
+                elif formal_course.assigned_employee_id == new_employee_id:
+                    should_update_formal = False
+                    update_reason = "已经一致，无需更新"
+                else:
+                    # 这种情况前面应该已经处理（返回冲突）
+                    should_update_formal = False
+                    update_reason = "存在冲突，保持原状"
+                
+                if should_update_formal:
+                    formal_course.assigned_employee_id = new_employee_id
+                    updated_courses.append(formal_course.id)
+                    
+                    # 3. 递归更新所有续课
+                    def update_renewal_chain(course_id):
+                        renewals = Course.query.filter_by(
+                            renewal_from_course_id=course_id,
+                            is_trial=False
+                        ).all()
+                        for renewal in renewals:
+                            renewal.assigned_employee_id = new_employee_id
+                            updated_courses.append(renewal.id)
+                            # 递归更新续课的续课
+                            update_renewal_chain(renewal.id)
+                    
+                    update_renewal_chain(formal_course.id)
+                
+                print(f"正课更新决策: {update_reason}")
         
         # 提交更改
         db.session.commit()
         
         # 记录操作日志
         print(f"试听课ID {course_id} 的负责员工从 {old_employee_name} 更改为 {new_employee_name}")
+        print(f"共更新了 {len(updated_courses)} 个课程")
         
-        return jsonify({
+        response_data = {
             'success': True, 
             'message': f'已将试听课从 {old_employee_name} 分配给 {new_employee_name}',
             'details': {
                 'old_employee': old_employee_name,
-                'new_employee': new_employee_name
+                'new_employee': new_employee_name,
+                'updated_courses_count': len(updated_courses),
+                'updated_course_ids': updated_courses
             }
-        })
+        }
+        
+        # 如果有冲突且进行了强制更新，添加额外信息
+        if conflict_info and force_update:
+            response_data['details']['resolved_conflict'] = True
+            response_data['details']['previous_formal_employee'] = conflict_info['formal_employee']
+        
+        return jsonify(response_data)
         
     except Exception as e:
         db.session.rollback()
         print(f"分配失败：{str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'success': False, 'message': f'分配失败：{str(e)}'})
 
 @main_bp.route('/api/trial-courses/<int:course_id>/status', methods=['PUT'])
