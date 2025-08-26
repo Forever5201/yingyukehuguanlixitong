@@ -1,5 +1,5 @@
 <!-- 学员详情模态框组件 -->
-<div id="customerDetailModal" class="modal fade" tabindex="-1" role="dialog">
+<div id="customerDetailModal" class="modal" tabindex="-1" role="dialog">
     <div class="modal-dialog modal-lg" role="document">
         <div class="modal-content">
             <div class="modal-header">
@@ -190,6 +190,43 @@
                         </div>
                     </div>
 
+                    <!-- 退课信息模块 -->
+                    <div id="refundInfoSection" class="section-card" style="display: none; border-left: 4px solid #dc3545;">
+                        <h6 class="section-title" style="color: #dc3545;">
+                            <i class="fas fa-undo-alt"></i> 退课信息
+                        </h6>
+                        
+                        <!-- 退课统计信息 -->
+                        <div class="form-row">
+                            <div class="form-group col-md-3">
+                                <label>已退费节数</label>
+                                <input type="number" class="form-control" id="refunded_sessions" readonly style="background-color: #f8f9fa;">
+                            </div>
+                            <div class="form-group col-md-3">
+                                <label>实际退款金额</label>
+                                <input type="number" class="form-control" id="refunded_amount" readonly style="background-color: #f8f9fa;">
+                            </div>
+                            <div class="form-group col-md-3">
+                                <label>可退费节数</label>
+                                <input type="number" class="form-control" id="refundable_sessions" readonly style="color: #dc3545; font-weight: bold; background-color: #fff3cd;">
+                            </div>
+                            <div class="form-group col-md-3">
+                                <label>单节价格</label>
+                                <input type="number" class="form-control" id="refund_unit_price" readonly style="background-color: #f8f9fa;">
+                            </div>
+                        </div>
+                        
+                        <!-- 退费记录 -->
+                        <div id="refundHistorySection" style="display: none;">
+                            <h6 class="section-title" style="margin-top: 20px; margin-bottom: 15px; color: #6c757d;">
+                                <i class="fas fa-history"></i> 退费记录明细
+                            </h6>
+                            <div id="refundHistoryList">
+                                <!-- 退费记录将在这里动态显示 -->
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- 利润预览（如果是正课） -->
                     <div id="profitPreviewSection" class="section-card" style="display: none;">
                         <h6 class="section-title">
@@ -200,7 +237,7 @@
                 </form>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                <button type="button" class="btn btn-secondary" onclick="closeCustomerDetailModal()">
                     <i class="fas fa-times"></i> 取消
                 </button>
                 <button type="button" class="btn btn-primary" onclick="saveCustomerDetail()">
@@ -305,6 +342,7 @@ function showCustomerDetail(customerId, courseId = null, courseType = null) {
     document.getElementById('formalCourseSection').style.display = 'none';
     document.getElementById('profitPreviewSection').style.display = 'none';
     document.getElementById('refundSection').style.display = 'none';
+    document.getElementById('refundInfoSection').style.display = 'none'; // 隐藏退课信息模块
     
     // 加载数据
     if (courseType === 'trial' && courseId) {
@@ -397,15 +435,25 @@ function loadFormalCourseDetail(courseId) {
                 document.getElementById('formalCourseSection').style.display = 'block';
                 document.getElementById('profitPreviewSection').style.display = 'block';
                 
-                // 更新利润预览
-                updateProfitPreview();
-                
                 // 监听变化以更新利润预览
                 ['detail_sessions', 'detail_gift_sessions', 'detail_price', 
                  'detail_payment_channel', 'detail_other_cost', 'detail_course_cost'].forEach(id => {
                     document.getElementById(id).onchange = updateProfitPreview;
                     document.getElementById(id).oninput = updateProfitPreview;
                 });
+                
+                // 监听退费信息变化以更新利润预览
+                ['refunded_sessions', 'refunded_amount'].forEach(id => {
+                    const element = document.getElementById(id);
+                    if (element) {
+                        element.onchange = updateProfitPreview;
+                        element.oninput = updateProfitPreview;
+                    }
+                });
+                
+                // 获取退费信息 - 在退费信息加载完成后再更新利润预览
+                loadRefundInfo(data.id);
+                document.getElementById('refundInfoSection').style.display = 'block'; // 显示退课信息模块
             }
         });
 }
@@ -433,6 +481,136 @@ function fillCustomerData(customer) {
     document.getElementById('detail_tutoring_exp').value = customer.has_tutoring_experience || '';
 }
 
+// 加载退费信息
+function loadRefundInfo(courseId) {
+    fetch(`/api/courses/${courseId}/refund-info`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // 更新退费统计信息
+                document.getElementById('refunded_sessions').value = data.refund_summary.total_refunded_sessions;
+                // 显示实际退款金额（扣除手续费后的金额）
+                const actualRefundAmount = data.refund_summary.total_refunded_amount - data.refund_summary.total_refunded_fees;
+                document.getElementById('refunded_amount').value = actualRefundAmount.toFixed(2);
+                document.getElementById('refundable_sessions').value = data.refund_summary.refundable_sessions;
+                document.getElementById('refund_unit_price').value = data.refund_summary.unit_price.toFixed(2);
+                
+                // 显示退费记录
+                if (data.refund_history && data.refund_history.length > 0) {
+                    const refundHistoryList = document.getElementById('refundHistoryList');
+                    refundHistoryList.innerHTML = data.refund_history.map((refund, index) => `
+                        <div class="section-card" style="margin-bottom: 15px; background: #fff; border: 1px solid #dee2e6; border-left: 3px solid #17a2b8;">
+                            <div class="form-row">
+                                <div class="form-group col-md-12">
+                                    <h6 style="color: #17a2b8; margin-bottom: 15px; font-size: 0.9rem;">
+                                        <i class="fas fa-file-invoice"></i> 退费记录 #${index + 1}
+                                    </h6>
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group col-md-3">
+                                    <label style="font-size: 0.85rem; color: #6c757d;">退费时间</label>
+                                    <input type="text" class="form-control form-control-sm" value="${refund.refund_date || '未记录'}" readonly style="background-color: #f8f9fa;">
+                                </div>
+                                <div class="form-group col-md-3">
+                                    <label style="font-size: 0.85rem; color: #6c757d;">退费节数</label>
+                                    <input type="number" class="form-control form-control-sm" id="rf_sessions_${refund.id}" value="${refund.refund_sessions}" min="1" step="1">
+                                </div>
+                                <div class="form-group col-md-3">
+                                    <label style="font-size: 0.85rem; color: #6c757d;">实际退款</label>
+                                    <input type="number" class="form-control form-control-sm" id="rf_amount_${refund.id}" value="${(refund.refund_amount - (refund.refund_fee || 0)).toFixed(2)}" min="0" step="0.01">
+                                </div>
+                                <div class="form-group col-md-3">
+                                    <label style="font-size: 0.85rem; color: #6c757d;">手续费</label>
+                                    <input type="number" class="form-control form-control-sm" id="rf_fee_${refund.id}" value="${(refund.refund_fee || 0).toFixed(2)}" min="0" step="0.01">
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group col-md-4">
+                                    <label style="font-size: 0.85rem; color: #6c757d;">退费原因</label>
+                                    <select class="form-control form-control-sm" id="rf_reason_${refund.id}">
+                                        <option value="">请选择</option>
+                                        <option value="个人原因" ${refund.refund_reason === '个人原因' ? 'selected' : ''}>个人原因</option>
+                                        <option value="时间冲突" ${refund.refund_reason === '时间冲突' ? 'selected' : ''}>时间冲突</option>
+                                        <option value="教学质量" ${refund.refund_reason === '教学质量' ? 'selected' : ''}>教学质量问题</option>
+                                        <option value="搬家" ${refund.refund_reason === '搬家' ? 'selected' : ''}>搬家/地址变更</option>
+                                        <option value="经济原因" ${refund.refund_reason === '经济原因' ? 'selected' : ''}>经济原因</option>
+                                        <option value="其他" ${refund.refund_reason === '其他' ? 'selected' : ''}>其他原因</option>
+                                    </select>
+                                </div>
+                                <div class="form-group col-md-4">
+                                    <label style="font-size: 0.85rem; color: #6c757d;">退费渠道</label>
+                                    <select class="form-control form-control-sm" id="rf_channel_${refund.id}">
+                                        <option value="">请选择</option>
+                                        <option value="微信" ${refund.refund_channel === '微信' ? 'selected' : ''}>微信</option>
+                                        <option value="淘宝" ${refund.refund_channel === '淘宝' ? 'selected' : ''}>淘宝</option>
+                                        <option value="支付宝" ${refund.refund_channel === '支付宝' ? 'selected' : ''}>支付宝</option>
+                                        <option value="其他" ${refund.refund_channel === '其他' ? 'selected' : ''}>其他</option>
+                                    </select>
+                                </div>
+                                <div class="form-group col-md-4">
+                                    <label style="font-size: 0.85rem; color: #6c757d;">操作人</label>
+                                    <input type="text" class="form-control form-control-sm" value="${refund.operator_name || '未记录'}" readonly style="background-color: #f8f9fa;">
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group col-md-12">
+                                    <label style="font-size: 0.85rem; color: #6c757d;">备注</label>
+                                    <textarea class="form-control form-control-sm" id="rf_remark_${refund.id}" rows="2" placeholder="请输入备注信息">${refund.remark || ''}</textarea>
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group col-md-12">
+                                    <button type="button" class="btn btn-sm btn-primary" onclick="saveRefundInModal(${refund.id})">
+                                        <i class="fas fa-save"></i> 保存修改
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('');
+                    document.getElementById('refundHistorySection').style.display = 'block';
+                } else {
+                    document.getElementById('refundHistorySection').style.display = 'none';
+                }
+                
+                // 显示退课信息模块
+                document.getElementById('refundInfoSection').style.display = 'block';
+                
+                // 更新利润预览，确保退费信息被正确计算
+                updateProfitPreview();
+            } else {
+                console.error('获取退费信息失败:', data.message);
+                // 设置默认值
+                document.getElementById('refunded_sessions').value = '0';
+                document.getElementById('refunded_amount').value = '0.00';
+                document.getElementById('refundable_sessions').value = '0';
+                document.getElementById('refund_unit_price').value = '0.00';
+                document.getElementById('refundHistorySection').style.display = 'none';
+                
+                // 如果没有退费信息，也显示退课信息模块（显示为0）
+                document.getElementById('refundInfoSection').style.display = 'block';
+                
+                // 更新利润预览，显示无退费的情况
+                updateProfitPreview();
+            }
+        })
+        .catch(error => {
+            console.error('获取退费信息出错:', error);
+            // 设置默认值
+            document.getElementById('refunded_sessions').value = '0';
+            document.getElementById('refunded_amount').value = '0.00';
+            document.getElementById('refundable_sessions').value = '0';
+            document.getElementById('refund_unit_price').value = '0.00';
+            document.getElementById('refundHistorySection').style.display = 'none';
+            
+            // 即使出错也显示退课信息模块
+            document.getElementById('refundInfoSection').style.display = 'block';
+            
+            // 更新利润预览，显示无退费的情况
+            updateProfitPreview();
+        });
+}
+
 // 更新利润预览
 function updateProfitPreview() {
     const sessions = parseInt(document.getElementById('detail_sessions').value) || 0;
@@ -443,28 +621,42 @@ function updateProfitPreview() {
     const customCourseCost = parseFloat(document.getElementById('detail_course_cost').value);
     const courseCostPerSession = isNaN(customCourseCost) ? systemConfigs.course_cost : customCourseCost;
     
+    // 获取退费信息 - 从退课信息模块的统计字段读取
+    const refundedSessions = parseInt(document.getElementById('refunded_sessions').value) || 0;
+    const refundedAmount = parseFloat(document.getElementById('refunded_amount').value) || 0;
+    
     if (sessions > 0 && price > 0) {
-        const totalRevenue = sessions * price;
-        let feeAmount = 0;
+        const originalRevenue = sessions * price;
+        const actualRevenue = originalRevenue - refundedAmount; // 扣除实际退费金额（已扣除手续费）
+        const countedSessions = sessions - refundedSessions; // 计入收入的节数
         
+        let feeAmount = 0;
         if (paymentChannel === '淘宝') {
-            feeAmount = totalRevenue * systemConfigs.taobao_fee_rate;
+            // 手续费基于原始收入计算（退费前）
+            feeAmount = originalRevenue * systemConfigs.taobao_fee_rate;
         }
         
-        const totalSessions = sessions + giftSessions;
-        const sessionCost = totalSessions * courseCostPerSession;
+        // 课程成本基于实际消耗的节数计算（扣除退费后的节数）
+        const actualSessions = sessions - refundedSessions; // 实际消耗的节数
+        const actualGiftSessions = Math.max(0, giftSessions - refundedSessions); // 实际赠送节数（不能为负）
+        const totalActualSessions = actualSessions + actualGiftSessions;
+        const sessionCost = totalActualSessions * courseCostPerSession;
+        
         const totalCost = sessionCost + otherCost + feeAmount;
-        const netProfit = totalRevenue - totalCost;
+        const netProfit = actualRevenue - totalCost;
         
         document.getElementById('profitPreviewContent').innerHTML = `
             <div class="row">
                 <div class="col-md-6">
                     <strong>收入明细：</strong>
-                    <div>购买节数：${sessions} 节 × ¥${price.toFixed(2)} = ¥${totalRevenue.toFixed(2)}</div>
+                    <div>原始收入：${sessions} 节 × ¥${price.toFixed(2)} = ¥${originalRevenue.toFixed(2)}</div>
+                    <div>实际退款：¥${refundedAmount.toFixed(2)}</div>
+                    <div>实际收入：¥${actualRevenue.toFixed(2)}</div>
+                    <div>实际节数：${countedSessions} 节</div>
                 </div>
                 <div class="col-md-6">
                     <strong>成本明细：</strong>
-                    <div>课程成本：${totalSessions} 节 × ¥${courseCostPerSession.toFixed(2)} = ¥${sessionCost.toFixed(2)}</div>
+                    <div>课程成本：${totalActualSessions} 节 × ¥${courseCostPerSession.toFixed(2)} = ¥${sessionCost.toFixed(2)}</div>
                     <div>其他成本：¥${otherCost.toFixed(2)}</div>
                     ${paymentChannel === '淘宝' ? `<div>手续费：¥${feeAmount.toFixed(2)}</div>` : ''}
                     <div>总成本：¥${totalCost.toFixed(2)}</div>
@@ -475,10 +667,70 @@ function updateProfitPreview() {
                     净利润：¥${netProfit.toFixed(2)}
                 </h5>
             </div>
+            <div class="mt-2 text-muted text-center" style="font-size: 0.9rem;">
+                说明：课程成本基于实际消耗节数计算（${actualSessions} 节 + ${actualGiftSessions} 节 = ${totalActualSessions} 节）
+            </div>
         `;
     } else {
         document.getElementById('profitPreviewContent').innerHTML = 
             '<div class="text-muted text-center">请填写购买节数和单节售价</div>';
+    }
+}
+
+// 保存退费信息（在模态框中）
+async function saveRefundInModal(refundId) {
+    const btns = document.querySelectorAll('button');
+    btns.forEach(b => b.disabled = true);
+    
+    // 获取所有可编辑的字段
+    const sEl = document.getElementById('rf_sessions_' + refundId);
+    const aEl = document.getElementById('rf_amount_' + refundId);
+    const rEl = document.getElementById('rf_reason_' + refundId);
+    const cEl = document.getElementById('rf_channel_' + refundId);
+    const fEl = document.getElementById('rf_fee_' + refundId);
+    const rmEl = document.getElementById('rf_remark_' + refundId);
+    
+    try {
+        const payload = {};
+        if (sEl && sEl.value !== '') payload.refund_sessions = Number(sEl.value);
+        if (aEl && aEl.value !== '') {
+            // 用户输入的是实际退款金额，需要加上手续费才是原始退费金额
+            const actualRefundAmount = Number(aEl.value);
+            const fee = Number(fEl.value) || 0;
+            payload.refund_amount = actualRefundAmount + fee;
+        }
+        if (rEl && rEl.value !== '') payload.refund_reason = rEl.value;
+        if (cEl && cEl.value !== '') payload.refund_channel = cEl.value;
+        if (fEl && fEl.value !== '') payload.refund_fee = Number(fEl.value);
+        if (rmEl && rmEl.value !== '') payload.remark = rmEl.value;
+        
+        const resp = await fetch('/api/courses/refunds/' + refundId, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const data = await resp.json();
+        if (!resp.ok || !data.success) {
+            showAlert(data.message || '保存失败', 'danger');
+        } else {
+            showAlert('保存成功！', 'success');
+            
+            // 更新退费统计信息
+            if (data.refund_summary) {
+                document.getElementById('refunded_sessions').value = data.refund_summary.total_refunded_sessions;
+                // 显示实际退款金额（扣除手续费后的金额）
+                const actualRefundAmount = data.refund_summary.total_refunded_amount - data.refund_summary.total_refunded_fees;
+                document.getElementById('refunded_amount').value = actualRefundAmount.toFixed(2);
+                document.getElementById('refundable_sessions').value = data.refund_summary.refundable_sessions;
+            }
+            
+            // 更新利润预览
+            updateProfitPreview();
+        }
+    } catch (e) {
+        showAlert('网络错误，稍后再试', 'danger');
+    } finally {
+        btns.forEach(b => b.disabled = false);
     }
 }
 
@@ -545,5 +797,12 @@ function showAlert(message, type) {
 // 页面加载时初始化
 document.addEventListener('DOMContentLoaded', function() {
     loadSystemConfigs();
+    
+    // 添加点击模态框外部关闭的功能
+    document.getElementById('customerDetailModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeCustomerDetailModal();
+        }
+    });
 });
 </script>

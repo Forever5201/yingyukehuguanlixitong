@@ -102,6 +102,14 @@
                 <label>报名时间：</label>
                 <span>{{ course.created_at.strftime('%Y-%m-%d %H:%M') if course.created_at else '未知' }}</span>
             </div>
+            <div class="info-item">
+                <label>正课成本(单节)：</label>
+                <span>¥{{ '%.2f'|format(course.custom_course_cost or effective_cost_per_session) }}（{{ '自定义' if course.custom_course_cost is not none else effective_cost_source }}）</span>
+            </div>
+            <div class="info-item">
+                <label>其他成本：</label>
+                <span>¥{{ '%.2f'|format(course.other_cost or 0) }}</span>
+            </div>
         </div>
     </div>
 
@@ -112,8 +120,8 @@
         <div class="calc-section">
             <h4>收入明细</h4>
             <div class="calc-item">
-                <span>购买节数 × 单节售价：</span>
-                <span>{{ course.sessions }} × ¥{{ "%.2f"|format(course.price) }} = ¥{{ "%.2f"|format(calculations.revenue) }}</span>
+                <span>计入收入节数 × 单节售价：</span>
+                <span>{{ calculations.counted_sessions }} × ¥{{ "%.2f"|format(course.price) }} = ¥{{ "%.2f"|format(calculations.revenue) }}</span>
             </div>
             <div class="calc-total">
                 <span>总收入：</span>
@@ -124,7 +132,7 @@
         <div class="calc-section">
             <h4>成本明细</h4>
             <div class="calc-item">
-                <span>课时成本（{{ course.sessions + course.gift_sessions }}节 × ¥{{ "%.2f"|format(calculations.course_cost_per_session) }}）：</span>
+                <span>课时成本（{{ calculations.counted_sessions }}节 × ¥{{ "%.2f"|format(calculations.display_cost_per_session) }}）：</span>
                 <span>¥{{ "%.2f"|format(calculations.session_cost) }}</span>
             </div>
             <div class="calc-item">
@@ -150,6 +158,98 @@
                 <span>¥{{ "%.2f"|format(calculations.profit) }}</span>
             </div>
         </div>
+    </div>
+
+    <!-- 退费记录 -->
+    <div class="detail-section">
+        <h3><i class="fas fa-undo-alt"></i> 退费信息</h3>
+        <div class="info-grid">
+            <div class="info-item">
+                <label>已退费节数：</label>
+                <span data-refund-summary="total_refunded_sessions">{{ refund_summary.total_refunded_sessions }} 节</span>
+            </div>
+            <div class="info-item">
+                <label>实际退款金额：</label>
+                <span data-refund-summary="total_refunded_amount">¥{{ "%.2f"|format(refund_summary.total_refunded_amount - refund_summary.total_refunded_fees) }}</span>
+            </div>
+            <div class="info-item">
+                <label>可退费节数：</label>
+                <span data-refund-summary="refundable_sessions" style="color: #dc3545; font-weight: bold;">{{ refund_summary.refundable_sessions }} 节</span>
+            </div>
+            <div class="info-item">
+                <label>单节价格：</label>
+                <span>¥{{ "%.2f"|format(refund_summary.unit_price) }}</span>
+            </div>
+        </div>
+
+        {% if refund_history and refund_history|length > 0 %}
+        <div style="margin-top: 20px;">
+            <h4 style="margin-bottom: 15px; color: #495057;">退费记录</h4>
+            <div class="refund-records">
+                {% for r in refund_history %}
+                <div class="refund-record-item" style="background: #f8f9fa; padding: 15px; margin-bottom: 12px; border-radius: 6px; border-left: 4px solid #007bff;">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; font-size: 0.9em;">
+                        <div>
+                            <strong>退费时间：</strong>
+                            <span>{{ r.refund_date.strftime('%Y-%m-%d %H:%M:%S') if r.refund_date else '未记录' }}</span>
+                        </div>
+                        <div>
+                            <strong>退费节数：</strong>
+                            <input type="number" min="1" step="1" value="{{ r.refund_sessions }}" id="rf_sessions_{{ r.id }}" class="form-control" style="width: 80px; display: inline-block;" />
+                        </div>
+                        <div>
+                            <strong>实际退款：</strong>
+                            <input type="number" min="0" step="0.01" value="{{ '%.2f'|format((r.refund_amount or 0) - (r.refund_fee or 0)) }}" id="rf_amount_{{ r.id }}" class="form-control" style="width: 100px; display: inline-block;" />
+                        </div>
+                        <div>
+                            <strong>退费原因：</strong>
+                            <select id="rf_reason_{{ r.id }}" class="form-control" style="width: 120px; display: inline-block;">
+                                <option value="">请选择</option>
+                                <option value="个人原因" {{ 'selected' if r.refund_reason == '个人原因' else '' }}>个人原因</option>
+                                <option value="时间冲突" {{ 'selected' if r.refund_reason == '时间冲突' else '' }}>时间冲突</option>
+                                <option value="教学质量" {{ 'selected' if r.refund_reason == '教学质量' else '' }}>教学质量问题</option>
+                                <option value="搬家" {{ 'selected' if r.refund_reason == '搬家' else '' }}>搬家/地址变更</option>
+                                <option value="经济原因" {{ 'selected' if r.refund_reason == '经济原因' else '' }}>经济原因</option>
+                                <option value="其他" {{ 'selected' if r.refund_reason == '其他' else '' }}>其他原因</option>
+                            </select>
+                        </div>
+                        <div>
+                            <strong>退费渠道：</strong>
+                            <select id="rf_channel_{{ r.id }}" class="form-control" style="width: 100px; display: inline-block;">
+                                <option value="">请选择</option>
+                                <option value="微信" {{ 'selected' if r.refund_channel == '微信' else '' }}>微信</option>
+                                <option value="淘宝" {{ 'selected' if r.refund_channel == '淘宝' else '' }}>淘宝</option>
+                                <option value="支付宝" {{ 'selected' if r.refund_channel == '支付宝' else '' }}>支付宝</option>
+                                <option value="其他" {{ 'selected' if r.refund_channel == '其他' else '' }}>其他</option>
+                            </select>
+                        </div>
+                        <div>
+                            <strong>手续费：</strong>
+                            <input type="number" min="0" step="0.01" value="{{ '%.2f'|format(r.refund_fee or 0) }}" id="rf_fee_{{ r.id }}" class="form-control" style="width: 80px; display: inline-block;" />
+                        </div>
+                        <div>
+                            <strong>操作人：</strong>
+                            <span>{{ r.operator_name or '未记录' }}</span>
+                        </div>
+                        <div>
+                            <strong>状态：</strong>
+                            <span class="status-badge status-{{ r.status }}">{{ r.status }}</span>
+                        </div>
+                        <div style="grid-column: 1 / -1;">
+                            <button class="btn btn-sm btn-primary" onclick="saveRefund({{ r.id }})">保存修改</button>
+                        </div>
+                    </div>
+                    <div style="margin-top: 10px; padding: 8px; background: white; border-radius: 4px; border-left: 3px solid #6c757d;">
+                        <strong>备注：</strong>
+                        <textarea id="rf_remark_{{ r.id }}" class="form-control" style="width: 100%; margin-top: 5px; min-height: 60px;" placeholder="请输入备注信息">{{ r.remark or '' }}</textarea>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% else %}
+        <div style="margin-top: 10px; color: #666;">暂无退费记录</div>
+        {% endif %}
     </div>
 
     <!-- 扩展信息（如果有） -->
@@ -252,7 +352,156 @@
 .status-converted { background: #e8f5e9; color: #388e3c; }
 .status-cancelled { background: #fce4ec; color: #c2185b; }
 .status-refunded { background: #fff3e0; color: #f57c00; }
+
+/* 退费信息优化样式 */
+.refund-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.summary-item {
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 14px 16px;
+}
+
+.summary-label {
+    color: #6c757d;
+    font-size: 12px;
+    letter-spacing: .2px;
+}
+
+.summary-value {
+    margin-top: 4px;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.refund-table {
+    margin-top: 8px;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.refund-table thead th {
+    background: #f8f9fb;
+}
+
+.refund-table th, .refund-table td {
+    vertical-align: middle;
+    padding: 12px 14px;
+    line-height: 1.4;
+    font-size: 14px;
+}
+
+.refund-table tbody tr { height: 48px; }
+
+.rf-input {
+    padding: 8px 10px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    height: 36px;
+}
+
+.rf-input--short { width: 110px; }
+.rf-input--amount { width: 140px; text-align: right; }
+
+.rf-save {
+    padding: 6px 12px;
+}
+
+.refund-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+@media (max-width: 900px) {
+    .refund-grid {
+        grid-template-columns: 1fr;
+    }
+}
 </style>
+
+<script>
+async function saveRefund(id) {
+    const btns = document.querySelectorAll('button');
+    btns.forEach(b => b.disabled = true);
+    
+    // 获取所有可编辑的字段
+    const sEl = document.getElementById('rf_sessions_' + id);
+    const aEl = document.getElementById('rf_amount_' + id);
+    const rEl = document.getElementById('rf_reason_' + id);
+    const cEl = document.getElementById('rf_channel_' + id);
+    const fEl = document.getElementById('rf_fee_' + id);
+    const rmEl = document.getElementById('rf_remark_' + id);
+    
+    try {
+        const payload = {};
+        if (sEl && sEl.value !== '') payload.refund_sessions = Number(sEl.value);
+        if (aEl && aEl.value !== '') {
+            // 用户输入的是实际退款金额，需要加上手续费才是原始退费金额
+            const actualRefundAmount = Number(aEl.value);
+            const fee = Number(fEl.value) || 0;
+            payload.refund_amount = actualRefundAmount + fee;
+        }
+        if (rEl && rEl.value !== '') payload.refund_reason = rEl.value;
+        if (cEl && cEl.value !== '') payload.refund_channel = cEl.value;
+        if (fEl && fEl.value !== '') payload.refund_fee = Number(fEl.value);
+        if (rmEl && rmEl.value !== '') payload.remark = rmEl.value;
+        
+        const resp = await fetch('/api/courses/refunds/' + id, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const data = await resp.json();
+        if (!resp.ok || !data.success) {
+            alert(data.message || '保存失败');
+        } else {
+            // 显示成功消息
+            const successMsg = document.createElement('div');
+            successMsg.className = 'alert alert-success';
+            successMsg.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 9999; padding: 10px 20px; border-radius: 5px;';
+            successMsg.textContent = '保存成功！';
+            document.body.appendChild(successMsg);
+            setTimeout(() => successMsg.remove(), 2000);
+            
+            // 更新页面数据而不刷新
+            updateRefundDisplay(data);
+        }
+    } catch (e) {
+        alert('网络错误，稍后再试');
+    } finally {
+        btns.forEach(b => b.disabled = false);
+    }
+}
+
+function updateRefundDisplay(data) {
+    // 更新退费统计信息
+    if (data.refund_summary) {
+        const refundedSessionsEl = document.querySelector('[data-refund-summary="total_refunded_sessions"]');
+        const refundedAmountEl = document.querySelector('[data-refund-summary="total_refunded_amount"]');
+        const refundableSessionsEl = document.querySelector('[data-refund-summary="refundable_sessions"]');
+        
+        if (refundedSessionsEl) refundedSessionsEl.textContent = data.refund_summary.total_refunded_sessions + ' 节';
+        if (refundedAmountEl) {
+            const actualRefundAmount = data.refund_summary.total_refunded_amount - data.refund_summary.total_refunded_fees;
+            refundedAmountEl.textContent = '¥' + actualRefundAmount.toFixed(2);
+        }
+        if (refundableSessionsEl) refundableSessionsEl.textContent = data.refund_summary.refundable_sessions + ' 节';
+    }
+    
+    // 更新计算明细
+    if (data.calculations) {
+        // 这里可以更新计算明细部分
+        console.log('计算明细已更新:', data.calculations);
+    }
+}
+</script>
 {% endblock %}
 
 

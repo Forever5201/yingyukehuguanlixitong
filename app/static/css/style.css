@@ -636,12 +636,22 @@ body {
     align-items: center;
 }
 
+.modal-dialog {
+    margin: 1.75rem auto;
+    max-width: 500px;
+    width: 90%;
+}
+
+.modal-dialog.modal-lg {
+    max-width: 800px;
+}
+
 .modal-content {
     background: white;
     border-radius: var(--border-radius);
     box-shadow: var(--shadow-lg);
-    max-width: 500px;
-    width: 90%;
+    max-width: 100%;
+    width: 100%;
     max-height: 90vh;
     overflow-y: auto;
 }
@@ -682,6 +692,15 @@ body {
     display: flex;
     gap: 1rem;
     justify-content: flex-end;
+}
+
+/* 表单控件小尺寸样式 */
+.form-control-sm {
+    height: calc(1.5em + 0.5rem + 2px);
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    border-radius: 0.2rem;
 }
 
 /* 响应式设计 */

@@ -12,101 +12,7 @@
     padding: 20px;
 }
 
-/* 配置区域样式 */
-.config-section {
-    background: white;
-    border-radius: 12px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-    padding: 25px;
-    margin-bottom: 30px;
-}
 
-.config-section h3 {
-    color: #1e293b;
-    font-size: 1.25rem;
-    font-weight: 600;
-    margin-bottom: 25px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.config-section h3 i {
-    color: #2563eb;
-}
-
-.config-cards {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-    gap: 25px;
-    margin-bottom: 25px;
-}
-
-.config-card {
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
-    padding: 20px;
-    transition: all 0.3s ease;
-}
-
-.config-card:hover {
-    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-    transform: translateY(-2px);
-}
-
-.config-card h4 {
-    color: #334155;
-    font-size: 1.1rem;
-    font-weight: 600;
-    margin-bottom: 20px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.config-card h4 i {
-    color: #2563eb;
-    font-size: 1rem;
-}
-
-.ratio-inputs {
-    display: flex;
-    gap: 20px;
-    align-items: flex-end;
-}
-
-.form-group {
-    flex: 1;
-}
-
-.form-group label {
-    display: block;
-    color: #64748b;
-    font-size: 0.875rem;
-    font-weight: 500;
-    margin-bottom: 8px;
-}
-
-.form-group input {
-    width: 100%;
-    padding: 10px 15px;
-    border: 1px solid #e2e8f0;
-    border-radius: 6px;
-    font-size: 1rem;
-    transition: all 0.2s ease;
-    background: white;
-}
-
-.form-group input:focus {
-    outline: none;
-    border-color: #2563eb;
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
-}
-
-.form-group input[readonly] {
-    background: #f1f5f9;
-    cursor: not-allowed;
 }
 
 .btn-primary {
@@ -472,56 +378,7 @@
 </style>
 
 <div class="profit-container">
-    <!-- 利润分配配置 -->
-    <div class="config-section">
-        <h3><i class="fas fa-cog"></i> 利润分配配置</h3>
-        
-        <form id="profitConfigForm">
-            <div class="config-cards">
-                <!-- 正课利润分配 -->
-                <div class="config-card">
-                    <h4><i class="fas fa-graduation-cap"></i> 正课利润分配</h4>
-                    <div class="ratio-inputs">
-                        <div class="form-group">
-                            <label for="new_course_shareholder_a">股东A分配比例（%）</label>
-                            <input type="number" id="new_course_shareholder_a" name="new_course_shareholder_a" 
-                                   min="0" max="100" step="0.1" value="{{ profit_config.new_course_shareholder_a }}"
-                                   oninput="updateShareholderB('new_course')">
-                        </div>
-                        <div class="form-group">
-                            <label for="new_course_shareholder_b">股东B分配比例（%）</label>
-                            <input type="number" id="new_course_shareholder_b" name="new_course_shareholder_b" 
-                                   min="0" max="100" step="0.1" value="{{ profit_config.new_course_shareholder_b }}"
-                                   readonly>
-                        </div>
-                    </div>
-                </div>
 
-                <!-- 续课利润分配 -->
-                <div class="config-card">
-                    <h4><i class="fas fa-redo"></i> 续课利润分配</h4>
-                    <div class="ratio-inputs">
-                        <div class="form-group">
-                            <label for="renewal_shareholder_a">股东A分配比例（%）</label>
-                            <input type="number" id="renewal_shareholder_a" name="renewal_shareholder_a" 
-                                   min="0" max="100" step="0.1" value="{{ profit_config.renewal_shareholder_a }}"
-                                   oninput="updateShareholderB('renewal')">
-                        </div>
-                        <div class="form-group">
-                            <label for="renewal_shareholder_b">股东B分配比例（%）</label>
-                            <input type="number" id="renewal_shareholder_b" name="renewal_shareholder_b" 
-                                   min="0" max="100" step="0.1" value="{{ profit_config.renewal_shareholder_b }}"
-                                   readonly>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <button type="button" class="btn-primary" onclick="saveProfitConfig()">
-                <i class="fas fa-save"></i> 保存配置
-            </button>
-        </form>
-    </div>
 
     <!-- 利润报表 -->
     <div class="report-section">
@@ -752,34 +609,7 @@ function switchTab(tabId, button) {
     document.getElementById(tabId).classList.add('active');
 }
 
-// 更新股东B的比例
-function updateShareholderB(type) {
-    const shareholderA = parseFloat(document.getElementById(`${type}_shareholder_a`).value) || 0;
-    const shareholderB = 100 - shareholderA;
-    document.getElementById(`${type}_shareholder_b`).value = shareholderB.toFixed(1);
-}
 
-// 保存利润分配配置
-function saveProfitConfig() {
-    const formData = new FormData(document.getElementById('profitConfigForm'));
-    
-    fetch('/api/profit-config', {
-        method: 'POST',
-        body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            alert('配置保存成功！');
-            loadProfitReport(); // 重新加载报表
-        } else {
-            alert(data.message || '保存失败，请重试');
-        }
-    })
-    .catch(error => {
-        alert('保存失败：' + error.message);
-    });
-}
 
 // 切换时间段选择
 document.getElementById('reportPeriod').addEventListener('change', function() {

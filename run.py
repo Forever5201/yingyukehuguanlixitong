@@ -1,5 +1,5 @@
 from app import create_app, db
-from app.models import Config
+from app.models import Config, CourseRefund, CommissionConfig
 import os
 import sqlite3
 
@@ -46,6 +46,32 @@ def check_and_initialize_database():
                 except Exception as create_error:
                     print(f"创建数据库时出错: {create_error}")
                     raise
+
+        # 单独检查并创建缺失的 course_refund 表
+        try:
+            CourseRefund.query.first()
+        except Exception as e:
+            if "no such table" in str(e):
+                try:
+                    print("检测到缺失表 course_refund，正在创建...")
+                    CourseRefund.__table__.create(db.engine)
+                    print("✓ course_refund 表创建成功")
+                except Exception as ce:
+                    print(f"创建 course_refund 表失败: {ce}")
+                    raise
+        
+        # 单独检查并创建缺失的 commission_config 表
+        try:
+            CommissionConfig.query.first()
+        except Exception as e:
+            if "no such table" in str(e):
+                try:
+                    print("检测到缺失表 commission_config，正在创建...")
+                    CommissionConfig.__table__.create(db.engine)
+                    print("✓ commission_config 表创建成功")
+                except Exception as ce:
+                    print(f"创建 commission_config 表失败: {ce}")
+                    raise
     
     # 检查特定字段更新（保留原有逻辑）
     if os.path.exists(db_path):
@@ -62,6 +88,18 @@ def check_and_initialize_database():
                 cursor.execute("ALTER TABLE taobao_order ADD COLUMN taobao_fee FLOAT DEFAULT 0")
                 conn.commit()
                 print("数据库结构更新完成！")
+
+            # 检查 product_name 字段（刷单商品名称）
+            if columns and 'product_name' not in columns:
+                print("检测到数据库结构需要更新，添加 product_name 字段...")
+                cursor.execute("ALTER TABLE taobao_order ADD COLUMN product_name VARCHAR(100)")
+                conn.commit()
+                print("数据库结构更新完成！")
+            
+            # 兜底检查：如果 course_refund 表仍不存在，提示信息
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='course_refund'")
+            if cursor.fetchone() is None:
+                print("警告: 未检测到 course_refund 表。请运行迁移或重启后由自动创建逻辑处理。")
             
         except Exception as e:
             # 忽略表不存在的错误

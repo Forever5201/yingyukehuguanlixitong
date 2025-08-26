@@ -1,11 +1,9 @@
 from . import db
-from datetime import datetime, timezone
+from datetime import datetime
 
 class Employee(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), unique=True, nullable=False)
-    phone = db.Column(db.String(20))  # 联系电话
-    email = db.Column(db.String(100))  # 邮箱地址
 
 class Customer(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -17,7 +15,7 @@ class Customer(db.Model):
     source = db.Column(db.String(50)) # 渠道来源
     employee_id = db.Column(db.Integer, db.ForeignKey('employee.id'))
     has_tutoring_experience = db.Column(db.String(10)) # 是否参加过英语课外辅导
-    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     # 关系
     employee = db.relationship('Employee', backref='customers', lazy=True)
@@ -62,8 +60,8 @@ class Course(db.Model):
     custom_course_cost = db.Column(db.Float)  # 自定义正课单节成本
     
     # 时间信息
-    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
-    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # 关系
     assigned_employee = db.relationship('Employee', backref='assigned_courses', foreign_keys=[assigned_employee_id])
@@ -72,8 +70,6 @@ class TaobaoOrder(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100))
     level = db.Column(db.String(50))
-    # 刷单商品名称（来自系统配置，可为空以兼容历史数据）
-    product_name = db.Column(db.String(100))
     amount = db.Column(db.Float)
     commission = db.Column(db.Float)  # 佣金金额
     taobao_fee = db.Column(db.Float, default=0)  # 淘宝手续费
@@ -81,7 +77,7 @@ class TaobaoOrder(db.Model):
     order_time = db.Column(db.DateTime)
     settled = db.Column(db.Boolean, default=False)  # 结算状态
     settled_at = db.Column(db.DateTime)  # 结算时间
-    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 class Config(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -97,26 +93,8 @@ class CommissionConfig(db.Model):
     new_course_rate = db.Column(db.Float, default=0)  # 新课提成比例
     renewal_rate = db.Column(db.Float, default=0)  # 续课提成比例
     base_salary = db.Column(db.Float, default=0)  # 底薪
-    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
-    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # 关系
     employee = db.relationship('Employee', backref='commission_config', uselist=False)
-
-class CourseRefund(db.Model):
-    """课程退费记录表"""
-    id = db.Column(db.Integer, primary_key=True)
-    course_id = db.Column(db.Integer, db.ForeignKey('course.id'), nullable=False)
-    refund_sessions = db.Column(db.Integer, nullable=False)  # 退费节数
-    refund_amount = db.Column(db.Float, nullable=False)  # 退费金额
-    refund_reason = db.Column(db.String(200))  # 退费原因
-    refund_channel = db.Column(db.String(50))  # 退费渠道
-    refund_fee = db.Column(db.Float, default=0)  # 退费手续费
-    refund_date = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))  # 退费日期
-    status = db.Column(db.String(20), default='completed')  # 状态：completed/cancelled
-    operator_name = db.Column(db.String(100))  # 操作员姓名
-    remark = db.Column(db.Text)  # 备注
-    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
-    
-    # 关系
-    course = db.relationship('Course', backref='refunds', lazy=True)
