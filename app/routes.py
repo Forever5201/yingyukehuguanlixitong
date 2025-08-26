@@ -8,7 +8,7 @@ import os
 import json
 
 # 导入服务层
-from .services import RefundService, ProfitService, PerformanceService, TransactionService
+from .services import RefundService, ProfitService, PerformanceService, TransactionService, EnhancedProfitService
 
 # 创建主蓝图
 main_bp = Blueprint('main', __name__)
@@ -563,6 +563,41 @@ def get_profit_report():
         return jsonify(result)
         
     except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
+@main_bp.route('/api/comprehensive-profit-report')
+def get_comprehensive_profit_report():
+    """获取综合利润报表（包含刷单成本）"""
+    try:
+        period = request.args.get('period', 'month')
+        
+        # 确定时间范围
+        now = datetime.now()
+        if period == 'month':
+            start_date = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            end_date = now
+        elif period == 'quarter':
+            quarter = (now.month - 1) // 3
+            start_date = datetime(now.year, quarter * 3 + 1, 1)
+            end_date = now
+        elif period == 'year':
+            start_date = datetime(now.year, 1, 1)
+            end_date = now
+        else:  # custom
+            start_date = datetime.strptime(request.args.get('start_date'), '%Y-%m-%d')
+            end_date = datetime.strptime(request.args.get('end_date'), '%Y-%m-%d')
+        
+        # 使用增强服务生成综合利润报表
+        report = EnhancedProfitService.generate_comprehensive_profit_report(start_date, end_date)
+        
+        return jsonify({
+            'success': True,
+            'data': report
+        })
+        
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
         return jsonify({'success': False, 'message': str(e)})
 
 @main_bp.route('/config', methods=['GET', 'POST'])
