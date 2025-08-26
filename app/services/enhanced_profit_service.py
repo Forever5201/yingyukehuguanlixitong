@@ -141,10 +141,12 @@ class EnhancedProfitService(ProfitService):
             )
             
             # 计算需要分担的额外成本（试听课亏损、刷单成本、员工成本等）
-            trial_loss = -base_report['profit_by_type'].get('trial', 0)  # 试听课通常是亏损的
+            trial_profit = base_report.get('profit_by_type', {}).get('trial', 0)
+            trial_loss = -trial_profit if trial_profit < 0 else 0  # 只有亏损时才计入成本
+            
             additional_costs = (
                 trial_loss +
-                taobao_cost['total_cost'] +  # 刷单佣金和手续费（不含刷单金额，因为已在收入中抵消）
+                taobao_cost['total_cost'] +  # 刷单佣金和手续费
                 employee_cost['total_cost']   # 员工成本
             )
             

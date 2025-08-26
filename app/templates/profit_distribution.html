@@ -492,17 +492,18 @@ function loadReport() {
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('加载报表失败');
+            alert('加载报表失败: ' + error.message);
             loading.style.display = 'none';
         });
 }
 
 // 显示报表数据
 function displayReport(report) {
-    // 概览卡片
-    document.getElementById('totalRevenue').textContent = formatCurrency(report.revenue.total_revenue);
-    document.getElementById('courseRevenue').textContent = formatCurrency(report.revenue.course_revenue);
-    document.getElementById('taobaoRevenue').textContent = '¥0';
+    try {
+        // 概览卡片
+        document.getElementById('totalRevenue').textContent = formatCurrency(report.revenue.total_revenue);
+        document.getElementById('courseRevenue').textContent = formatCurrency(report.revenue.course_revenue);
+        document.getElementById('taobaoRevenue').textContent = '¥0';
     
     document.getElementById('totalCost').textContent = formatCurrency(report.cost.total_cost);
     document.getElementById('courseCost').textContent = formatCurrency(report.cost.course_cost);
@@ -536,6 +537,11 @@ function displayReport(report) {
     document.getElementById('shareholderAProfit').textContent = formatCurrency(report.shareholder_distribution.shareholder_a_net_profit);
     document.getElementById('shareholderBProfit').textContent = formatCurrency(report.shareholder_distribution.shareholder_b_net_profit);
     document.getElementById('totalDistributed').textContent = formatCurrency(report.shareholder_distribution.total_distributed);
+    } catch (error) {
+        console.error('显示报表时出错:', error);
+        console.error('报表数据:', report);
+        alert('显示报表时出错: ' + error.message);
+    }
 }
 
 // 格式化货币

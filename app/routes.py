@@ -597,8 +597,14 @@ def get_comprehensive_profit_report():
         
     except Exception as e:
         import traceback
-        traceback.print_exc()
-        return jsonify({'success': False, 'message': str(e)})
+        error_details = traceback.format_exc()
+        print("API错误详情:", error_details)  # 打印到控制台
+        return jsonify({
+            'success': False, 
+            'message': str(e),
+            'error_type': type(e).__name__,
+            'traceback': error_details  # 只在开发环境返回
+        })
 
 @main_bp.route('/config', methods=['GET', 'POST'])
 def manage_config():
