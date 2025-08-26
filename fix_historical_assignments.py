@@ -13,8 +13,12 @@ def analyze_inconsistencies():
     with app.app_context():
         print("=== 分析员工分配不一致情况 ===\n")
         
-        # 查找所有已转化的试听课
-        trial_courses = Course.query.filter(
+        # 查找所有已转化的试听课（使用join预加载关联数据）
+        from sqlalchemy.orm import joinedload
+        trial_courses = Course.query.options(
+            joinedload(Course.customer),
+            joinedload(Course.assigned_employee)
+        ).filter(
             Course.is_trial == True,
             Course.converted_to_course != None
         ).all()
@@ -26,21 +30,26 @@ def analyze_inconsistencies():
         }
         
         for trial in trial_courses:
-            formal = Course.query.get(trial.converted_to_course)
+            # 使用 db.session.get 替代 query.get
+            formal = db.session.get(Course, trial.converted_to_course)
             if not formal:
                 continue
+            
+            # 确保formal的关联数据也被加载
+            if formal.assigned_employee_id and not formal.assigned_employee:
+                formal.assigned_employee = db.session.get(Employee, formal.assigned_employee_id)
             
             if trial.assigned_employee_id is None and formal.assigned_employee_id is not None:
                 inconsistencies['trial_null_formal_assigned'].append({
                     'trial': trial,
                     'formal': formal,
-                    'formal_employee': formal.assigned_employee.name
+                    'formal_employee': formal.assigned_employee.name if formal.assigned_employee else "员工ID:" + str(formal.assigned_employee_id)
                 })
             elif trial.assigned_employee_id is not None and formal.assigned_employee_id is None:
                 inconsistencies['trial_assigned_formal_null'].append({
                     'trial': trial,
                     'formal': formal,
-                    'trial_employee': trial.assigned_employee.name
+                    'trial_employee': trial.assigned_employee.name if trial.assigned_employee else "员工ID:" + str(trial.assigned_employee_id)
                 })
             elif (trial.assigned_employee_id is not None and 
                   formal.assigned_employee_id is not None and 
@@ -48,8 +57,8 @@ def analyze_inconsistencies():
                 inconsistencies['different_employees'].append({
                     'trial': trial,
                     'formal': formal,
-                    'trial_employee': trial.assigned_employee.name,
-                    'formal_employee': formal.assigned_employee.name
+                    'trial_employee': trial.assigned_employee.name if trial.assigned_employee else "员工ID:" + str(trial.assigned_employee_id),
+                    'formal_employee': formal.assigned_employee.name if formal.assigned_employee else "员工ID:" + str(formal.assigned_employee_id)
                 })
         
         # 显示统计
