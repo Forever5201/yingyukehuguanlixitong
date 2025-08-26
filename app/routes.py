@@ -7,6 +7,9 @@ import pandas as pd
 import os
 import json
 
+# 导入服务层
+from .services import RefundService, ProfitService, PerformanceService, TransactionService
+
 # 创建主蓝图
 main_bp = Blueprint('main', __name__)
 
@@ -208,120 +211,48 @@ def employee_performance():
 
 @main_bp.route('/api/employees/<int:employee_id>/performance')
 def get_employee_performance(employee_id):
-    """获取员工业绩详情"""
+    """获取员工业绩详情 - 优化版，使用PerformanceService"""
     try:
-        employee = Employee.query.get(employee_id)
-        if not employee:
-            return jsonify({'success': False, 'message': '员工不存在'}), 404
+        # 获取查询参数
+        period = request.args.get('period', 'all')
         
-        # 获取试听课记录
-        trial_courses = Course.query.filter_by(
-            assigned_employee_id=employee_id,
-            is_trial=True
-        ).order_by(Course.created_at.desc()).all()
+        # 根据期间计算日期范围
+        from datetime import datetime
+        now = datetime.now()
+        start_date = None
+        end_date = None
         
-        # 获取正课记录 - 只显示试听课和正课都分配给该员工的记录
-        # 这样可以确保业务逻辑的一致性：正课都是从试听课转化来的
-        formal_courses = []
-        for trial_course in trial_courses:
-            if trial_course.converted_to_course:
-                # 查找对应的正课
-                formal_course = Course.query.get(trial_course.converted_to_course)
-                if formal_course and formal_course.assigned_employee_id == employee_id:
-                    formal_courses.append(formal_course)
+        if period == 'current_month':
+            start_date = now.replace(day=1, hour=0, minute=0, second=0)
+            end_date = now
+        elif period == 'last_month':
+            start_date = (now.replace(day=1) - timedelta(days=1)).replace(day=1)
+            end_date = now.replace(day=1) - timedelta(days=1)
         
-        # 按创建时间排序
-        formal_courses.sort(key=lambda x: x.created_at, reverse=True)
+        # 使用服务层获取业绩数据
+        performance = PerformanceService.calculate_employee_performance(
+            employee_id, start_date, end_date
+        )
         
-        # 计算统计数据
-        trial_count = len(trial_courses)
-        converted_count = sum(1 for c in trial_courses if c.converted_to_course)
-        conversion_rate = (converted_count / trial_count * 100) if trial_count > 0 else 0
-        
-        # 计算总业绩
-        total_revenue = sum(c.sessions * c.price for c in formal_courses)
-        
-        # 获取提成配置
-        config = CommissionConfig.query.filter_by(employee_id=employee_id).first()
-        if not config:
-            config = CommissionConfig(
-                employee_id=employee_id,
-                commission_type='profit',
-                trial_rate=0,
-                new_course_rate=0,
-                renewal_rate=0,
-                base_salary=0
-            )
-        
-        # 计算提成
-        trial_commission = 0  # 试听课不参与提成
-        new_course_commission = 0
-        renewal_commission = 0
-        
-        # 正课提成（新客和续课）
-        for course in formal_courses:
-            # 使用新的利润计算函数（包含退费）
-            profit_info = calculate_course_profit_with_refund(course)
-            
-            # 计算利润或销售额
-            if config.commission_type == 'profit':
-                # 利润型提成
-                base_amount = profit_info['profit']
-            else:
-                # 销售额提成
-                base_amount = profit_info['revenue']
-            
-            # 根据课程类型计算提成
-            if course.is_renewal:
-                renewal_commission += base_amount * (config.renewal_rate / 100)
-            else:
-                new_course_commission += base_amount * (config.new_course_rate / 100)
-        
-        # 总提成和薪资
-        total_commission = new_course_commission + renewal_commission  # 不包含试听课提成
-        total_salary = config.base_salary + total_commission
-        
-        # 构建返回数据
+        # 格式化返回数据以兼容现有前端
         result = {
             'success': True,
-            'employee_name': employee.name,
+            'employee_name': performance['employee']['name'],
             'stats': {
-                'trial_count': trial_count,
-                'converted_count': converted_count,
-                'conversion_rate': conversion_rate,
-                'total_revenue': total_revenue
+                'trial_count': performance['trial_courses']['count'],
+                'converted_count': performance['trial_courses']['converted'],
+                'conversion_rate': performance['trial_courses']['conversion_rate'],
+                'total_revenue': performance['total_revenue']
             },
-            'trial_courses': [{
-                'customer_name': c.customer.name,
-                'trial_price': c.trial_price,
-                'trial_status': c.trial_status,
-                'created_at': c.created_at.strftime('%Y-%m-%d'),
-                'is_converted': bool(c.converted_to_course)
-            } for c in trial_courses],
-            'formal_courses': [{
-                'customer_name': c.customer.name,
-                'course_type': c.course_type,
-                'sessions': c.sessions,
-                'total_amount': (profit_info := calculate_course_profit_with_refund(c))['revenue'],  # 使用退费后的实际收入
-                'profit': profit_info['profit'],  # 使用退费后的利润
-                'has_refund': profit_info['has_refund'],
-                'is_renewal': c.is_renewal,
-                'created_at': c.created_at.strftime('%Y-%m-%d')
-            } for c in formal_courses],
-            'commission': {
-                'trial_commission': trial_commission,
-                'new_course_commission': new_course_commission,
-                'renewal_commission': renewal_commission,
-                'total_commission': total_commission,
-                'base_salary': config.base_salary,
-                'total_salary': total_salary
-            }
+            'commission': performance['commission']
         }
         
         return jsonify(result)
         
+    except ValueError as e:
+        return jsonify({'success': False, 'message': str(e)}), 404
     except Exception as e:
-        return jsonify({'success': False, 'message': str(e)})
+        return jsonify({'success': False, 'message': '获取业绩数据失败'}), 500
 
 def calculate_course_profit(course):
     """计算课程利润"""
@@ -518,7 +449,7 @@ def save_profit_config():
 
 @main_bp.route('/api/profit-report')
 def get_profit_report():
-    """获取利润分配报表"""
+    """获取利润分配报表 - 优化版，使用ProfitService"""
     try:
         period = request.args.get('period', 'month')
         
@@ -538,133 +469,29 @@ def get_profit_report():
             start_date = datetime.strptime(request.args.get('start_date'), '%Y-%m-%d')
             end_date = datetime.strptime(request.args.get('end_date'), '%Y-%m-%d')
         
-        # 获取利润分配配置
+        # 使用服务层生成利润报表
+        report = ProfitService.generate_profit_report(start_date, end_date)
+        
+        # 获取利润分配配置（用于兼容现有前端）
         profit_config = {
-            'new_course_shareholder_a': 50,
-            'new_course_shareholder_b': 50,
-            'renewal_shareholder_a': 40,
-            'renewal_shareholder_b': 60
+            'new_course_shareholder_a': report['shareholder_distribution']['new_course']['ratio_a'],
+            'new_course_shareholder_b': report['shareholder_distribution']['new_course']['ratio_b'],
+            'renewal_shareholder_a': report['shareholder_distribution']['renewal']['ratio_a'],
+            'renewal_shareholder_b': report['shareholder_distribution']['renewal']['ratio_b']
         }
         
-        configs = Config.query.filter(Config.key.in_(profit_config.keys())).all()
-        for config in configs:
-            profit_config[config.key] = float(config.value)
-        
-        # 获取正课数据（非续课）
-        new_courses = Course.query.filter(
-            Course.is_trial == False,
-            Course.is_renewal == False,
-            Course.created_at >= start_date,
-            Course.created_at <= end_date
-        ).all()
-        
-        # 获取续课数据
-        renewal_courses = Course.query.filter(
-            Course.is_trial == False,
-            Course.is_renewal == True,
-            Course.created_at >= start_date,
-            Course.created_at <= end_date
-        ).all()
-        
-        # 计算正课数据
-        new_course_data = []
-        new_course_profit_total = 0
-        
-        for course in new_courses:
-            # 使用新的利润计算函数（包含退费）
-            profit_info = calculate_course_profit_with_refund(course)
-            
-            revenue = profit_info['revenue']
-            cost = profit_info['cost']
-            profit = profit_info['profit']
-            
-            new_course_profit_total += profit
-            
-            shareholder_a = profit * profit_config['new_course_shareholder_a'] / 100
-            shareholder_b = profit * profit_config['new_course_shareholder_b'] / 100
-            
-            new_course_data.append({
-                'customer_name': course.customer.name,
-                'course_type': course.course_type,
-                'revenue': revenue,
-                'cost': cost,
-                'profit': profit,
-                'has_refund': profit_info['has_refund'],
-                'refund_amount': profit_info.get('refund_info', {}).get('amount', 0),
-                'shareholder_a': shareholder_a,
-                'shareholder_b': shareholder_b,
-                'date': course.created_at.strftime('%Y-%m-%d')
-            })
-        
-        # 计算续课数据
-        renewal_data = []
-        renewal_profit_total = 0
-        
-        for course in renewal_courses:
-            # 使用新的利润计算函数（包含退费）
-            profit_info = calculate_course_profit_with_refund(course)
-            
-            # 处理续课优惠
-            discount = 0
-            if course.meta:
-                try:
-                    meta_data = json.loads(course.meta)
-                    discount = meta_data.get('discount_amount', 0)
-                except:
-                    pass
-            
-            # 调整收入（减去优惠）
-            revenue = profit_info['revenue'] - discount
-            cost = profit_info['cost']
-            profit = revenue - cost
-            
-            renewal_profit_total += profit
-            
-            shareholder_a = profit * profit_config['renewal_shareholder_a'] / 100
-            shareholder_b = profit * profit_config['renewal_shareholder_b'] / 100
-            
-            renewal_data.append({
-                'customer_name': course.customer.name,
-                'course_type': course.course_type,
-                'revenue': revenue,
-                'cost': cost,
-                'profit': profit,
-                'has_refund': profit_info['has_refund'],
-                'refund_amount': profit_info.get('refund_info', {}).get('amount', 0),
-                'shareholder_a': shareholder_a,
-                'shareholder_b': shareholder_b,
-                'date': course.created_at.strftime('%Y-%m-%d')
-            })
-        
-        # 计算汇总数据
-        total_revenue = sum(c['revenue'] for c in new_course_data + renewal_data)
-        total_cost = sum(c['cost'] for c in new_course_data + renewal_data)
-        total_profit = new_course_profit_total + renewal_profit_total
-        
-        new_course_shareholder_a = new_course_profit_total * profit_config['new_course_shareholder_a'] / 100
-        new_course_shareholder_b = new_course_profit_total * profit_config['new_course_shareholder_b'] / 100
-        renewal_shareholder_a = renewal_profit_total * profit_config['renewal_shareholder_a'] / 100
-        renewal_shareholder_b = renewal_profit_total * profit_config['renewal_shareholder_b'] / 100
-        
+        # 格式化结果以兼容现有前端
         result = {
             'success': True,
             'config': profit_config,
-            'new_courses': new_course_data,
-            'renewal_courses': renewal_data,
-            'summary': {
-                'total_revenue': total_revenue,
-                'total_cost': total_cost,
-                'total_profit': total_profit,
-                'shareholder_a_total': new_course_shareholder_a + renewal_shareholder_a,
-                'shareholder_b_total': new_course_shareholder_b + renewal_shareholder_b
-            },
+            'summary': report['summary'],
             'distribution': {
-                'new_course_profit': new_course_profit_total,
-                'new_course_shareholder_a': new_course_shareholder_a,
-                'new_course_shareholder_b': new_course_shareholder_b,
-                'renewal_profit': renewal_profit_total,
-                'renewal_shareholder_a': renewal_shareholder_a,
-                'renewal_shareholder_b': renewal_shareholder_b
+                'new_course_profit': report['profit_by_type']['new_course'],
+                'new_course_shareholder_a': report['shareholder_distribution']['new_course']['shareholder_a'],
+                'new_course_shareholder_b': report['shareholder_distribution']['new_course']['shareholder_b'],
+                'renewal_profit': report['profit_by_type']['renewal'],
+                'renewal_shareholder_a': report['shareholder_distribution']['renewal']['shareholder_a'],
+                'renewal_shareholder_b': report['shareholder_distribution']['renewal']['shareholder_b']
             }
         }
         
@@ -1730,139 +1557,89 @@ def create_employee():
 
 @main_bp.route('/api/courses/<int:course_id>/refund-info', methods=['GET'])
 def get_refund_info(course_id):
-    """获取课程的可退费信息"""
+    """获取课程的可退费信息 - 优化版，使用RefundService"""
     try:
         course = Course.query.get(course_id)
         if not course or course.is_trial:
             return jsonify({'success': False, 'message': '课程不存在或不是正课'}), 404
         
-        # 计算可退费信息
-        refundable_sessions = calculate_refundable_sessions(course)
+        # 使用服务层计算退费信息
+        refund_calc = RefundService.calculate_refund_amount(course_id, 0)
         
         # 获取退费历史
-        refund_history = CourseRefund.query.filter_by(
-            course_id=course_id,
-            status='completed'
-        ).order_by(CourseRefund.refund_date.desc()).all()
+        refund_history = RefundService.get_refund_history(course_id)
         
-        # 计算已退费统计
-        total_refunded_sessions = sum(safe_int(r.refund_sessions, 0) for r in refund_history)
-        total_refunded_amount = sum(safe_float(r.refund_amount, 0) for r in refund_history)
-        total_refunded_fees = sum(safe_float(r.refund_fee, 0) for r in refund_history)
+        # 计算已退费手续费总额
+        total_refunded_fees = sum(r.get('refund_fee', 0) for r in refund_history)
         
         return jsonify({
             'success': True,
             'refund_summary': {
-                'total_refunded_sessions': total_refunded_sessions,
-                'total_refunded_amount': total_refunded_amount,
+                'total_refunded_sessions': refund_calc['total_refunded_sessions'],
+                'total_refunded_amount': refund_calc['total_refunded_amount'],
                 'total_refunded_fees': total_refunded_fees,
-                'refundable_sessions': refundable_sessions,
-                'unit_price': safe_float(course.price, 0)
+                'refundable_sessions': refund_calc['remaining_sessions'],
+                'unit_price': refund_calc['unit_price']
             },
-            'refund_history': [{
-                'id': r.id,
-                'refund_sessions': safe_int(r.refund_sessions, 0),
-                'refund_amount': safe_float(r.refund_amount, 0),
-                'refund_reason': r.refund_reason or '',
-                'refund_channel': r.refund_channel or '',
-                'refund_fee': safe_float(r.refund_fee, 0),
-                'refund_date': (r.refund_date.strftime('%Y-%m-%d %H:%M:%S') if r.refund_date else None),
-                'status': r.status,
-                'operator_name': r.operator_name or '',
-                'remark': r.remark or ''
-            } for r in refund_history]
+            'refund_history': refund_history
         })
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
 
 @main_bp.route('/api/courses/<int:course_id>/refund', methods=['POST'])
 def apply_course_refund(course_id):
-    """申请正课退费"""
+    """申请正课退费 - 优化版，使用RefundService"""
     try:
-        # 获取课程
-        course = Course.query.get(course_id)
-        if not course or course.is_trial:
-            return jsonify({'success': False, 'message': '课程不存在或不是正课'}), 404
-        
         # 获取请求数据
         data = request.get_json()
-        refund_sessions = int(data.get('refund_sessions', 0))
-        refund_reason = data.get('refund_reason', '')
-        refund_channel = data.get('refund_channel', '原路退回')
-        refund_fee = float(data.get('refund_fee', 0))
-        remark = data.get('remark', '')
         
-        # 验证退费节数
-        refundable_sessions = calculate_refundable_sessions(course)
+        # 准备退费数据
+        refund_data = {
+            'refund_sessions': int(data.get('refund_sessions', 0)),
+            'refund_reason': data.get('refund_reason', ''),
+            'refund_channel': data.get('refund_channel', '原路退回'),
+            'refund_fee': float(data.get('refund_fee', 0)),
+            'remark': data.get('remark', ''),
+            'operator_name': session.get('user_name', 'System')
+        }
         
-        if refund_sessions <= 0 or refund_sessions > refundable_sessions:
-            return jsonify({
-                'success': False, 
-                'message': f'退费节数无效，可退费节数为{refundable_sessions}'
-            }), 400
+        # 使用服务层处理退费（自带事务管理）
+        success, message, refund = RefundService.process_refund(course_id, refund_data)
         
-        # 计算退费金额
-        refund_amount = refund_sessions * course.price
+        if not success:
+            return jsonify({'success': False, 'message': message}), 400
         
-        # 使用数据库事务
-        try:
-            # 创建退费记录
-            refund = CourseRefund(
-                course_id=course_id,
-                refund_sessions=refund_sessions,
-                refund_amount=refund_amount,
-                refund_reason=refund_reason,
-                refund_channel=refund_channel,
-                refund_fee=refund_fee,
-                refund_date=datetime.now(),
-                status='completed',
-                operator_name=session.get('user_name', 'System'),
-                remark=remark
-            )
-            
-            db.session.add(refund)
-            db.session.commit()
-            
-            return jsonify({
-                'success': True,
-                'data': {
-                    'refund_id': refund.id,
-                    'refund_amount': refund_amount,
-                    'actual_refund': refund_amount - refund_fee,
-                    'remaining_sessions': refundable_sessions - refund_sessions
-                }
-            })
-            
-        except Exception as e:
-            db.session.rollback()
-            return jsonify({'success': False, 'message': '数据库操作失败'}), 500
+        # 计算剩余信息
+        refund_calc = RefundService.calculate_refund_amount(course_id, 0)
+        
+        return jsonify({
+            'success': True,
+            'message': message,
+            'data': {
+                'refund_id': refund.id,
+                'refund_amount': refund.refund_amount,
+                'actual_refund': refund.refund_amount - refund.refund_fee,
+                'remaining_sessions': refund_calc['remaining_sessions']
+            }
+        })
             
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
 
 @main_bp.route('/api/courses/<int:course_id>/refund-history', methods=['GET'])
 def get_refund_history(course_id):
-    """获取课程退费历史"""
+    """获取课程退费历史 - 优化版，使用RefundService"""
     try:
-        refunds = CourseRefund.query.filter_by(
-            course_id=course_id
-        ).order_by(CourseRefund.refund_date.desc()).all()
+        # 直接使用服务层获取格式化的历史记录
+        refund_history = RefundService.get_refund_history(course_id)
+        
+        # 添加实际退费金额字段（为了兼容前端）
+        for refund in refund_history:
+            refund['actual_refund'] = refund['refund_amount'] - refund['refund_fee']
         
         return jsonify({
             'success': True,
-            'refunds': [{
-                'id': r.id,
-                'refund_sessions': r.refund_sessions,
-                'refund_amount': r.refund_amount,
-                'refund_reason': r.refund_reason,
-                'refund_channel': r.refund_channel,
-                'refund_fee': r.refund_fee,
-                'actual_refund': r.refund_amount - r.refund_fee,
-                'refund_date': r.refund_date.strftime('%Y-%m-%d %H:%M:%S'),
-                'status': r.status,
-                'operator_name': r.operator_name,
-                'remark': r.remark
-            } for r in refunds]
+            'refunds': refund_history
         })
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500

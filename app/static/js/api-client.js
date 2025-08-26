@@ -1,287 +1,218 @@
 /**
- * 统一的API客户端
- * 
- * 实现正规软件开发规范中的前端架构原则：
- * 1. 统一的错误处理
- * 2. 一致的请求格式
- * 3. 标准化的响应处理
- * 4. 可复用的HTTP客户端
+ * 统一的 API 客户端
+ * 提供标准化的 API 调用方法，包含错误处理、加载状态管理等
  */
 
-class ApiClient {
-    constructor(baseUrl = '/api/v1') {
-        this.baseUrl = baseUrl;
-        this.defaultHeaders = {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-        };
-    }
+const ApiClient = {
+    // 基础配置
+    baseURL: '/api',
+    defaultHeaders: {
+        'Content-Type': 'application/json',
+    },
 
     /**
-     * 统一的HTTP请求方法
-     * @param {string} url - 请求URL
-     * @param {Object} options - 请求选项
-     * @returns {Promise<Object>} 响应数据
+     * 发送 HTTP 请求的核心方法
      */
     async request(url, options = {}) {
+        const fullURL = url.startsWith('http') ? url : `${this.baseURL}${url}`;
+        
         const config = {
-            headers: { ...this.defaultHeaders, ...options.headers },
-            ...options
+            ...options,
+            headers: {
+                ...this.defaultHeaders,
+                ...options.headers,
+            },
         };
 
         try {
-            const response = await fetch(`${this.baseUrl}${url}`, config);
-            const data = await response.json();
-
+            const response = await fetch(fullURL, config);
+            
+            // 处理响应
             if (!response.ok) {
-                throw new ApiError(data.message || '请求失败', response.status, data);
+                const error = await response.json();
+                throw new Error(error.message || `HTTP error! status: ${response.status}`);
             }
-
-            return data;
+            
+            return await response.json();
         } catch (error) {
-            if (error instanceof ApiError) {
-                throw error;
-            }
-            throw new ApiError('网络请求失败', 0, { originalError: error.message });
+            console.error('API request failed:', error);
+            throw error;
         }
-    }
+    },
 
     /**
-     * GET请求
-     * @param {string} url - 请求URL
-     * @param {Object} params - 查询参数
-     * @returns {Promise<Object>} 响应数据
+     * GET 请求
      */
     async get(url, params = {}) {
         const queryString = new URLSearchParams(params).toString();
-        const fullUrl = queryString ? `${url}?${queryString}` : url;
+        const fullURL = queryString ? `${url}?${queryString}` : url;
         
-        return this.request(fullUrl, {
-            method: 'GET'
+        return this.request(fullURL, {
+            method: 'GET',
         });
-    }
+    },
 
     /**
-     * POST请求
-     * @param {string} url - 请求URL
-     * @param {Object} data - 请求体数据
-     * @returns {Promise<Object>} 响应数据
+     * POST 请求
      */
     async post(url, data = {}) {
         return this.request(url, {
             method: 'POST',
-            body: JSON.stringify(data)
+            body: JSON.stringify(data),
         });
-    }
+    },
 
     /**
-     * PUT请求
-     * @param {string} url - 请求URL
-     * @param {Object} data - 请求体数据
-     * @returns {Promise<Object>} 响应数据
+     * PUT 请求
      */
     async put(url, data = {}) {
         return this.request(url, {
             method: 'PUT',
-            body: JSON.stringify(data)
+            body: JSON.stringify(data),
         });
-    }
+    },
 
     /**
-     * DELETE请求
-     * @param {string} url - 请求URL
-     * @returns {Promise<Object>} 响应数据
+     * DELETE 请求
      */
     async delete(url) {
         return this.request(url, {
-            method: 'DELETE'
+            method: 'DELETE',
+        });
+    },
+
+    /**
+     * PATCH 请求
+     */
+    async patch(url, data = {}) {
+        return this.request(url, {
+            method: 'PATCH',
+            body: JSON.stringify(data),
         });
     }
-}
-
-/**
- * API错误类
- */
-class ApiError extends Error {
-    constructor(message, status, details = null) {
-        super(message);
-        this.name = 'ApiError';
-        this.status = status;
-        this.details = details;
-    }
-}
-
-/**
- * 课程API服务
- */
-class CourseApiService {
-    constructor() {
-        this.client = new ApiClient();
-    }
-
-    /**
-     * 获取课程列表
-     * @param {Object} filters - 过滤条件
-     * @returns {Promise<Object>} 课程数据
-     */
-    async getCourses(filters = {}) {
-        try {
-            const response = await this.client.get('/courses', filters);
-            return response.data;
-        } catch (error) {
-            console.error('获取课程列表失败:', error);
-            throw error;
-        }
-    }
-
-
-
-    /**
-     * 获取状态映射
-     * @returns {Promise<Object>} 状态映射
-     */
-    async getStatusMapping() {
-        try {
-            const response = await this.client.get('/courses/status-mapping');
-            return response.data;
-        } catch (error) {
-            console.error('获取状态映射失败:', error);
-            throw error;
-        }
-    }
-}
-
-/**
- * 统一的错误处理器
- */
-class ErrorHandler {
-    /**
-     * 显示错误消息
-     * @param {Error|ApiError} error - 错误对象
-     * @param {string} defaultMessage - 默认错误消息
-     */
-    static showError(error, defaultMessage = '操作失败') {
-        let message = defaultMessage;
-        
-        if (error instanceof ApiError) {
-            message = error.message;
-            
-            // 根据状态码显示不同的错误信息
-            switch (error.status) {
-                case 400:
-                    message = `请求参数错误: ${error.message}`;
-                    break;
-                case 401:
-                    message = '未授权访问，请重新登录';
-                    break;
-                case 403:
-                    message = '权限不足';
-                    break;
-                case 404:
-                    message = '请求的资源不存在';
-                    break;
-                case 500:
-                    message = '服务器内部错误，请稍后重试';
-                    break;
-            }
-        } else if (error.message) {
-            message = error.message;
-        }
-
-        // 显示错误消息（可以根据UI框架调整）
-        if (typeof showToast === 'function') {
-            showToast(message, 'error');
-        } else if (typeof alert === 'function') {
-            alert(message);
-        } else {
-            console.error(message);
-        }
-    }
-
-    /**
-     * 显示成功消息
-     * @param {string} message - 成功消息
-     */
-    static showSuccess(message) {
-        if (typeof showToast === 'function') {
-            showToast(message, 'success');
-        } else {
-            console.log(message);
-        }
-    }
-}
+};
 
 /**
  * 加载状态管理器
  */
-class LoadingManager {
-    constructor() {
-        this.loadingStates = new Map();
-    }
+const LoadingManager = {
+    show(elementId = 'loading') {
+        const element = document.getElementById(elementId);
+        if (element) {
+            element.style.display = 'block';
+        }
+    },
+
+    hide(elementId = 'loading') {
+        const element = document.getElementById(elementId);
+        if (element) {
+            element.style.display = 'none';
+        }
+    },
 
     /**
-     * 设置加载状态
-     * @param {string} key - 加载状态键
-     * @param {boolean} isLoading - 是否加载中
+     * 带加载状态的异步操作包装器
      */
-    setLoading(key, isLoading) {
-        this.loadingStates.set(key, isLoading);
-        this.updateUI(key, isLoading);
+    async withLoading(asyncFn, elementId = 'loading') {
+        try {
+            this.show(elementId);
+            return await asyncFn();
+        } finally {
+            this.hide(elementId);
+        }
     }
+};
 
-    /**
-     * 获取加载状态
-     * @param {string} key - 加载状态键
-     * @returns {boolean} 是否加载中
-     */
-    isLoading(key) {
-        return this.loadingStates.get(key) || false;
+/**
+ * 通知管理器
+ */
+const NotificationManager = {
+    show(message, type = 'info', duration = 3000) {
+        // 创建通知元素
+        const notification = document.createElement('div');
+        notification.className = `notification notification-${type}`;
+        notification.textContent = message;
+        
+        // 添加到页面
+        document.body.appendChild(notification);
+        
+        // 显示动画
+        setTimeout(() => {
+            notification.classList.add('show');
+        }, 10);
+        
+        // 自动隐藏
+        setTimeout(() => {
+            notification.classList.remove('show');
+            setTimeout(() => {
+                document.body.removeChild(notification);
+            }, 300);
+        }, duration);
+    },
+
+    success(message) {
+        this.show(message, 'success');
+    },
+
+    error(message) {
+        this.show(message, 'error');
+    },
+
+    warning(message) {
+        this.show(message, 'warning');
+    },
+
+    info(message) {
+        this.show(message, 'info');
     }
+};
 
-    /**
-     * 更新UI加载状态
-     * @param {string} key - 加载状态键
-     * @param {boolean} isLoading - 是否加载中
-     */
-    updateUI(key, isLoading) {
-        // 查找对应的按钮或元素
-        const button = document.querySelector(`[data-loading-key="${key}"]`);
-        if (button) {
-            button.disabled = isLoading;
+/**
+ * 表单验证工具
+ */
+const FormValidator = {
+    rules: {
+        required: (value) => value !== '' && value !== null && value !== undefined,
+        email: (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value),
+        phone: (value) => /^1[3-9]\d{9}$/.test(value),
+        number: (value) => !isNaN(value) && isFinite(value),
+        minLength: (min) => (value) => value.length >= min,
+        maxLength: (max) => (value) => value.length <= max,
+        min: (min) => (value) => Number(value) >= min,
+        max: (max) => (value) => Number(value) <= max,
+    },
+
+    validate(formData, rules) {
+        const errors = {};
+        
+        for (const [field, fieldRules] of Object.entries(rules)) {
+            const value = formData[field];
             
-            if (isLoading) {
-                button.classList.add('loading');
-                const originalText = button.textContent;
-                button.dataset.originalText = originalText;
-                button.textContent = '加载中...';
-            } else {
-                button.classList.remove('loading');
-                if (button.dataset.originalText) {
-                    button.textContent = button.dataset.originalText;
+            for (const rule of fieldRules) {
+                if (typeof rule === 'function') {
+                    if (!rule(value)) {
+                        errors[field] = '验证失败';
+                        break;
+                    }
+                } else if (typeof rule === 'object') {
+                    const { validator, message } = rule;
+                    if (!validator(value)) {
+                        errors[field] = message;
+                        break;
+                    }
                 }
             }
         }
-
-        // 查找对应的加载指示器
-        const loader = document.querySelector(`[data-loader-key="${key}"]`);
-        if (loader) {
-            loader.style.display = isLoading ? 'block' : 'none';
-        }
+        
+        return {
+            isValid: Object.keys(errors).length === 0,
+            errors
+        };
     }
-}
+};
 
-// 创建全局实例
-window.courseApiService = new CourseApiService();
-window.errorHandler = ErrorHandler;
-window.loadingManager = new LoadingManager();
-
-// 导出类（如果使用模块系统）
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = {
-        ApiClient,
-        ApiError,
-        CourseApiService,
-        ErrorHandler,
-        LoadingManager
-    };
-}
+// 导出到全局
+window.ApiClient = ApiClient;
+window.LoadingManager = LoadingManager;
+window.NotificationManager = NotificationManager;
+window.FormValidator = FormValidator;
