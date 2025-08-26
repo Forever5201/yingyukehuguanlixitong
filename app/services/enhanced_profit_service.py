@@ -281,19 +281,15 @@ class EnhancedProfitService(ProfitService):
                         fee_rate = cls.safe_float(course.snapshot_fee_rate, 0.006)
                         total_fee += revenue * fee_rate
                 
-                # 计算退费（修正公式）
+                # 计算退费
                 if course.refunds:
                     for refund in course.refunds:
-                        # 退费金额 = 退费节数 × 课程售价 - 退费手续费
-                        refund_sessions = cls.safe_float(refund.refund_sessions, 0)
-                        course_price = cls.safe_float(course.price, 0)
-                        refund_fee = cls.safe_float(refund.refund_fee, 0)
-                        
-                        # 正确的退费金额计算
-                        calculated_refund_amount = refund_sessions * course_price - refund_fee
-                        refund_amount += calculated_refund_amount
+                        # refund_amount 字段存储的是退费总金额（退费节数 × 课程售价）
+                        # 实际退给客户的金额 = refund_amount - refund_fee
+                        refund_amount += cls.safe_float(refund.refund_amount, 0)
                         
                         # 退费手续费也计入总手续费
+                        refund_fee = cls.safe_float(refund.refund_fee, 0)
                         total_fee += refund_fee
             
             return {
