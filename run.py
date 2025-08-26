@@ -1,5 +1,5 @@
 from app import create_app, db
-from app.models import Config, CourseRefund
+from app.models import Config, CourseRefund, CommissionConfig
 import os
 import sqlite3
 
@@ -58,6 +58,19 @@ def check_and_initialize_database():
                     print("✓ course_refund 表创建成功")
                 except Exception as ce:
                     print(f"创建 course_refund 表失败: {ce}")
+                    raise
+        
+        # 单独检查并创建缺失的 commission_config 表
+        try:
+            CommissionConfig.query.first()
+        except Exception as e:
+            if "no such table" in str(e):
+                try:
+                    print("检测到缺失表 commission_config，正在创建...")
+                    CommissionConfig.__table__.create(db.engine)
+                    print("✓ commission_config 表创建成功")
+                except Exception as ce:
+                    print(f"创建 commission_config 表失败: {ce}")
                     raise
     
     # 检查特定字段更新（保留原有逻辑）

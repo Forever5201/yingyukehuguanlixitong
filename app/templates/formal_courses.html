@@ -834,11 +834,11 @@ function updateTableData(rows) {
                     </button>
                     
                     <!-- 快速编辑按钮 -->
-                    <button onclick="editFormalCourse(${row.id})" 
+                    <!-- <button onclick="editFormalCourse(${row.id})" 
                             class="btn btn-sm btn-outline-primary action-btn" title="快速编辑">
                         <i class="fas fa-edit"></i>
                         <span class="btn-text">编辑</span>
-                    </button>
+                    </button> -->
                     
                     <!-- 删除按钮 -->
                     <button onclick="deleteFormalCourse(${row.id})" 
@@ -1016,39 +1016,63 @@ let currentRefundCourse = null;
 
 // 显示退费模态框
 function showRefundModal(courseId) {
-    // 获取课程退费信息
-    fetch(`/api/courses/${courseId}/refund-info`)
+    let courseData = null; // 声明在函数顶部
+    
+    // 首先获取课程基本信息
+    fetch(`/api/formal-courses/${courseId}`)
         .then(response => response.json())
         .then(data => {
-            if (data.success) {
-                currentRefundCourse = data.data;
-                
-                // 填充课程信息
-                document.getElementById('refund_course_id').value = courseId;
-                document.getElementById('refund_customer_name').textContent = currentRefundCourse.customer_name;
-                document.getElementById('refund_course_type').textContent = currentRefundCourse.course_type;
-                document.getElementById('refund_purchased_sessions').textContent = currentRefundCourse.purchased_sessions;
-                document.getElementById('refund_refunded_sessions').textContent = currentRefundCourse.refunded_sessions;
-                document.getElementById('refund_refundable_sessions').textContent = currentRefundCourse.refundable_sessions;
-                document.getElementById('refund_unit_price').textContent = `¥${currentRefundCourse.unit_price.toFixed(2)}`;
-                
-                // 设置最大可退费节数
-                document.getElementById('refund_sessions').max = currentRefundCourse.refundable_sessions;
-                
-                // 显示退费历史
-                if (currentRefundCourse.refund_history && currentRefundCourse.refund_history.length > 0) {
-                    showRefundHistory(currentRefundCourse.refund_history);
-                }
-                
-                // 显示模态框
-                document.getElementById('refundModal').style.display = 'flex';
-            } else {
-                alert('获取退费信息失败：' + data.message);
+            if (!data.success) {
+                alert('获取课程信息失败：' + data.message);
+                return Promise.reject('获取课程信息失败');
             }
+            
+            courseData = data; // 保存课程数据
+            
+            // 然后获取退费信息
+            return fetch(`/api/courses/${courseId}/refund-info`);
+        })
+        .then(response => response.json())
+        .then(refundData => {
+            if (!refundData.success) {
+                alert('获取退费信息失败：' + refundData.message);
+                return Promise.reject('获取退费信息失败');
+            }
+            
+            // 合并课程信息和退费信息
+            currentRefundCourse = {
+                ...courseData,
+                ...refundData.refund_summary,
+                refund_history: refundData.refund_history || []
+            };
+            
+            // 填充课程信息
+            document.getElementById('refund_course_id').value = courseId;
+            document.getElementById('refund_customer_name').textContent = courseData.customer_name || '未知';
+            document.getElementById('refund_course_type').textContent = courseData.course_type || '未知';
+            document.getElementById('refund_purchased_sessions').textContent = courseData.sessions || 0;
+            document.getElementById('refund_refunded_sessions').textContent = refundData.refund_summary.total_refunded_sessions || 0;
+            document.getElementById('refund_refundable_sessions').textContent = refundData.refund_summary.refundable_sessions || 0;
+            document.getElementById('refund_unit_price').textContent = `¥${(refundData.refund_summary.unit_price || 0).toFixed(2)}`;
+            
+            // 设置最大可退费节数
+            document.getElementById('refund_sessions').max = refundData.refund_summary.refundable_sessions || 0;
+            
+            // 显示退费历史
+            if (refundData.refund_history && refundData.refund_history.length > 0) {
+                showRefundHistory(refundData.refund_history);
+            }
+            
+            // 显示模态框
+            document.getElementById('refundModal').style.display = 'flex';
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('获取退费信息失败');
+            if (typeof error === 'string') {
+                // 这是我们的自定义错误，不需要再次显示alert
+                return;
+            }
+            alert('获取信息失败，请重试');
         });
 }
 
@@ -1058,7 +1082,7 @@ function calculateRefundAmount() {
     
     const sessions = parseInt(document.getElementById('refund_sessions').value) || 0;
     const fee = parseFloat(document.getElementById('refund_fee').value) || 0;
-    const unitPrice = currentRefundCourse.unit_price;
+    const unitPrice = currentRefundCourse.unit_price || 0;
     
     const refundAmount = sessions * unitPrice;
     const actualAmount = refundAmount - fee;
@@ -1094,7 +1118,8 @@ function submitRefund() {
     const courseId = formData.get('course_id');
     
     // 计算金额用于确认
-    const refundAmount = data.refund_sessions * currentRefundCourse.unit_price;
+    const unitPrice = currentRefundCourse.unit_price || 0;
+    const refundAmount = data.refund_sessions * unitPrice;
     const actualAmount = refundAmount - data.refund_fee;
     
     // 确认退费
@@ -1138,11 +1163,11 @@ function showRefundHistory(history) {
     history.forEach(refund => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
-            <td>${refund.date}</td>
-            <td>${refund.sessions}</td>
-            <td>¥${refund.amount.toFixed(2)}</td>
-            <td>${refund.reason}</td>
-            <td><span class="badge ${refund.status === 'completed' ? 'badge-success' : 'badge-warning'}">${refund.status}</span></td>
+            <td>${refund.refund_date || '未记录'}</td>
+            <td>${refund.refund_sessions || 0}</td>
+            <td>¥${(refund.refund_amount || 0).toFixed(2)}</td>
+            <td>${refund.refund_reason || '未记录'}</td>
+            <td><span class="badge ${refund.status === 'completed' ? 'badge-success' : 'badge-warning'}">${refund.status || 'pending'}</span></td>
         `;
         historyBody.appendChild(tr);
     });

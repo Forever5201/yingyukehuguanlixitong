@@ -9,9 +9,11 @@
     <div class="employees-section">
         <div class="section-header">
             <h3><i class="fas fa-users"></i> 员工列表</h3>
-            <button class="btn btn-primary" onclick="showAddEmployeeModal()">
-                <i class="fas fa-plus"></i> 添加员工
-            </button>
+            <div class="header-actions">
+                <a href="{{ url_for('main.manage_config') }}#employee-config" class="btn btn-primary" target="_blank">
+                    <i class="fas fa-cog"></i> 员工管理
+                </a>
+            </div>
         </div>
         
         <div class="employees-grid">
@@ -91,42 +93,34 @@
             </div>
         </div>
 
-        <!-- 提成配置 -->
-        <div class="commission-config">
+        <!-- 提成配置显示 -->
+        <div class="commission-config-display">
             <h4><i class="fas fa-cog"></i> 提成配置</h4>
-            <form id="commissionConfigForm">
-                <input type="hidden" id="config_employee_id" name="employee_id">
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>底薪（元/月）</label>
-                        <input type="number" id="base_salary" name="base_salary" step="100" min="0" value="0">
+            <div class="config-display">
+                <div class="config-row">
+                    <div class="config-item">
+                        <label>底薪：</label>
+                        <span id="display_base_salary">¥0</span>
                     </div>
-                    <div class="form-group">
-                        <label>提成类型</label>
-                        <select id="commission_type" name="commission_type" onchange="toggleCommissionFields()">
-                            <option value="profit">利润提成</option>
-                            <option value="sales">销售额提成</option>
-                        </select>
+                    <div class="config-item">
+                        <label>提成类型：</label>
+                        <span id="display_commission_type">利润提成</span>
                     </div>
                 </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>试听课提成比例（%）</label>
-                        <input type="number" id="trial_rate" name="trial_rate" step="0.1" min="0" max="100" value="0">
+                <div class="config-row">
+                    <div class="config-item">
+                        <label>新课提成比例：</label>
+                        <span id="display_new_course_rate">0%</span>
                     </div>
-                    <div class="form-group">
-                        <label>新课提成比例（%）</label>
-                        <input type="number" id="new_course_rate" name="new_course_rate" step="0.1" min="0" max="100" value="0">
-                    </div>
-                    <div class="form-group">
-                        <label>续课提成比例（%）</label>
-                        <input type="number" id="renewal_rate" name="renewal_rate" step="0.1" min="0" max="100" value="0">
+                    <div class="config-item">
+                        <label>续课提成比例：</label>
+                        <span id="display_renewal_rate">0%</span>
                     </div>
                 </div>
-                <button type="button" class="btn btn-primary" onclick="saveCommissionConfig()">
-                    <i class="fas fa-save"></i> 保存配置
-                </button>
-            </form>
+                <div class="config-note">
+                    <small><i class="fas fa-info-circle"></i> 提成配置请在 <a href="{{ url_for('main.manage_config') }}#employee-config" target="_blank">系统配置</a> 中修改</small>
+                </div>
+            </div>
         </div>
 
         <!-- 业绩明细表格 -->
@@ -188,10 +182,6 @@
                         <h5>本月提成汇总</h5>
                         <div class="summary-grid">
                             <div class="summary-item">
-                                <label>试听课提成：</label>
-                                <span id="trialCommission">¥0.00</span>
-                            </div>
-                            <div class="summary-item">
                                 <label>新课提成：</label>
                                 <span id="newCourseCommission">¥0.00</span>
                             </div>
@@ -219,77 +209,13 @@
     </div>
 </div>
 
-<!-- 添加员工模态框 -->
-<div id="addEmployeeModal" class="modal fade" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">添加员工</h5>
-                <button type="button" class="close" data-dismiss="modal">
-                    <span>&times;</span>
-                </button>
-            </div>
-            <div class="modal-body">
-                <form id="addEmployeeForm">
-                    <div class="form-group">
-                        <label>员工姓名 <span class="required">*</span></label>
-                        <input type="text" class="form-control" name="name" required>
-                    </div>
-                    <div class="form-group">
-                        <label>联系电话</label>
-                        <input type="tel" class="form-control" name="phone">
-                    </div>
-                    <div class="form-group">
-                        <label>邮箱</label>
-                        <input type="email" class="form-control" name="email">
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal">取消</button>
-                <button type="button" class="btn btn-primary" onclick="saveNewEmployee()">保存</button>
-            </div>
-        </div>
-    </div>
-</div>
+<!-- 员工管理功能已移至系统配置页面 -->
 
 <script>
 let currentEmployeeId = null;
 
-// 显示添加员工模态框
-function showAddEmployeeModal() {
-    const modal = document.getElementById('addEmployeeModal');
-    modal.style.display = 'block';
-    modal.classList.add('show');
-}
-
-// 保存新员工
-function saveNewEmployee() {
-    const form = document.getElementById('addEmployeeForm');
-    const formData = new FormData(form);
-    const data = {
-        name: formData.get('name')
-    };
-    
-    fetch('/api/employees', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(data)
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            const modal = document.getElementById('addEmployeeModal');
-            modal.style.display = 'none';
-            modal.classList.remove('show');
-            location.reload();
-        } else {
-            alert(data.message || '添加失败');
-        }
-    });
-}
+// 员工管理功能已移至系统配置页面
+// 如需添加、编辑、删除员工，请点击右上角的"员工管理"按钮
 
 // 显示员工详情
 function showEmployeeDetail(employeeId) {
@@ -309,13 +235,8 @@ function showEmployeeDetail(employeeId) {
     fetch(`/api/employees/${employeeId}/commission-config`)
         .then(response => response.json())
         .then(data => {
-            if (data.success && data.config) {
-                document.getElementById('config_employee_id').value = employeeId;
-                document.getElementById('base_salary').value = data.config.base_salary || 0;
-                document.getElementById('commission_type').value = data.config.commission_type || 'profit';
-                document.getElementById('trial_rate').value = data.config.trial_rate || 0;
-                document.getElementById('new_course_rate').value = data.config.new_course_rate || 0;
-                document.getElementById('renewal_rate').value = data.config.renewal_rate || 0;
+            if (data.success) {
+                updateCommissionDisplay(data);
             }
         });
 }
@@ -366,7 +287,7 @@ function updatePerformanceDisplay(data) {
     });
     
     // 更新提成明细
-    document.getElementById('trialCommission').textContent = '¥' + data.commission.trial_commission.toFixed(2);
+    // 试听课不参与提成，所以不显示trialCommission
     document.getElementById('newCourseCommission').textContent = '¥' + data.commission.new_course_commission.toFixed(2);
     document.getElementById('renewalCommission').textContent = '¥' + data.commission.renewal_commission.toFixed(2);
     document.getElementById('totalCommission').textContent = '¥' + data.commission.total_commission.toFixed(2);
@@ -379,23 +300,14 @@ function hidePerformanceDetail() {
     document.getElementById('performanceDetail').style.display = 'none';
 }
 
-// 保存提成配置
-function saveCommissionConfig() {
-    const formData = new FormData(document.getElementById('commissionConfigForm'));
-    
-    fetch(`/api/employees/${currentEmployeeId}/commission-config`, {
-        method: 'POST',
-        body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            alert('提成配置保存成功');
-            showEmployeeDetail(currentEmployeeId); // 刷新数据
-        } else {
-            alert(data.message || '保存失败');
-        }
-    });
+// 更新提成配置显示
+function updateCommissionDisplay(data) {
+    if (data.config) {
+        document.getElementById('display_base_salary').textContent = '¥' + (data.config.base_salary || 0).toFixed(2);
+        document.getElementById('display_commission_type').textContent = data.config.commission_type === 'profit' ? '利润提成' : '销售额提成';
+        document.getElementById('display_new_course_rate').textContent = (data.config.new_course_rate || 0) + '%';
+        document.getElementById('display_renewal_rate').textContent = (data.config.renewal_rate || 0) + '%';
+    }
 }
 </script>
 
@@ -418,6 +330,18 @@ function saveCommissionConfig() {
 .section-header h3 {
     margin: 0;
     color: #333;
+}
+
+.header-actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.header-actions .btn {
+    display: flex;
+    align-items: center;
+    gap: 5px;
 }
 
 .employees-grid {
@@ -604,6 +528,70 @@ function saveCommissionConfig() {
 
 .required {
     color: #dc3545;
+}
+
+/* 提成配置显示样式 */
+.commission-config-display {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.config-display {
+    margin-top: 15px;
+}
+
+.config-row {
+    display: flex;
+    gap: 30px;
+    margin-bottom: 15px;
+}
+
+.config-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.config-item label {
+    font-weight: 600;
+    color: #495057;
+    min-width: 120px;
+}
+
+.config-item span {
+    color: #007bff;
+    font-weight: 500;
+}
+
+.config-note {
+    margin-top: 15px;
+    padding: 10px;
+    background: #e3f2fd;
+    border-radius: 4px;
+    border-left: 4px solid #2196f3;
+}
+
+.config-note small {
+    color: #1976d2;
+}
+
+.config-note a {
+    color: #1565c0;
+    text-decoration: underline;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .config-row {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .config-item {
+        justify-content: space-between;
+    }
 }
 </style>
 {% endblock %}

@@ -3,131 +3,505 @@
 {% block title %}系统配置{% endblock %}
 {% block page_title %}系统配置{% endblock %}
 
+{% block head %}
+<!-- Bootstrap CSS -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<!-- Bootstrap Icons -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css" rel="stylesheet">
+{% endblock %}
+
 {% block content %}
 <div class="config-page">
-    <div class="config-card">
-        <div class="config-header">
-            <h2><i class="fas fa-cog"></i> 成本配置</h2>
-            <p class="config-description">设置试听课和正课的成本价格</p>
+    <!-- 配置标签页导航 -->
+    <ul class="nav nav-tabs" id="configTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="cost-tab" data-bs-toggle="tab" data-bs-target="#cost-config" type="button" role="tab">
+                <i class="fas fa-cog"></i> 成本配置
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="profit-tab" data-bs-toggle="tab" data-bs-target="#profit-config" type="button" role="tab">
+                <i class="fas fa-coins"></i> 股东配置
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="employee-tab" data-bs-toggle="tab" data-bs-target="#employee-config" type="button" role="tab">
+                <i class="fas fa-users"></i> 员工管理
+            </button>
+        </li>
+    </ul>
+
+    <!-- 标签页内容 -->
+    <div class="tab-content" id="configTabContent">
+        <!-- 成本配置标签页 -->
+        <div class="tab-pane fade show active" id="cost-config" role="tabpanel">
+            <div class="config-card">
+                <div class="config-header">
+                    <h2><i class="fas fa-cog"></i> 成本配置</h2>
+                    <p class="config-description">设置试听课和正课的成本价格</p>
+                </div>
+                
+                <form action="{{ url_for('main.manage_config') }}" method="post" class="config-form">
+                    <div class="form-section">
+                        <div class="form-group">
+                            <label for="trial_cost">
+                                <i class="fas fa-headphones"></i>
+                                试听课成本 (¥)
+                            </label>
+                            <div class="input-group">
+                                <span class="input-prefix">¥</span>
+                                <input type="number" 
+                                       id="trial_cost" 
+                                       name="trial_cost" 
+                                       value="{{ config.trial_cost or 0 }}" 
+                                       step="0.01" 
+                                       min="0"
+                                       class="form-control"
+                                       placeholder="0.00">
+                            </div>
+                            <small class="form-help">试听课的单个客户成本</small>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="course_cost">
+                                <i class="fas fa-graduation-cap"></i>
+                                正课成本 (¥)
+                            </label>
+                            <div class="input-group">
+                                <span class="input-prefix">¥</span>
+                                <input type="number" 
+                                       id="course_cost" 
+                                       name="course_cost" 
+                                       value="{{ config.course_cost or 0 }}" 
+                                       step="0.01" 
+                                       min="0"
+                                       class="form-control"
+                                       placeholder="0.00">
+                            </div>
+                            <small class="form-help">正课的单个客户成本</small>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="taobao_fee_rate">
+                                <i class="fas fa-percentage"></i>
+                                淘宝交易手续费率 (%)
+                            </label>
+                            <div class="input-group">
+                                <input type="number" 
+                                       id="taobao_fee_rate" 
+                                       name="taobao_fee_rate" 
+                                       value="{{ config.taobao_fee_rate or 0 }}" 
+                                       step="0.1" 
+                                       min="0"
+                                       max="100"
+                                       class="form-control"
+                                       placeholder="0.0">
+                                <span class="input-suffix">%</span>
+                            </div>
+                            <small class="form-help">淘宝交易时的手续费率</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="shuadan_products">
+                                <i class="fas fa-box"></i>
+                                刷单商品列表
+                            </label>
+                            <div class="product-config-container">
+                                <div class="product-input-section">
+                                    <div class="input-group mb-2">
+                                        <input type="text" id="new_product" class="form-control" placeholder="输入商品名称">
+                                        <button type="button" class="btn btn-outline-primary" onclick="addProduct()">
+                                            <i class="fas fa-plus"></i> 添加
+                                        </button>
+                                    </div>
+                                    <div class="product-list" id="productList">
+                                        <!-- 动态显示已添加的商品 -->
+                                    </div>
+                                </div>
+                                <textarea id="shuadan_products" name="shuadan_products" rows="3" class="form-control mt-2"
+                                          placeholder='商品列表将自动生成，格式：["商品1","商品2","商品3"]' readonly>{{ config.shuadan_products|safe }}</textarea>
+                            </div>
+                            <small class="form-help">
+                                <i class="fas fa-info-circle"></i> 
+                                点击"添加"按钮添加商品，商品将自动保存为JSON格式；用于"刷单管理"的商品选择与筛选
+                            </small>
+                        </div>
+                    </div>
+                    
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="fas fa-save"></i>
+                            保存配置
+                        </button>
+                        <button type="button" class="btn btn-secondary" onclick="resetForm()">
+                            <i class="fas fa-undo"></i>
+                            重置
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <div class="config-summary">
+                <div class="summary-card">
+                    <h3><i class="fas fa-chart-bar"></i> 成本概览</h3>
+                    <div class="summary-item">
+                        <span class="summary-label">试听课成本</span>
+                        <span class="summary-value" id="summary_trial_cost">¥{{ config.trial_cost or 0 }}</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">正课成本</span>
+                        <span class="summary-value" id="summary_course_cost">¥{{ config.course_cost or 0 }}</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">淘宝手续费率</span>
+                        <span class="summary-value" id="summary_taobao_fee">{{ config.taobao_fee_rate or 0 }}%</span>
+                    </div>
+                    <div class="summary-item total">
+                        <span class="summary-label">总成本</span>
+                        <span class="summary-value" id="summary_total">¥{{ ((config.trial_cost or 0) + (config.course_cost or 0)) }}</span>
+                    </div>
+                </div>
+            </div>
         </div>
-        
-        <form action="{{ url_for('main.manage_config') }}" method="post" class="config-form">
-            <div class="form-section">
-                <div class="form-group">
-                    <label for="trial_cost">
-                        <i class="fas fa-headphones"></i>
-                        试听课成本 (¥)
-                    </label>
-                    <div class="input-group">
-                        <span class="input-prefix">¥</span>
-                        <input type="number" 
-                               id="trial_cost" 
-                               name="trial_cost" 
-                               value="{{ config.trial_cost or 0 }}" 
-                               step="0.01" 
-                               min="0"
-                               class="form-control"
-                               placeholder="0.00">
-                    </div>
-                    <small class="form-help">试听课的单个客户成本</small>
+
+        <!-- 股东配置标签页 -->
+        <div class="tab-pane fade" id="profit-config" role="tabpanel">
+            <div class="config-card">
+                <div class="config-header">
+                    <h2><i class="fas fa-coins"></i> 股东利润分配配置</h2>
+                    <p class="config-description">设置股东信息和利润分配比例</p>
                 </div>
                 
-                <div class="form-group">
-                    <label for="course_cost">
-                        <i class="fas fa-graduation-cap"></i>
-                        正课成本 (¥)
-                    </label>
-                    <div class="input-group">
-                        <span class="input-prefix">¥</span>
-                        <input type="number" 
-                               id="course_cost" 
-                               name="course_cost" 
-                               value="{{ config.course_cost or 0 }}" 
-                               step="0.01" 
-                               min="0"
-                               class="form-control"
-                               placeholder="0.00">
+                <form action="{{ url_for('main.manage_config') }}" method="post" class="config-form">
+                    <input type="hidden" name="config_type" value="profit_distribution">
+                    
+                    <div class="form-section">
+                        <!-- 股东信息 -->
+                        <h3><i class="fas fa-users"></i> 股东信息</h3>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="shareholder_a_name">
+                                    <i class="fas fa-user"></i>
+                                    股东A名称
+                                </label>
+                                <input type="text" 
+                                       id="shareholder_a_name" 
+                                       name="shareholder_a_name" 
+                                       value="{{ config.shareholder_a_name or '股东A' }}" 
+                                       class="form-control"
+                                       placeholder="请输入股东A名称">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="shareholder_b_name">
+                                    <i class="fas fa-user"></i>
+                                    股东B名称
+                                </label>
+                                <input type="text" 
+                                       id="shareholder_b_name" 
+                                       name="shareholder_b_name" 
+                                       value="{{ config.shareholder_b_name or '股东B' }}" 
+                                       class="form-control"
+                                       placeholder="请输入股东B名称">
+                            </div>
+                        </div>
+
+                        <!-- 正课利润分配 -->
+                        <h3><i class="fas fa-graduation-cap"></i> 正课利润分配</h3>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="new_course_shareholder_a" class="shareholder-a-label">
+                                    <span class="shareholder-a-name">{{ config.shareholder_a_name or '股东A' }}</span>分配比例 (%)
+                                </label>
+                                <div class="input-group">
+                                    <input type="number" 
+                                           id="new_course_shareholder_a" 
+                                           name="new_course_shareholder_a" 
+                                           value="{{ config.new_course_shareholder_a or 50 }}" 
+                                           step="0.1" 
+                                           min="0"
+                                           max="100"
+                                           class="form-control"
+                                           oninput="updateShareholderB('new_course')">
+                                    <span class="input-suffix">%</span>
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="new_course_shareholder_b" class="shareholder-b-label">
+                                    <span class="shareholder-b-name">{{ config.shareholder_b_name or '股东B' }}</span>分配比例 (%)
+                                </label>
+                                <div class="input-group">
+                                    <input type="number" 
+                                           id="new_course_shareholder_b" 
+                                           name="new_course_shareholder_b" 
+                                           value="{{ config.new_course_shareholder_b or 50 }}" 
+                                           class="form-control"
+                                           readonly
+                                           style="background: #e9ecef;">
+                                    <span class="input-suffix">%</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 续课利润分配 -->
+                        <h3><i class="fas fa-redo"></i> 续课利润分配</h3>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="renewal_shareholder_a" class="shareholder-a-label">
+                                    <span class="shareholder-a-name">{{ config.shareholder_a_name or '股东A' }}</span>分配比例 (%)
+                                </label>
+                                <div class="input-group">
+                                    <input type="number" 
+                                           id="renewal_shareholder_a" 
+                                           name="renewal_shareholder_a" 
+                                           value="{{ config.renewal_shareholder_a or 40 }}" 
+                                           step="0.1" 
+                                           min="0"
+                                           max="100"
+                                           class="form-control"
+                                           oninput="updateShareholderB('renewal')">
+                                    <span class="input-suffix">%</span>
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="renewal_shareholder_b" class="shareholder-b-label">
+                                    <span class="shareholder-b-name">{{ config.shareholder_b_name or '股东B' }}</span>分配比例 (%)
+                                </label>
+                                <div class="input-group">
+                                    <input type="number" 
+                                           id="renewal_shareholder_b" 
+                                           name="renewal_shareholder_b" 
+                                           value="{{ config.renewal_shareholder_b or 60 }}" 
+                                           class="form-control"
+                                           readonly
+                                           style="background: #e9ecef;">
+                                    <span class="input-suffix">%</span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <small class="form-help">正课的单个客户成本</small>
+                    
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> 保存股东配置
+                        </button>
+                        <a href="{{ url_for('main.profit_distribution') }}" class="btn btn-secondary" style="margin-left: 10px;">
+                            <i class="fas fa-chart-bar"></i> 查看利润分配报表
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- 员工管理标签页 -->
+        <div class="tab-pane fade" id="employee-config" role="tabpanel">
+            <div class="config-card">
+                <div class="config-header">
+                    <div class="header-content">
+                        <div class="header-text">
+                            <h2><i class="fas fa-users"></i> 员工管理</h2>
+                            <p class="config-description">管理员工信息和提成配置</p>
+                        </div>
+                        <div class="header-actions">
+                            <button class="btn btn-primary" onclick="showAddEmployeeModal()">
+                                <i class="fas fa-plus"></i> 新增员工
+                            </button>
+                        </div>
+                    </div>
                 </div>
                 
-                <div class="form-group">
-                    <label for="taobao_fee_rate">
-                        <i class="fas fa-percentage"></i>
-                        淘宝交易手续费率 (%)
-                    </label>
-                    <div class="input-group">
-                        <input type="number" 
-                               id="taobao_fee_rate" 
-                               name="taobao_fee_rate" 
-                               value="{{ config.taobao_fee_rate or 0 }}" 
-                               step="0.1" 
-                               min="0"
-                               max="100"
-                               class="form-control"
-                               placeholder="0.0">
-                        <span class="input-suffix">%</span>
+                <!-- 员工列表 -->
+                <div class="employee-list-section">
+                    <div class="table-container">
+                        <div class="table-responsive">
+                            <table class="table table-hover employee-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width:32%"><i class="fas fa-user"></i> 员工</th>
+                                        <th style="width:14%"><i class="fas fa-money-bill-wave"></i> 底薪</th>
+                                        <th style="width:18%"><i class="fas fa-chart-pie"></i> 提成类型</th>
+                                        <th style="width:12%"><i class="fas fa-percentage"></i> 新课提成</th>
+                                        <th style="width:12%"><i class="fas fa-redo"></i> 续课提成</th>
+                                        <th style="width:12%" class="text-end"><i class="fas fa-cogs"></i> 操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="employeeTableBody">
+                                    <!-- 动态加载员工列表 -->
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
-                    <small class="form-help">淘宝交易时的手续费率</small>
                 </div>
-
-                <div class="form-group">
-                    <label for="shuadan_products">
-                        <i class="fas fa-box"></i>
-                        刷单商品列表
-                    </label>
-                    <textarea id="shuadan_products" name="shuadan_products" rows="3" class="form-control"
-                              placeholder='例如：["课程A","课程B"] 或 课程A,课程B'>{{ config.shuadan_products }}</textarea>
-                    <small class="form-help">支持 JSON 数组或逗号分隔的商品名称；用于“刷单管理”的商品选择与筛选</small>
-                </div>
-            </div>
-            
-            <div class="form-actions">
-                <button type="submit" class="btn btn-primary btn-lg">
-                    <i class="fas fa-save"></i>
-                    保存配置
-                </button>
-                <button type="button" class="btn btn-secondary" onclick="resetForm()">
-                    <i class="fas fa-undo"></i>
-                    重置
-                </button>
-            </div>
-        </form>
-    </div>
-
-    <div class="config-summary">
-        <div class="summary-card">
-            <h3><i class="fas fa-chart-bar"></i> 成本概览</h3>
-            <div class="summary-item">
-                <span class="summary-label">试听课成本</span>
-                <span class="summary-value" id="summary_trial_cost">¥{{ config.trial_cost or 0 }}</span>
-            </div>
-            <div class="summary-item">
-                <span class="summary-label">正课成本</span>
-                <span class="summary-value" id="summary_course_cost">¥{{ config.course_cost or 0 }}</span>
-            </div>
-            <div class="summary-item">
-                <span class="summary-label">淘宝手续费率</span>
-                <span class="summary-value" id="summary_taobao_fee">{{ config.taobao_fee_rate or 0 }}%</span>
-            </div>
-            <div class="summary-item total">
-                <span class="summary-label">总成本</span>
-                <span class="summary-value" id="summary_total">¥{{ ((config.trial_cost or 0) + (config.course_cost or 0)) }}</span>
             </div>
         </div>
     </div>
 </div>
 
+<!-- 新增员工模态框 -->
+<div id="addEmployeeModal" class="modal fade" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title"><i class="fas fa-user-plus"></i> 新增员工</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addEmployeeForm">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="card h-100">
+                                <div class="card-header bg-light">
+                                    <h6 class="mb-0"><i class="fas fa-user"></i> 基本信息</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label class="form-label">员工姓名 <span class="text-danger">*</span></label>
+                                        <input type="text" class="form-control" name="name" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">联系电话</label>
+                                        <input type="tel" class="form-control" name="phone">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">邮箱</label>
+                                        <input type="email" class="form-control" name="email">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card h-100">
+                                <div class="card-header bg-light">
+                                    <h6 class="mb-0"><i class="fas fa-cog"></i> 提成配置</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label class="form-label">底薪 (¥/月)</label>
+                                        <input type="number" class="form-control" name="base_salary" step="100" min="0" value="0">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">提成类型</label>
+                                        <select class="form-select" name="commission_type">
+                                            <option value="profit">利润提成</option>
+                                            <option value="sales">销售额提成</option>
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">新课提成比例 (%)</label>
+                                        <input type="number" class="form-control" name="new_course_rate" step="0.1" min="0" max="100" value="0">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">续课提成比例 (%)</label>
+                                        <input type="number" class="form-control" name="renewal_rate" step="0.1" min="0" max="100" value="0">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times"></i> 取消
+                </button>
+                <button type="button" class="btn btn-primary" onclick="saveNewEmployee()">
+                    <i class="fas fa-save"></i> 保存
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 编辑员工模态框 -->
+<div id="editEmployeeModal" class="modal fade" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title"><i class="fas fa-user-edit"></i> 编辑员工</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editEmployeeForm">
+                    <input type="hidden" name="employee_id" id="edit_employee_id">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="card h-100">
+                                <div class="card-header bg-light">
+                                    <h6 class="mb-0"><i class="fas fa-user"></i> 基本信息</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label class="form-label">员工姓名 <span class="text-danger">*</span></label>
+                                        <input type="text" class="form-control" name="name" id="edit_name" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">联系电话</label>
+                                        <input type="tel" class="form-control" name="phone" id="edit_phone">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">邮箱</label>
+                                        <input type="email" class="form-control" name="email" id="edit_email">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card h-100">
+                                <div class="card-header bg-light">
+                                    <h6 class="mb-0"><i class="fas fa-cog"></i> 提成配置</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label class="form-label">底薪 (¥/月)</label>
+                                        <input type="number" class="form-control" name="base_salary" id="edit_base_salary" step="100" min="0" value="0">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">提成类型</label>
+                                        <select class="form-select" name="commission_type" id="edit_commission_type">
+                                            <option value="profit">利润提成</option>
+                                            <option value="sales">销售额提成</option>
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">新课提成比例 (%)</label>
+                                        <input type="number" class="form-control" name="new_course_rate" id="edit_new_course_rate" step="0.1" min="0" max="100" value="0">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">续课提成比例 (%)</label>
+                                        <input type="number" class="form-control" name="renewal_rate" id="edit_renewal_rate" step="0.1" min="0" max="100" value="0">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times"></i> 取消
+                </button>
+                <button type="button" class="btn btn-warning" onclick="saveEmployeeEdit()">
+                    <i class="fas fa-save"></i> 保存
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bootstrap JavaScript -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+
 <script>
+// 成本配置相关函数
 function resetForm() {
     document.querySelector('.config-form').reset();
-    // 重置后同步更新概览
     if (typeof updateSummary === 'function') {
         updateSummary();
     }
 }
 
-// 实时更新概览
 function updateSummary() {
     const trialCost = parseFloat(document.getElementById('trial_cost').value) || 0;
     const courseCost = parseFloat(document.getElementById('course_cost').value) || 0;
@@ -145,168 +519,642 @@ function updateSummary() {
     if (elTotal) elTotal.textContent = `¥${total}`;
 }
 
-// 添加输入事件监听
-document.getElementById('trial_cost')?.addEventListener('input', updateSummary);
-document.getElementById('course_cost')?.addEventListener('input', updateSummary);
-document.getElementById('taobao_fee_rate')?.addEventListener('input', updateSummary);
-// 页面加载后先刷新一次概览，确保与初始表单值一致
-window.addEventListener('DOMContentLoaded', () => {
-    updateSummary();
-});
-
-// 更新股东B的比例
+// 股东配置相关函数
 function updateShareholderB(type) {
     const shareholderA = parseFloat(document.getElementById(`${type}_shareholder_a`).value) || 0;
     const shareholderB = 100 - shareholderA;
     document.getElementById(`${type}_shareholder_b`).value = shareholderB.toFixed(1);
 }
-</script>
 
-    <!-- 股东利润分配配置 -->
-    <div class="config-card">
-        <div class="config-header">
-            <h2><i class="fas fa-coins"></i> 股东利润分配配置</h2>
-            <p class="config-description">设置股东信息和利润分配比例</p>
-        </div>
+// 员工管理相关函数
+let employees = [];
+let products = [];
+let editingIndex = -1; // 当前正在编辑的商品索引，-1 表示无编辑
+
+// 页面加载时获取员工列表
+document.addEventListener('DOMContentLoaded', function() {
+    loadEmployees();
+    initProductConfig();
+    // 启用工具提示
+    try {
+        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltipTriggerList.map(function (tooltipTriggerEl) { return new bootstrap.Tooltip(tooltipTriggerEl); });
+    } catch (e) {}
+    
+    // 添加输入事件监听
+    document.getElementById('trial_cost')?.addEventListener('input', updateSummary);
+    document.getElementById('course_cost')?.addEventListener('input', updateSummary);
+    document.getElementById('taobao_fee_rate')?.addEventListener('input', updateSummary);
+    
+    // 监听股东名称变化
+    document.getElementById('shareholder_a_name')?.addEventListener('input', function() {
+        const name = this.value || '股东A';
+        document.querySelectorAll('.shareholder-a-name').forEach(el => {
+            el.textContent = name;
+        });
+    });
+
+    document.getElementById('shareholder_b_name')?.addEventListener('input', function() {
+        const name = this.value || '股东B';
+        document.querySelectorAll('.shareholder-b-name').forEach(el => {
+            el.textContent = name;
+        });
+    });
+    
+    // 页面加载后先刷新一次概览
+    updateSummary();
+    
+    // 添加商品输入框的回车键监听
+    document.getElementById('new_product')?.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            addProduct();
+        }
+    });
+});
+
+// 初始化商品配置
+function initProductConfig() {
+    const textarea = document.getElementById('shuadan_products');
+    if (textarea && textarea.value) {
+        try {
+            // 尝试解析JSON格式
+            products = JSON.parse(textarea.value);
+        } catch (e) {
+            // 如果不是JSON，尝试解析逗号分隔的字符串
+            products = textarea.value.split(',').map(item => item.trim()).filter(item => item);
+        }
+        renderProductList();
+    }
+}
+
+// 添加商品
+function addProduct() {
+    const input = document.getElementById('new_product');
+    const productName = input.value.trim();
+    
+    if (!productName) {
+        alert('请输入商品名称');
+        return;
+    }
+    
+    if (products.includes(productName)) {
+        alert('该商品已存在');
+        return;
+    }
+    
+    products.push(productName);
+    input.value = '';
+    renderProductList();
+    updateProductTextarea();
+}
+
+// 删除商品
+function removeProduct(index) {
+    products.splice(index, 1);
+    renderProductList();
+    updateProductTextarea();
+}
+
+// 渲染商品列表
+function renderProductList() {
+    const container = document.getElementById('productList');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    
+    if (products.length === 0) {
+        container.innerHTML = '<p class="text-muted mb-0"><i class="fas fa-info-circle"></i> 暂无商品，请添加商品</p>';
+        return;
+    }
+    
+    products.forEach((product, index) => {
+        const tag = document.createElement('div');
+        tag.className = 'product-tag';
         
-        <form action="{{ url_for('main.manage_config') }}" method="post" class="config-form">
-            <input type="hidden" name="config_type" value="profit_distribution">
-            
-            <div class="form-section">
-                <!-- 股东信息 -->
-                <h3><i class="fas fa-users"></i> 股东信息</h3>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="shareholder_a_name">
-                            <i class="fas fa-user"></i>
-                            股东A名称
-                        </label>
-                        <input type="text" 
-                               id="shareholder_a_name" 
-                               name="shareholder_a_name" 
-                               value="{{ config.shareholder_a_name or '股东A' }}" 
-                               class="form-control"
-                               placeholder="请输入股东A名称">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="shareholder_b_name">
-                            <i class="fas fa-user"></i>
-                            股东B名称
-                        </label>
-                        <input type="text" 
-                               id="shareholder_b_name" 
-                               name="shareholder_b_name" 
-                               value="{{ config.shareholder_b_name or '股东B' }}" 
-                               class="form-control"
-                               placeholder="请输入股东B名称">
-                    </div>
-                </div>
-
-                <!-- 正课利润分配 -->
-                <h3><i class="fas fa-graduation-cap"></i> 正课利润分配</h3>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="new_course_shareholder_a" class="shareholder-a-label">
-                            <span class="shareholder-a-name">{{ config.shareholder_a_name or '股东A' }}</span>分配比例 (%)
-                        </label>
-                        <div class="input-group">
-                            <input type="number" 
-                                   id="new_course_shareholder_a" 
-                                   name="new_course_shareholder_a" 
-                                   value="{{ config.new_course_shareholder_a or 50 }}" 
-                                   step="0.1" 
-                                   min="0"
-                                   max="100"
-                                   class="form-control"
-                                   oninput="updateShareholderB('new_course')">
-                            <span class="input-suffix">%</span>
-                        </div>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="new_course_shareholder_b" class="shareholder-b-label">
-                            <span class="shareholder-b-name">{{ config.shareholder_b_name or '股东B' }}</span>分配比例 (%)
-                        </label>
-                        <div class="input-group">
-                            <input type="number" 
-                                   id="new_course_shareholder_b" 
-                                   name="new_course_shareholder_b" 
-                                   value="{{ config.new_course_shareholder_b or 50 }}" 
-                                   class="form-control"
-                                   readonly
-                                   style="background: #e9ecef;">
-                            <span class="input-suffix">%</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 续课利润分配 -->
-                <h3><i class="fas fa-redo"></i> 续课利润分配</h3>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="renewal_shareholder_a" class="shareholder-a-label">
-                            <span class="shareholder-a-name">{{ config.shareholder_a_name or '股东A' }}</span>分配比例 (%)
-                        </label>
-                        <div class="input-group">
-                            <input type="number" 
-                                   id="renewal_shareholder_a" 
-                                   name="renewal_shareholder_a" 
-                                   value="{{ config.renewal_shareholder_a or 40 }}" 
-                                   step="0.1" 
-                                   min="0"
-                                   max="100"
-                                   class="form-control"
-                                   oninput="updateShareholderB('renewal')">
-                            <span class="input-suffix">%</span>
-                        </div>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="renewal_shareholder_b" class="shareholder-b-label">
-                            <span class="shareholder-b-name">{{ config.shareholder_b_name or '股东B' }}</span>分配比例 (%)
-                        </label>
-                        <div class="input-group">
-                            <input type="number" 
-                                   id="renewal_shareholder_b" 
-                                   name="renewal_shareholder_b" 
-                                   value="{{ config.renewal_shareholder_b or 60 }}" 
-                                   class="form-control"
-                                   readonly
-                                   style="background: #e9ecef;">
-                            <span class="input-suffix">%</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="form-actions">
-                <button type="submit" class="btn btn-primary">
-                    <i class="fas fa-save"></i> 保存股东配置
-                </button>
-                <a href="{{ url_for('main.profit_distribution') }}" class="btn btn-secondary" style="margin-left: 10px;">
-                    <i class="fas fa-chart-bar"></i> 查看利润分配报表
-                </a>
-            </div>
-        </form>
-    </div>
-</div>
-
-<script>
-// 监听股东名称变化，实时更新标签
-document.getElementById('shareholder_a_name')?.addEventListener('input', function() {
-    const name = this.value || '股东A';
-    document.querySelectorAll('.shareholder-a-name').forEach(el => {
-        el.textContent = name;
+        if (editingIndex === index) {
+            tag.innerHTML = `
+                <input type="text" class="edit-input" id="edit_product_input_${index}" value="${product}" />
+                <button type="button" class="save-btn" onclick="saveEditProduct(${index})">保存</button>
+                <button type="button" class="cancel-btn" onclick="cancelEditProduct()">取消</button>
+            `;
+        } else {
+            tag.innerHTML = `
+                <span ondblclick="startEditProduct(${index})" title="双击编辑">${product}</span>
+                <button type="button" class="edit-btn" onclick="startEditProduct(${index})">编辑</button>
+                <button type="button" class="remove-btn" onclick="removeProduct(${index})">删除</button>
+            `;
+        }
+        container.appendChild(tag);
     });
-});
+}
 
-document.getElementById('shareholder_b_name')?.addEventListener('input', function() {
-    const name = this.value || '股东B';
-    document.querySelectorAll('.shareholder-b-name').forEach(el => {
-        el.textContent = name;
+// 更新商品文本框
+function updateProductTextarea() {
+    const textarea = document.getElementById('shuadan_products');
+    if (textarea) {
+        textarea.value = JSON.stringify(products);
+    }
+}
+
+// 编辑商品名称
+function startEditProduct(index) {
+    editingIndex = index;
+    renderProductList();
+    // 聚焦输入框
+    const input = document.getElementById(`edit_product_input_${index}`);
+    if (input) {
+        input.focus();
+        input.select();
+        // 回车保存，ESC取消
+        input.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                saveEditProduct(index);
+            } else if (e.key === 'Escape') {
+                cancelEditProduct();
+            }
+        });
+    }
+}
+
+function saveEditProduct(index) {
+    const input = document.getElementById(`edit_product_input_${index}`);
+    if (!input) return;
+    const name = (input.value || '').trim();
+    if (!name) {
+        alert('商品名称不能为空');
+        return;
+    }
+    if (products.some((p, i) => i !== index && p === name)) {
+        alert('该商品名称已存在');
+        return;
+    }
+    products[index] = name;
+    editingIndex = -1;
+    renderProductList();
+    updateProductTextarea();
+}
+
+function cancelEditProduct() {
+    editingIndex = -1;
+    renderProductList();
+}
+
+// 加载员工列表
+function loadEmployees() {
+    fetch('/api/employees')
+        .then(response => response.json())
+        .then(data => {
+            employees = data;
+            renderEmployeeTable();
+        })
+        .catch(error => {
+            console.error('加载员工列表失败:', error);
+        });
+}
+
+// 渲染员工表格
+function renderEmployeeTable() {
+    const tbody = document.getElementById('employeeTableBody');
+    if (!tbody) return;
+    
+    tbody.innerHTML = '';
+    
+    if (employees.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="6" class="text-center text-muted py-4">
+                    <i class="fas fa-users fa-2x mb-2"></i>
+                    <p class="mb-0">暂无员工数据</p>
+                    <small>点击"新增员工"按钮添加第一个员工</small>
+                </td>
+            </tr>
+        `;
+        return;
+    }
+    
+    employees.forEach(employee => {
+        const row = document.createElement('tr');
+        row.className = 'align-middle';
+        row.innerHTML = `
+            <td>
+                <div class="d-flex align-items-center">
+                    <div class="avatar me-2">
+                        <i class="fas fa-user-circle fa-lg text-primary"></i>
+                    </div>
+                    <div>
+                        <strong>${employee.name}</strong>
+                        ${employee.phone ? `<br><small class="text-muted"><i class="fas fa-phone"></i> ${employee.phone}</small>` : ''}
+                        ${employee.email ? `<br><small class="text-muted"><i class="fas fa-envelope"></i> ${employee.email}</small>` : ''}
+                    </div>
+                </div>
+            </td>
+            <td>
+                <span class="chip chip-money">¥${(employee.base_salary || 0).toLocaleString()}</span>
+            </td>
+            <td>
+                <span class="chip ${employee.commission_type === 'profit' ? 'chip-info' : 'chip-warning'}">
+                    <i class="fas ${employee.commission_type === 'profit' ? 'fa-chart-line' : 'fa-shopping-cart'}"></i>
+                    ${employee.commission_type === 'profit' ? '利润提成' : '销售额提成'}
+                </span>
+            </td>
+            <td>
+                <span class="chip chip-primary">${employee.new_course_rate || 0}%</span>
+            </td>
+            <td>
+                <span class="chip chip-secondary">${employee.renewal_rate || 0}%</span>
+            </td>
+            <td class="text-end">
+                <div class="action-buttons" role="group">
+                    <button class="btn-action edit" onclick="editEmployee(${employee.id})" data-bs-toggle="tooltip" title="编辑该员工">
+                        <i class="fas fa-pen-to-square"></i><span>编辑</span>
+                    </button>
+                    <button class="btn-action delete" onclick="deleteEmployee(${employee.id})" data-bs-toggle="tooltip" title="删除该员工">
+                        <i class="fas fa-trash"></i><span>删除</span>
+                    </button>
+                </div>
+            </td>
+        `;
+        tbody.appendChild(row);
     });
-});
+}
+
+// 显示新增员工模态框
+function showAddEmployeeModal() {
+    const modal = new bootstrap.Modal(document.getElementById('addEmployeeModal'));
+    modal.show();
+}
+
+// 保存新员工
+function saveNewEmployee() {
+    const form = document.getElementById('addEmployeeForm');
+    const formData = new FormData(form);
+    
+    const data = {
+        name: formData.get('name'),
+        phone: formData.get('phone'),
+        email: formData.get('email'),
+        base_salary: parseFloat(formData.get('base_salary')) || 0,
+        commission_type: formData.get('commission_type'),
+        new_course_rate: parseFloat(formData.get('new_course_rate')) || 0,
+        renewal_rate: parseFloat(formData.get('renewal_rate')) || 0
+    };
+    
+    fetch('/api/employees', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            bootstrap.Modal.getInstance(document.getElementById('addEmployeeModal')).hide();
+            form.reset();
+            loadEmployees();
+            alert('员工添加成功');
+        } else {
+            alert(data.message || '添加失败');
+        }
+    })
+    .catch(error => {
+        console.error('保存员工失败:', error);
+        alert('保存失败');
+    });
+}
+
+// 编辑员工
+function editEmployee(employeeId) {
+    const employee = employees.find(emp => emp.id === employeeId);
+    if (!employee) return;
+    
+    // 填充表单
+    document.getElementById('edit_employee_id').value = employee.id;
+    document.getElementById('edit_name').value = employee.name;
+    document.getElementById('edit_phone').value = employee.phone || '';
+    document.getElementById('edit_email').value = employee.email || '';
+    document.getElementById('edit_base_salary').value = employee.base_salary || 0;
+    document.getElementById('edit_commission_type').value = employee.commission_type || 'profit';
+    document.getElementById('edit_new_course_rate').value = employee.new_course_rate || 0;
+    document.getElementById('edit_renewal_rate').value = employee.renewal_rate || 0;
+    
+    // 显示模态框
+    const modal = new bootstrap.Modal(document.getElementById('editEmployeeModal'));
+    modal.show();
+}
+
+// 保存员工编辑
+function saveEmployeeEdit() {
+    const form = document.getElementById('editEmployeeForm');
+    const formData = new FormData(form);
+    
+    const data = {
+        name: formData.get('name'),
+        phone: formData.get('phone'),
+        email: formData.get('email'),
+        base_salary: parseFloat(formData.get('base_salary')) || 0,
+        commission_type: formData.get('commission_type'),
+        new_course_rate: parseFloat(formData.get('new_course_rate')) || 0,
+        renewal_rate: parseFloat(formData.get('renewal_rate')) || 0
+    };
+    
+    const employeeId = formData.get('employee_id');
+    
+    fetch(`/api/employees/${employeeId}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            bootstrap.Modal.getInstance(document.getElementById('editEmployeeModal')).hide();
+            loadEmployees();
+            alert('员工信息更新成功');
+        } else {
+            alert(data.message || '更新失败');
+        }
+    })
+    .catch(error => {
+        console.error('更新员工失败:', error);
+        alert('更新失败');
+    });
+}
+
+// 删除员工
+function deleteEmployee(employeeId) {
+    if (!confirm('确定要删除这个员工吗？此操作不可恢复。')) {
+        return;
+    }
+    
+    fetch(`/api/employees/${employeeId}`, {
+        method: 'DELETE'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            loadEmployees();
+            alert('员工删除成功');
+        } else {
+            alert(data.message || '删除失败');
+        }
+    })
+    .catch(error => {
+        console.error('删除员工失败:', error);
+        alert('删除失败');
+    });
+}
 </script>
+
+<style>
+/* 标签页样式 */
+.nav-tabs {
+    border-bottom: 2px solid #dee2e6;
+    margin-bottom: 20px;
+}
+
+.nav-tabs .nav-link {
+    color: #6c757d;
+    border: none;
+    padding: 10px 20px;
+    margin-right: 5px;
+}
+
+.nav-tabs .nav-link.active {
+    color: #007bff;
+    border-bottom: 2px solid #007bff;
+    background: none;
+}
+
+.nav-tabs .nav-link:hover {
+    border-color: transparent;
+    color: #007bff;
+}
+
+/* 员工管理样式 */
+.employee-list-section {
+    margin-top: 20px;
+}
+
+.table th { font-weight: 600; }
+
+.btn-sm {
+    margin-right: 5px;
+}
+
+/* 模态框样式 */
+.modal-lg {
+    max-width: 800px;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-group label {
+    font-weight: 500;
+    margin-bottom: 5px;
+}
+
+.required {
+    color: #dc3545;
+}
+
+/* 员工管理样式优化 */
+.header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 20px;
+}
+
+.header-text h2 {
+    margin-bottom: 5px;
+    color: #2c3e50;
+}
+
+.header-text .config-description {
+    color: #6c757d;
+    margin-bottom: 0;
+}
+
+.table-container {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    overflow: hidden;
+}
+
+.employee-table thead th {
+    background: #f8f9fb;
+    color: #2c3e50;
+    border-bottom: 1px solid #e9ecef;
+    font-weight: 600;
+    padding: 14px 12px;
+}
+
+.employee-table thead th i {
+    margin-right: 5px;
+}
+
+.employee-table td {
+    padding: 12px;
+    vertical-align: middle;
+}
+
+.employee-table tbody tr:hover {
+    background-color: #f8f9fa;
+}
+
+.avatar {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #e3f2fd;
+    border-radius: 50%;
+}
+
+/* 芯片样式 */
+.chip { display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border-radius:14px; font-size:0.85em; }
+.chip-primary { background:#e8f0ff; color:#0d6efd; }
+.chip-secondary { background:#eef0f2; color:#6c757d; }
+.chip-info { background:#e7f5ff; color:#0aa2c0; }
+.chip-warning { background:#fff6e6; color:#f59f00; }
+.chip-money { background:#e9f7ef; color:#2e7d32; }
+
+/* 操作按钮 */
+.action-buttons { display:inline-flex; gap:8px; }
+.btn-action { display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border:none; border-radius:16px; font-size:14px; cursor:pointer; background:#edf2ff; color:#3b5bdb; }
+.btn-action.edit { background:#e7f5ff; color:#0c8599; }
+.btn-action.delete { background:#fff5f5; color:#c92a2a; }
+.btn-action:hover { filter: brightness(0.97); }
+
+/* 模态框样式优化 */
+.modal-header {
+    border-bottom: none;
+}
+
+.modal-footer {
+    border-top: none;
+    padding: 20px;
+}
+
+.card-header {
+    border-bottom: 1px solid #dee2e6;
+    font-weight: 600;
+}
+
+.card-body {
+    padding: 20px;
+}
+
+.form-label {
+    font-weight: 500;
+    color: #495057;
+}
+
+/* 商品配置样式 */
+.product-config-container {
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 15px;
+    background: #f8f9fa;
+}
+
+.product-input-section {
+    margin-bottom: 10px;
+}
+
+.product-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.product-tag {
+    display: inline-flex;
+    align-items: center;
+    background: #007bff;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 16px;
+    font-size: 14px;
+    gap: 6px;
+}
+
+.product-tag .edit-input {
+    border: none;
+    border-radius: 12px;
+    padding: 2px 8px;
+    outline: none;
+}
+
+.product-tag .save-btn, .product-tag .cancel-btn, .product-tag .edit-btn, .product-tag .remove-btn {
+    background: rgba(255,255,255,0.2);
+    border: none;
+    color: white;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 10px;
+}
+
+.product-tag .save-btn:hover, .product-tag .cancel-btn:hover, .product-tag .edit-btn:hover, .product-tag .remove-btn:hover {
+    background: rgba(255,255,255,0.35);
+}
+
+.product-tag .remove-btn {
+    background: none;
+    border: none;
+    color: white;
+    cursor: pointer;
+    padding: 0;
+    font-size: 12px;
+    line-height: 1;
+}
+
+.product-tag .remove-btn:hover {
+    color: #ffc107;
+}
+
+.product-tag .remove-btn:focus {
+    outline: none;
+    box-shadow: none;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .nav-tabs .nav-link {
+        padding: 8px 12px;
+        font-size: 14px;
+    }
+    
+    .table-responsive {
+        font-size: 14px;
+    }
+    
+    .header-content {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .header-actions {
+        align-self: flex-start;
+    }
+    
+    .btn-group {
+        flex-direction: column;
+    }
+    
+    .btn-group .btn {
+        margin: 2px 0;
+    }
+}
+</style>
 
 {% endblock %}

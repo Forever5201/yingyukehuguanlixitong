@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/fontawesome/all.min.css') }}">
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    {% block head %}{% endblock %}
 </head>
 <body>
     <div id="loadingOverlay" style="position:fixed;top:0;left:0;width:100%;height:100%;background:#fff;z-index:9999;display:flex;justify-content:center;align-items:center;">
