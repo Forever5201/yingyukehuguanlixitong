@@ -38,7 +38,7 @@
                 <p class="amount" id="totalRevenue">¥0</p>
                 <div class="details">
                     <span>课程收入: <em id="courseRevenue">¥0</em></span>
-                    <span>刷单金额: <em id="taobaoRevenue">¥0</em></span>
+
                 </div>
             </div>
             
@@ -47,7 +47,7 @@
                 <p class="amount" id="totalCost">¥0</p>
                 <div class="details">
                     <span>课程成本: <em id="courseCost">¥0</em></span>
-                    <span>手续费: <em id="taobaoCost">¥0</em></span>
+                    <span>刷单费用: <em id="taobaoCost">¥0</em></span>
                     <span>员工成本: <em id="employeeCost">¥0</em></span>
                 </div>
             </div>
@@ -77,10 +77,7 @@
                     <td>续课收入</td>
                     <td class="amount" id="renewalRevenue">¥0</td>
                 </tr>
-                <tr>
-                    <td>刷单金额</td>
-                    <td class="amount" id="taobaoAmount">¥0</td>
-                </tr>
+
                 <tr class="subtotal">
                     <td>小计</td>
                     <td class="amount" id="revenueSubtotal">¥0</td>
@@ -105,12 +102,8 @@
                     <td class="amount" id="courseCostDetail">¥0</td>
                 </tr>
                 <tr>
-                    <td>渠道手续费</td>
+                    <td>总手续费</td>
                     <td class="amount" id="totalFee">¥0</td>
-                </tr>
-                <tr>
-                    <td>刷单金额（成本）</td>
-                    <td class="amount" id="taobaoOrderAmount">¥0</td>
                 </tr>
                 <tr>
                     <td>刷单佣金</td>
@@ -140,61 +133,16 @@
             <h2><i class="fas fa-users"></i> 股东利润分配</h2>
             
             <div class="distribution-cards">
-                <!-- 新课分配 -->
-                <div class="dist-card">
-                    <h3>新课利润分配</h3>
-                    <p class="profit-amount">利润: <span id="newCourseProfitAmount">¥0</span></p>
-                    <div class="shareholder-items">
-                        <div class="shareholder-item">
-                            <span class="name">股东A (<em id="newCourseRatioA">50</em>%)</span>
-                            <span class="amount" id="newCourseShareholderA">¥0</span>
-                        </div>
-                        <div class="shareholder-item">
-                            <span class="name">股东B (<em id="newCourseRatioB">50</em>%)</span>
-                            <span class="amount" id="newCourseShareholderB">¥0</span>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- 续课分配 -->
-                <div class="dist-card">
-                    <h3>续课利润分配</h3>
-                    <p class="profit-amount">利润: <span id="renewalProfitAmount">¥0</span></p>
-                    <div class="shareholder-items">
-                        <div class="shareholder-item">
-                            <span class="name">股东A (<em id="renewalRatioA">40</em>%)</span>
-                            <span class="amount" id="renewalShareholderA">¥0</span>
-                        </div>
-                        <div class="shareholder-item">
-                            <span class="name">股东B (<em id="renewalRatioB">60</em>%)</span>
-                            <span class="amount" id="renewalShareholderB">¥0</span>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- 总计 -->
                 <div class="dist-card total-card">
-                    <h3>股东净利润计算</h3>
+                    <h3>股东净利润分配</h3>
                     <div class="shareholder-items">
                         <div class="shareholder-item">
-                            <span class="name">股东A 毛利润份额</span>
-                            <span class="amount" id="shareholderARevenue">¥0</span>
-                        </div>
-                        <div class="shareholder-item">
-                            <span class="name">股东B 毛利润份额</span>
-                            <span class="amount" id="shareholderBRevenue">¥0</span>
-                        </div>
-                        <div class="shareholder-item" style="border-top: 1px solid #ddd; margin-top: 10px; padding-top: 10px;">
-                            <span class="name">减：分担成本（各50%）</span>
-                            <span class="amount negative" id="costPerShareholder">-¥0</span>
-                        </div>
-                        <div class="shareholder-item" style="border-top: 2px solid #1976d2; margin-top: 10px; padding-top: 10px;">
                             <span class="name"><strong>股东A 净利润</strong></span>
-                            <span class="amount" id="totalShareholderA">¥0</span>
+                            <span class="amount" id="shareholderAProfit">¥0</span>
                         </div>
                         <div class="shareholder-item">
                             <span class="name"><strong>股东B 净利润</strong></span>
-                            <span class="amount" id="totalShareholderB">¥0</span>
+                            <span class="amount" id="shareholderBProfit">¥0</span>
                         </div>
                         <div class="shareholder-item total">
                             <span class="name">净利润总额</span>
@@ -554,11 +502,11 @@ function displayReport(report) {
     // 概览卡片
     document.getElementById('totalRevenue').textContent = formatCurrency(report.revenue.total_revenue);
     document.getElementById('courseRevenue').textContent = formatCurrency(report.revenue.course_revenue);
-    document.getElementById('taobaoRevenue').textContent = formatCurrency(report.revenue.taobao_revenue);
+    document.getElementById('taobaoRevenue').textContent = '¥0';
     
     document.getElementById('totalCost').textContent = formatCurrency(report.cost.total_cost);
     document.getElementById('courseCost').textContent = formatCurrency(report.cost.course_cost);
-    document.getElementById('taobaoCost').textContent = formatCurrency(report.cost.total_fee + report.cost.taobao_commission + report.cost.taobao_fee);
+    document.getElementById('taobaoCost').textContent = formatCurrency(report.cost.taobao_commission + report.cost.taobao_fee);
     document.getElementById('employeeCost').textContent = formatCurrency(report.cost.employee_salary + report.cost.employee_commission);
     
     document.getElementById('netProfit').textContent = formatCurrency(report.profit.net_profit);
@@ -568,10 +516,9 @@ function displayReport(report) {
     document.getElementById('trialRevenue').textContent = formatCurrency(report.revenue.trial_revenue);
     document.getElementById('newCourseRevenue').textContent = formatCurrency(report.revenue.new_course_revenue);
     document.getElementById('renewalRevenue').textContent = formatCurrency(report.revenue.renewal_revenue);
-    document.getElementById('taobaoAmount').textContent = formatCurrency(report.revenue.taobao_revenue);
     document.getElementById('revenueSubtotal').textContent = formatCurrency(
         report.revenue.trial_revenue + report.revenue.new_course_revenue + 
-        report.revenue.renewal_revenue + report.revenue.taobao_revenue
+        report.revenue.renewal_revenue
     );
     document.getElementById('refundAmount').textContent = '-' + formatCurrency(report.revenue.refund_amount);
     document.getElementById('totalRevenueDetail').textContent = formatCurrency(report.revenue.total_revenue);
@@ -579,35 +526,16 @@ function displayReport(report) {
     // 成本明细
     document.getElementById('courseCostDetail').textContent = formatCurrency(report.cost.course_cost);
     document.getElementById('totalFee').textContent = formatCurrency(report.cost.total_fee);
-    document.getElementById('taobaoOrderAmount').textContent = formatCurrency(report.cost.taobao_order_amount);
     document.getElementById('taobaoCommission').textContent = formatCurrency(report.cost.taobao_commission);
     document.getElementById('taobaoFee').textContent = formatCurrency(report.cost.taobao_fee);
     document.getElementById('employeeSalary').textContent = formatCurrency(report.cost.employee_salary);
     document.getElementById('employeeCommission').textContent = formatCurrency(report.cost.employee_commission);
     document.getElementById('totalCostDetail').textContent = formatCurrency(report.cost.total_cost);
     
-    // 股东分配
-    // 新课
-    document.getElementById('newCourseProfitAmount').textContent = formatCurrency(report.shareholder_distribution.new_course.gross_profit);
-    document.getElementById('newCourseRatioA').textContent = report.shareholder_distribution.new_course.ratio_a;
-    document.getElementById('newCourseRatioB').textContent = report.shareholder_distribution.new_course.ratio_b;
-    document.getElementById('newCourseShareholderA').textContent = formatCurrency(report.shareholder_distribution.new_course.shareholder_a_share);
-    document.getElementById('newCourseShareholderB').textContent = formatCurrency(report.shareholder_distribution.new_course.shareholder_b_share);
-    
-    // 续课
-    document.getElementById('renewalProfitAmount').textContent = formatCurrency(report.shareholder_distribution.renewal.gross_profit);
-    document.getElementById('renewalRatioA').textContent = report.shareholder_distribution.renewal.ratio_a;
-    document.getElementById('renewalRatioB').textContent = report.shareholder_distribution.renewal.ratio_b;
-    document.getElementById('renewalShareholderA').textContent = formatCurrency(report.shareholder_distribution.renewal.shareholder_a_share);
-    document.getElementById('renewalShareholderB').textContent = formatCurrency(report.shareholder_distribution.renewal.shareholder_b_share);
-    
-    // 总计 - 显示毛利润份额、成本分担和净利润
-    document.getElementById('shareholderARevenue').textContent = formatCurrency(report.shareholder_distribution.total.shareholder_a_revenue);
-    document.getElementById('shareholderBRevenue').textContent = formatCurrency(report.shareholder_distribution.total.shareholder_b_revenue);
-    document.getElementById('costPerShareholder').textContent = '-' + formatCurrency(report.shareholder_distribution.costs.cost_per_shareholder);
-    document.getElementById('totalShareholderA').textContent = formatCurrency(report.shareholder_distribution.total.shareholder_a_net_profit);
-    document.getElementById('totalShareholderB').textContent = formatCurrency(report.shareholder_distribution.total.shareholder_b_net_profit);
-    document.getElementById('totalDistributed').textContent = formatCurrency(report.shareholder_distribution.total.total_distributed);
+    // 股东分配（简化版）
+    document.getElementById('shareholderAProfit').textContent = formatCurrency(report.shareholder_distribution.shareholder_a_net_profit);
+    document.getElementById('shareholderBProfit').textContent = formatCurrency(report.shareholder_distribution.shareholder_b_net_profit);
+    document.getElementById('totalDistributed').textContent = formatCurrency(report.shareholder_distribution.total_distributed);
 }
 
 // 格式化货币
@@ -631,15 +559,14 @@ function exportReport() {
     csv += `试听课收入,${currentReport.revenue.trial_revenue}\n`;
     csv += `新课收入,${currentReport.revenue.new_course_revenue}\n`;
     csv += `续课收入,${currentReport.revenue.renewal_revenue}\n`;
-    csv += `刷单金额,${currentReport.revenue.taobao_revenue}\n`;
+
     csv += `退费金额（实际退款）,-${currentReport.revenue.refund_amount}\n`;
     csv += `总收入,${currentReport.revenue.total_revenue}\n\n`;
     
     csv += '成本明细\n';
     csv += '项目,金额\n';
     csv += `课程成本,${currentReport.cost.course_cost}\n`;
-    csv += `渠道手续费,${currentReport.cost.total_fee}\n`;
-    csv += `刷单金额（成本）,${currentReport.cost.taobao_order_amount}\n`;
+    csv += `总手续费,${currentReport.cost.total_fee}\n`;
     csv += `刷单佣金,${currentReport.cost.taobao_commission}\n`;
     csv += `刷单手续费,${currentReport.cost.taobao_fee}\n`;
     csv += `员工工资,${currentReport.cost.employee_salary}\n`;
@@ -650,13 +577,11 @@ function exportReport() {
     csv += `净利润,${currentReport.profit.net_profit}\n`;
     csv += `利润率,${currentReport.profit.profit_margin}%\n\n`;
     
-    csv += '股东分配\n';
-    csv += '类型,股东A,股东B\n';
-    csv += `新课毛利润分配,${currentReport.shareholder_distribution.new_course.shareholder_a_share},${currentReport.shareholder_distribution.new_course.shareholder_b_share}\n`;
-    csv += `续课毛利润分配,${currentReport.shareholder_distribution.renewal.shareholder_a_share},${currentReport.shareholder_distribution.renewal.shareholder_b_share}\n`;
-    csv += `毛利润分配小计,${currentReport.shareholder_distribution.total.shareholder_a_revenue},${currentReport.shareholder_distribution.total.shareholder_b_revenue}\n`;
-    csv += `分担成本,${currentReport.shareholder_distribution.costs.cost_per_shareholder},${currentReport.shareholder_distribution.costs.cost_per_shareholder}\n`;
-    csv += `净利润,${currentReport.shareholder_distribution.total.shareholder_a_net_profit},${currentReport.shareholder_distribution.total.shareholder_b_net_profit}\n`;
+    csv += '股东利润分配\n';
+    csv += '股东,净利润\n';
+    csv += `股东A,${currentReport.shareholder_distribution.shareholder_a_net_profit}\n`;
+    csv += `股东B,${currentReport.shareholder_distribution.shareholder_b_net_profit}\n`;
+    csv += `合计,${currentReport.shareholder_distribution.total_distributed}\n`;
     
     // 下载CSV
     const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });

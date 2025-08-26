@@ -104,18 +104,17 @@ class EnhancedProfitService(ProfitService):
             employee_cost = cls.calculate_employee_cost(start_date, end_date)
             
             # 4. 重新计算总收入和总成本
-            # 总收入 = 课程收入 + 刷单金额
-            total_revenue = base_report['summary']['total_revenue'] + taobao_cost['total_amount']
+            # 总收入 = 课程收入（不包含刷单金额）
+            total_revenue = base_report['summary']['total_revenue']
             
             # 5. 计算试听课收入和正课收入的详细分类
             revenue_detail = cls.calculate_revenue_detail(start_date, end_date)
             
-            # 6. 总成本 = 课程成本（不含手续费） + 所有手续费 + 刷单金额 + 刷单佣金 + 刷单手续费 + 员工成本
+            # 6. 总成本 = 课程成本（不含手续费） + 所有手续费 + 刷单佣金 + 刷单手续费 + 员工成本
             # 从base_report中减去已计算的手续费，避免重复
             course_cost_without_fee = base_report['summary']['total_cost'] - base_report.get('total_fee', 0)
             total_cost = (course_cost_without_fee +          # 课程成本（不含手续费）
                          revenue_detail['total_fee'] +        # 所有课程手续费
-                         taobao_cost['total_amount'] +        # 刷单金额作为成本
                          taobao_cost['total_cost'] +          # 刷单佣金和手续费
                          employee_cost['total_cost'])          # 员工成本
             
@@ -166,14 +165,12 @@ class EnhancedProfitService(ProfitService):
                     'new_course_revenue': revenue_detail['new_course_revenue'],
                     'renewal_revenue': revenue_detail['renewal_revenue'],
                     'course_revenue': base_report['summary']['total_revenue'],
-                    'taobao_revenue': taobao_cost['total_amount'],  # 刷单金额计入收入
                     'total_revenue': total_revenue,
                     'refund_amount': revenue_detail['refund_amount']
                 },
                 'cost': {
                     'course_cost': course_cost_without_fee,  # 课程成本（不含手续费）
-                    'total_fee': revenue_detail['total_fee'],  # 所有手续费总和
-                    'taobao_order_amount': taobao_cost['total_amount'],  # 刷单金额计入成本
+                    'total_fee': revenue_detail['total_fee'],  # 总手续费（试听+正课+续课）
                     'taobao_commission': taobao_cost['total_commission'],
                     'taobao_fee': taobao_cost['total_fee'],
                     'employee_salary': employee_cost['total_salary'],
@@ -186,32 +183,9 @@ class EnhancedProfitService(ProfitService):
                     'profit_margin': (net_profit / total_revenue * 100) if total_revenue > 0 else 0  # 净利率
                 },
                 'shareholder_distribution': {
-                    'new_course': {
-                        'gross_profit': new_course_gross_profit,
-                        'shareholder_a_share': new_course_gross_profit * (new_distribution_ratios['ratio_a'] / 100),
-                        'shareholder_b_share': new_course_gross_profit * (new_distribution_ratios['ratio_b'] / 100),
-                        'ratio_a': new_distribution_ratios['ratio_a'],
-                        'ratio_b': new_distribution_ratios['ratio_b']
-                    },
-                    'renewal': {
-                        'gross_profit': renewal_gross_profit,
-                        'shareholder_a_share': renewal_gross_profit * (renewal_distribution_ratios['ratio_a'] / 100),
-                        'shareholder_b_share': renewal_gross_profit * (renewal_distribution_ratios['ratio_b'] / 100),
-                        'ratio_a': renewal_distribution_ratios['ratio_a'],
-                        'ratio_b': renewal_distribution_ratios['ratio_b']
-                    },
-                    'costs': {
-                        'trial_loss': trial_loss,
-                        'additional_costs': additional_costs,
-                        'cost_per_shareholder': cost_per_shareholder
-                    },
-                    'total': {
-                        'shareholder_a_revenue': shareholder_a_revenue_share,
-                        'shareholder_b_revenue': shareholder_b_revenue_share,
-                        'shareholder_a_net_profit': shareholder_a_net_profit,
-                        'shareholder_b_net_profit': shareholder_b_net_profit,
-                        'total_distributed': shareholder_a_net_profit + shareholder_b_net_profit
-                    }
+                    'shareholder_a_net_profit': shareholder_a_net_profit,
+                    'shareholder_b_net_profit': shareholder_b_net_profit,
+                    'total_distributed': shareholder_a_net_profit + shareholder_b_net_profit
                 },
                 'statistics': {
                     'course_count': base_report['summary']['course_count'],
