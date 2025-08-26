@@ -86,7 +86,7 @@
                     <td class="amount" id="revenueSubtotal">¥0</td>
                 </tr>
                 <tr class="deduction">
-                    <td>退费金额</td>
+                    <td>退费金额（实际退款）</td>
                     <td class="amount negative" id="refundAmount">-¥0</td>
                 </tr>
                 <tr class="total">
@@ -617,7 +617,7 @@ function exportReport() {
     csv += `新课收入,${currentReport.revenue.new_course_revenue}\n`;
     csv += `续课收入,${currentReport.revenue.renewal_revenue}\n`;
     csv += `刷单金额,${currentReport.revenue.taobao_revenue}\n`;
-    csv += `退费金额,-${currentReport.revenue.refund_amount}\n`;
+    csv += `退费金额（实际退款）,-${currentReport.revenue.refund_amount}\n`;
     csv += `总收入,${currentReport.revenue.total_revenue}\n\n`;
     
     csv += '成本明细\n';

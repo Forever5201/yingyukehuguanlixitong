@@ -284,12 +284,15 @@ class EnhancedProfitService(ProfitService):
                 # 计算退费
                 if course.refunds:
                     for refund in course.refunds:
-                        # refund_amount 字段存储的是退费总金额（退费节数 × 课程售价）
-                        # 实际退给客户的金额 = refund_amount - refund_fee
-                        refund_amount += cls.safe_float(refund.refund_amount, 0)
-                        
-                        # 退费手续费也计入总手续费
+                        # 在利润报表中，退费金额应该是实际退给客户的金额
+                        # 因为这才是真正影响收入的金额
+                        refund_total = cls.safe_float(refund.refund_amount, 0)
                         refund_fee = cls.safe_float(refund.refund_fee, 0)
+                        actual_refund = refund_total - refund_fee  # 实际退款金额
+                        
+                        refund_amount += actual_refund  # 累加实际退款金额
+                        
+                        # 退费手续费计入总手续费
                         total_fee += refund_fee
             
             return {
