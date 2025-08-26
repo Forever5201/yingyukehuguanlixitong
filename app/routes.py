@@ -2819,64 +2819,60 @@ def assign_trial_course(course_id):
         # 如果employee_id为空字符串或None，则清除分配
         if employee_id == '' or employee_id is None:
             new_employee_id = None
+            new_employee_name = "未分配"
         else:
             # 验证员工是否存在
             employee = Employee.query.get(employee_id)
             if not employee:
                 return jsonify({'success': False, 'message': '员工不存在'}), 400
             new_employee_id = employee_id
+            new_employee_name = employee.name
         
-        # 使用事务确保所有更新要么全部成功，要么全部失败
-        from .services import TransactionService
+        # 记录原员工信息
+        old_employee_id = course.assigned_employee_id
+        old_employee_name = course.assigned_employee.name if course.assigned_employee else "未分配"
         
-        @TransactionService.transactional
-        def update_course_assignment():
-            # 记录原员工ID用于日志
-            old_employee_id = course.assigned_employee_id
-            old_employee_name = course.assigned_employee.name if course.assigned_employee else "未分配"
-            new_employee_name = employee.name if new_employee_id else "未分配"
-            
-            # 1. 更新试听课
-            course.assigned_employee_id = new_employee_id
-            
-            # 2. 如果试听课已转化为正课，同步更新正课
-            if course.converted_to_course:
-                formal_course = Course.query.get(course.converted_to_course)
-                if formal_course:
-                    formal_course.assigned_employee_id = new_employee_id
-                    
-                    # 3. 查找并更新所有续课
-                    def update_renewal_chain(course_id):
-                        renewals = Course.query.filter_by(
-                            renewal_from_course_id=course_id,
-                            is_trial=False
-                        ).all()
-                        for renewal in renewals:
-                            renewal.assigned_employee_id = new_employee_id
-                            # 递归更新续课的续课
-                            update_renewal_chain(renewal.id)
-                    
-                    update_renewal_chain(formal_course.id)
-            
-            # 记录操作日志（可选）
-            print(f"试听课ID {course_id} 的负责员工从 {old_employee_name} 更改为 {new_employee_name}")
-            
-            return {
-                'old_employee': old_employee_name,
-                'new_employee': new_employee_name,
-                'affected_courses': 1  # 可以统计实际影响的课程数
-            }
+        # 直接在当前session中执行更新
+        # 1. 更新试听课
+        course.assigned_employee_id = new_employee_id
         
-        # 执行更新
-        result = update_course_assignment()
+        # 2. 如果试听课已转化为正课，同步更新正课
+        if course.converted_to_course:
+            formal_course = Course.query.get(course.converted_to_course)
+            if formal_course:
+                formal_course.assigned_employee_id = new_employee_id
+                
+                # 3. 查找并更新所有续课
+                def update_renewal_chain(course_id):
+                    renewals = Course.query.filter_by(
+                        renewal_from_course_id=course_id,
+                        is_trial=False
+                    ).all()
+                    for renewal in renewals:
+                        renewal.assigned_employee_id = new_employee_id
+                        # 递归更新续课的续课
+                        update_renewal_chain(renewal.id)
+                
+                update_renewal_chain(formal_course.id)
+        
+        # 提交更改
+        db.session.commit()
+        
+        # 记录操作日志
+        print(f"试听课ID {course_id} 的负责员工从 {old_employee_name} 更改为 {new_employee_name}")
         
         return jsonify({
             'success': True, 
-            'message': f'已将试听课从 {result["old_employee"]} 分配给 {result["new_employee"]}',
-            'details': result
+            'message': f'已将试听课从 {old_employee_name} 分配给 {new_employee_name}',
+            'details': {
+                'old_employee': old_employee_name,
+                'new_employee': new_employee_name
+            }
         })
         
     except Exception as e:
+        db.session.rollback()
+        print(f"分配失败：{str(e)}")
         return jsonify({'success': False, 'message': f'分配失败：{str(e)}'})
 
 @main_bp.route('/api/trial-courses/<int:course_id>/status', methods=['PUT'])

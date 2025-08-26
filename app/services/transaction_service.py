@@ -34,20 +34,27 @@ class TransactionService:
         @wraps(func)
         def wrapper(*args, **kwargs):
             try:
-                # 开始事务
-                with db.session.begin():
+                # 检查是否已经在事务中
+                if db.session.get_transaction() is not None and db.session.get_transaction().is_active:
+                    # 已在事务中，直接执行函数
                     result = func(*args, **kwargs)
-                    # 事务自动提交
                     return result
+                else:
+                    # 不在事务中，创建新事务
+                    with db.session.begin():
+                        result = func(*args, **kwargs)
+                        return result
             except SQLAlchemyError as e:
-                # 数据库错误，自动回滚
+                # 数据库错误，记录但不再次回滚（Flask-SQLAlchemy会自动处理）
                 logger.error(f"事务执行失败 ({func.__name__}): {str(e)}")
-                db.session.rollback()
+                print(f"事务执行失败 ({func.__name__}): {str(e)}")
                 raise
             except Exception as e:
-                # 其他错误，也需要回滚
+                # 其他错误
                 logger.error(f"业务逻辑执行失败 ({func.__name__}): {str(e)}")
-                db.session.rollback()
+                print(f"业务逻辑执行失败 ({func.__name__}): {str(e)}")
+                if db.session.get_transaction() is not None and db.session.get_transaction().is_active:
+                    db.session.rollback()
                 raise
         
         return wrapper
