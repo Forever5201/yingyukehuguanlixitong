@@ -144,7 +144,7 @@ class EnhancedProfitService(ProfitService):
                 },
                 'cost': {
                     'course_cost': course_cost_without_fee,  # 课程成本（不含手续费）
-                    'total_fee': revenue_detail['total_fee'],  # 总手续费（试听+正课+续课）
+                    'total_fee': revenue_detail['total_fee'] + taobao_cost['total_fee'],  # 总手续费（包含所有手续费）
                     'taobao_commission': taobao_cost['total_commission'],
                     'taobao_fee': taobao_cost['total_fee'],
                     'employee_salary': employee_cost['total_salary'],
