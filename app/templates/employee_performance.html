@@ -30,6 +30,10 @@
                             <span class="stat-value">{{ employee.stats.trial_count }}</span>
                         </div>
                         <div class="stat-item">
+                            <span class="stat-label">正课</span>
+                            <span class="stat-value">{{ employee.stats.formal_count }}</span>
+                        </div>
+                        <div class="stat-item">
                             <span class="stat-label">转化率</span>
                             <span class="stat-value">{{ "%.1f"|format(employee.stats.conversion_rate) }}%</span>
                         </div>
@@ -80,6 +84,15 @@
                 <div class="stat-content">
                     <h3 id="conversionRate">0%</h3>
                     <p>转化率</p>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <i class="fas fa-graduation-cap"></i>
+                </div>
+                <div class="stat-content">
+                    <h3 id="formalCount">0</h3>
+                    <p>正课总数</p>
                 </div>
             </div>
             <div class="stat-card">
@@ -250,6 +263,7 @@ function updatePerformanceDisplay(data) {
     document.getElementById('trialCount').textContent = data.stats.trial_count;
     document.getElementById('convertedCount').textContent = data.stats.converted_count;
     document.getElementById('conversionRate').textContent = data.stats.conversion_rate.toFixed(1) + '%';
+    document.getElementById('formalCount').textContent = data.stats.formal_count || 0;
     document.getElementById('totalRevenue').textContent = '¥' + data.stats.total_revenue.toFixed(2);
     
     // 更新试听课表格

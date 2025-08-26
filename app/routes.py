@@ -182,29 +182,31 @@ def employee_performance():
             is_trial=True
         ).all()
         
-        # 转化统计
+        # 正课统计 - 获取所有分配给该员工的正课
+        formal_courses = Course.query.filter_by(
+            assigned_employee_id=employee.id,
+            is_trial=False
+        ).all()
+        
+        # 转化统计 - 计算试听课中有多少转化为正课
         converted_count = sum(1 for c in trial_courses if c.converted_to_course)
         conversion_rate = (converted_count / len(trial_courses) * 100) if trial_courses else 0
         
-        # 本月业绩（正课）- 只计算试听课和正课都分配给该员工的记录
+        # 本月业绩统计
         from datetime import datetime, timedelta
         start_of_month = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-        monthly_courses = []
-        for trial_course in trial_courses:
-            if trial_course.converted_to_course:
-                # 查找对应的正课
-                formal_course = Course.query.get(trial_course.converted_to_course)
-                if (formal_course and 
-                    formal_course.assigned_employee_id == employee.id and
-                    formal_course.created_at >= start_of_month):
-                    monthly_courses.append(formal_course)
         
+        # 本月的正课（所有分配给该员工的）
+        monthly_courses = [c for c in formal_courses if c.created_at >= start_of_month]
         monthly_revenue = sum(c.sessions * c.price for c in monthly_courses)
         
+        # 统计信息中增加正课总数
         employee.stats = {
             'trial_count': len(trial_courses),
+            'formal_count': len(formal_courses),  # 添加正课总数
             'conversion_rate': conversion_rate,
-            'monthly_revenue': monthly_revenue
+            'monthly_revenue': monthly_revenue,
+            'monthly_formal_count': len(monthly_courses)  # 本月正课数
         }
     
     return render_template('employee_performance.html', employees=employees)
@@ -242,6 +244,7 @@ def get_employee_performance(employee_id):
                 'trial_count': performance['trial_courses']['count'],
                 'converted_count': performance['trial_courses']['converted'],
                 'conversion_rate': performance['trial_courses']['conversion_rate'],
+                'formal_count': performance['formal_courses']['total_count'],
                 'total_revenue': performance['total_revenue']
             },
             'commission': performance['commission']
