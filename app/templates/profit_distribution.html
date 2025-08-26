@@ -47,7 +47,7 @@
                 <p class="amount" id="totalCost">¥0</p>
                 <div class="details">
                     <span>课程成本: <em id="courseCost">¥0</em></span>
-                    <span>刷单费用: <em id="taobaoCost">¥0</em></span>
+                    <span>手续费: <em id="taobaoCost">¥0</em></span>
                     <span>员工成本: <em id="employeeCost">¥0</em></span>
                 </div>
             </div>
@@ -174,18 +174,30 @@
                 
                 <!-- 总计 -->
                 <div class="dist-card total-card">
-                    <h3>股东分配总计</h3>
+                    <h3>股东净利润计算</h3>
                     <div class="shareholder-items">
                         <div class="shareholder-item">
-                            <span class="name">股东A 总计</span>
+                            <span class="name">股东A 毛利润份额</span>
+                            <span class="amount" id="shareholderARevenue">¥0</span>
+                        </div>
+                        <div class="shareholder-item">
+                            <span class="name">股东B 毛利润份额</span>
+                            <span class="amount" id="shareholderBRevenue">¥0</span>
+                        </div>
+                        <div class="shareholder-item" style="border-top: 1px solid #ddd; margin-top: 10px; padding-top: 10px;">
+                            <span class="name">减：分担成本（各50%）</span>
+                            <span class="amount negative" id="costPerShareholder">-¥0</span>
+                        </div>
+                        <div class="shareholder-item" style="border-top: 2px solid #1976d2; margin-top: 10px; padding-top: 10px;">
+                            <span class="name"><strong>股东A 净利润</strong></span>
                             <span class="amount" id="totalShareholderA">¥0</span>
                         </div>
                         <div class="shareholder-item">
-                            <span class="name">股东B 总计</span>
+                            <span class="name"><strong>股东B 净利润</strong></span>
                             <span class="amount" id="totalShareholderB">¥0</span>
                         </div>
                         <div class="shareholder-item total">
-                            <span class="name">已分配总额</span>
+                            <span class="name">净利润总额</span>
                             <span class="amount" id="totalDistributed">¥0</span>
                         </div>
                     </div>
@@ -546,7 +558,7 @@ function displayReport(report) {
     
     document.getElementById('totalCost').textContent = formatCurrency(report.cost.total_cost);
     document.getElementById('courseCost').textContent = formatCurrency(report.cost.course_cost);
-    document.getElementById('taobaoCost').textContent = formatCurrency(report.cost.taobao_commission + report.cost.taobao_fee);
+    document.getElementById('taobaoCost').textContent = formatCurrency(report.cost.total_fee + report.cost.taobao_commission + report.cost.taobao_fee);
     document.getElementById('employeeCost').textContent = formatCurrency(report.cost.employee_salary + report.cost.employee_commission);
     
     document.getElementById('netProfit').textContent = formatCurrency(report.profit.net_profit);
@@ -576,22 +588,25 @@ function displayReport(report) {
     
     // 股东分配
     // 新课
-    document.getElementById('newCourseProfitAmount').textContent = formatCurrency(report.shareholder_distribution.new_course.profit);
+    document.getElementById('newCourseProfitAmount').textContent = formatCurrency(report.shareholder_distribution.new_course.gross_profit);
     document.getElementById('newCourseRatioA').textContent = report.shareholder_distribution.new_course.ratio_a;
     document.getElementById('newCourseRatioB').textContent = report.shareholder_distribution.new_course.ratio_b;
-    document.getElementById('newCourseShareholderA').textContent = formatCurrency(report.shareholder_distribution.new_course.shareholder_a);
-    document.getElementById('newCourseShareholderB').textContent = formatCurrency(report.shareholder_distribution.new_course.shareholder_b);
+    document.getElementById('newCourseShareholderA').textContent = formatCurrency(report.shareholder_distribution.new_course.shareholder_a_share);
+    document.getElementById('newCourseShareholderB').textContent = formatCurrency(report.shareholder_distribution.new_course.shareholder_b_share);
     
     // 续课
-    document.getElementById('renewalProfitAmount').textContent = formatCurrency(report.shareholder_distribution.renewal.profit);
+    document.getElementById('renewalProfitAmount').textContent = formatCurrency(report.shareholder_distribution.renewal.gross_profit);
     document.getElementById('renewalRatioA').textContent = report.shareholder_distribution.renewal.ratio_a;
     document.getElementById('renewalRatioB').textContent = report.shareholder_distribution.renewal.ratio_b;
-    document.getElementById('renewalShareholderA').textContent = formatCurrency(report.shareholder_distribution.renewal.shareholder_a);
-    document.getElementById('renewalShareholderB').textContent = formatCurrency(report.shareholder_distribution.renewal.shareholder_b);
+    document.getElementById('renewalShareholderA').textContent = formatCurrency(report.shareholder_distribution.renewal.shareholder_a_share);
+    document.getElementById('renewalShareholderB').textContent = formatCurrency(report.shareholder_distribution.renewal.shareholder_b_share);
     
-    // 总计
-    document.getElementById('totalShareholderA').textContent = formatCurrency(report.shareholder_distribution.total.shareholder_a);
-    document.getElementById('totalShareholderB').textContent = formatCurrency(report.shareholder_distribution.total.shareholder_b);
+    // 总计 - 显示毛利润份额、成本分担和净利润
+    document.getElementById('shareholderARevenue').textContent = formatCurrency(report.shareholder_distribution.total.shareholder_a_revenue);
+    document.getElementById('shareholderBRevenue').textContent = formatCurrency(report.shareholder_distribution.total.shareholder_b_revenue);
+    document.getElementById('costPerShareholder').textContent = '-' + formatCurrency(report.shareholder_distribution.costs.cost_per_shareholder);
+    document.getElementById('totalShareholderA').textContent = formatCurrency(report.shareholder_distribution.total.shareholder_a_net_profit);
+    document.getElementById('totalShareholderB').textContent = formatCurrency(report.shareholder_distribution.total.shareholder_b_net_profit);
     document.getElementById('totalDistributed').textContent = formatCurrency(report.shareholder_distribution.total.total_distributed);
 }
 
@@ -637,9 +652,11 @@ function exportReport() {
     
     csv += '股东分配\n';
     csv += '类型,股东A,股东B\n';
-    csv += `新课利润分配,${currentReport.shareholder_distribution.new_course.shareholder_a},${currentReport.shareholder_distribution.new_course.shareholder_b}\n`;
-    csv += `续课利润分配,${currentReport.shareholder_distribution.renewal.shareholder_a},${currentReport.shareholder_distribution.renewal.shareholder_b}\n`;
-    csv += `合计,${currentReport.shareholder_distribution.total.shareholder_a},${currentReport.shareholder_distribution.total.shareholder_b}\n`;
+    csv += `新课毛利润分配,${currentReport.shareholder_distribution.new_course.shareholder_a_share},${currentReport.shareholder_distribution.new_course.shareholder_b_share}\n`;
+    csv += `续课毛利润分配,${currentReport.shareholder_distribution.renewal.shareholder_a_share},${currentReport.shareholder_distribution.renewal.shareholder_b_share}\n`;
+    csv += `毛利润分配小计,${currentReport.shareholder_distribution.total.shareholder_a_revenue},${currentReport.shareholder_distribution.total.shareholder_b_revenue}\n`;
+    csv += `分担成本,${currentReport.shareholder_distribution.costs.cost_per_shareholder},${currentReport.shareholder_distribution.costs.cost_per_shareholder}\n`;
+    csv += `净利润,${currentReport.shareholder_distribution.total.shareholder_a_net_profit},${currentReport.shareholder_distribution.total.shareholder_b_net_profit}\n`;
     
     // 下载CSV
     const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });

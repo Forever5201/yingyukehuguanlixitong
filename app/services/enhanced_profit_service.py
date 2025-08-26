@@ -122,19 +122,39 @@ class EnhancedProfitService(ProfitService):
             # 7. 计算净利润
             net_profit = total_revenue - total_cost
             
-            # 7. 重新计算股东分配（基于净利润中的新课和续课部分）
-            # 计算新课和续课的净利润比例
-            new_course_ratio = base_report['profit_by_type']['new_course'] / base_report['summary']['total_profit'] if base_report['summary']['total_profit'] > 0 else 0.5
-            renewal_ratio = base_report['profit_by_type']['renewal'] / base_report['summary']['total_profit'] if base_report['summary']['total_profit'] > 0 else 0.5
+            # 7. 重新计算股东分配
+            # 获取新课和续课的毛利润（来自base_report）
+            new_course_gross_profit = base_report['profit_by_type'].get('new_course', 0)
+            renewal_gross_profit = base_report['profit_by_type'].get('renewal', 0)
             
-            # 扣除刷单成本后的可分配利润
-            distributable_profit = net_profit
-            new_course_net_profit = distributable_profit * new_course_ratio
-            renewal_net_profit = distributable_profit * renewal_ratio
+            # 获取分配比例
+            new_distribution_ratios = cls.calculate_shareholder_distribution(100, False)  # 获取比例
+            renewal_distribution_ratios = cls.calculate_shareholder_distribution(100, True)  # 获取比例
             
-            # 计算股东分配
-            new_distribution = cls.calculate_shareholder_distribution(new_course_net_profit, False)
-            renewal_distribution = cls.calculate_shareholder_distribution(renewal_net_profit, True)
+            # 计算每个股东的收入份额
+            shareholder_a_revenue_share = (
+                new_course_gross_profit * (new_distribution_ratios['ratio_a'] / 100) +
+                renewal_gross_profit * (renewal_distribution_ratios['ratio_a'] / 100)
+            )
+            shareholder_b_revenue_share = (
+                new_course_gross_profit * (new_distribution_ratios['ratio_b'] / 100) +
+                renewal_gross_profit * (renewal_distribution_ratios['ratio_b'] / 100)
+            )
+            
+            # 计算需要分担的额外成本（试听课亏损、刷单成本、员工成本等）
+            trial_loss = -base_report['profit_by_type'].get('trial', 0)  # 试听课通常是亏损的
+            additional_costs = (
+                trial_loss +
+                taobao_cost['total_cost'] +  # 刷单佣金和手续费（不含刷单金额，因为已在收入中抵消）
+                employee_cost['total_cost']   # 员工成本
+            )
+            
+            # 每个股东分担50%的额外成本
+            cost_per_shareholder = additional_costs * 0.5
+            
+            # 计算每个股东的净利润
+            shareholder_a_net_profit = shareholder_a_revenue_share - cost_per_shareholder
+            shareholder_b_net_profit = shareholder_b_revenue_share - cost_per_shareholder
             
             return {
                 'period': {
@@ -167,24 +187,30 @@ class EnhancedProfitService(ProfitService):
                 },
                 'shareholder_distribution': {
                     'new_course': {
-                        'profit': new_course_net_profit,
-                        'shareholder_a': new_distribution['shareholder_a'],
-                        'shareholder_b': new_distribution['shareholder_b'],
-                        'ratio_a': new_distribution['ratio_a'],
-                        'ratio_b': new_distribution['ratio_b']
+                        'gross_profit': new_course_gross_profit,
+                        'shareholder_a_share': new_course_gross_profit * (new_distribution_ratios['ratio_a'] / 100),
+                        'shareholder_b_share': new_course_gross_profit * (new_distribution_ratios['ratio_b'] / 100),
+                        'ratio_a': new_distribution_ratios['ratio_a'],
+                        'ratio_b': new_distribution_ratios['ratio_b']
                     },
                     'renewal': {
-                        'profit': renewal_net_profit,
-                        'shareholder_a': renewal_distribution['shareholder_a'],
-                        'shareholder_b': renewal_distribution['shareholder_b'],
-                        'ratio_a': renewal_distribution['ratio_a'],
-                        'ratio_b': renewal_distribution['ratio_b']
+                        'gross_profit': renewal_gross_profit,
+                        'shareholder_a_share': renewal_gross_profit * (renewal_distribution_ratios['ratio_a'] / 100),
+                        'shareholder_b_share': renewal_gross_profit * (renewal_distribution_ratios['ratio_b'] / 100),
+                        'ratio_a': renewal_distribution_ratios['ratio_a'],
+                        'ratio_b': renewal_distribution_ratios['ratio_b']
+                    },
+                    'costs': {
+                        'trial_loss': trial_loss,
+                        'additional_costs': additional_costs,
+                        'cost_per_shareholder': cost_per_shareholder
                     },
                     'total': {
-                        'shareholder_a': new_distribution['shareholder_a'] + renewal_distribution['shareholder_a'],
-                        'shareholder_b': new_distribution['shareholder_b'] + renewal_distribution['shareholder_b'],
-                        'total_distributed': new_distribution['shareholder_a'] + renewal_distribution['shareholder_a'] + 
-                                           new_distribution['shareholder_b'] + renewal_distribution['shareholder_b']
+                        'shareholder_a_revenue': shareholder_a_revenue_share,
+                        'shareholder_b_revenue': shareholder_b_revenue_share,
+                        'shareholder_a_net_profit': shareholder_a_net_profit,
+                        'shareholder_b_net_profit': shareholder_b_net_profit,
+                        'total_distributed': shareholder_a_net_profit + shareholder_b_net_profit
                     }
                 },
                 'statistics': {
