@@ -105,7 +105,7 @@
                     <td class="amount" id="courseCostDetail">¥0</td>
                 </tr>
                 <tr>
-                    <td>总手续费（含退费手续费）</td>
+                    <td>渠道手续费</td>
                     <td class="amount" id="totalFee">¥0</td>
                 </tr>
                 <tr>
@@ -623,7 +623,7 @@ function exportReport() {
     csv += '成本明细\n';
     csv += '项目,金额\n';
     csv += `课程成本,${currentReport.cost.course_cost}\n`;
-    csv += `总手续费（含退费手续费）,${currentReport.cost.total_fee}\n`;
+    csv += `渠道手续费,${currentReport.cost.total_fee}\n`;
     csv += `刷单金额（成本）,${currentReport.cost.taobao_order_amount}\n`;
     csv += `刷单佣金,${currentReport.cost.taobao_commission}\n`;
     csv += `刷单手续费,${currentReport.cost.taobao_fee}\n`;
