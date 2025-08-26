@@ -460,22 +460,22 @@ def profit_distribution():
     """股东利润分配页面"""
     # 获取利润分配配置
     profit_config = {
-        'new_course_shareholder_a': 50,
-        'new_course_shareholder_b': 50,
-        'renewal_shareholder_a': 40,
-        'renewal_shareholder_b': 60
+        'shareholder_a_ratio': 50,
+        'shareholder_b_ratio': 50
     }
     
     # 从Config表获取配置
     configs = Config.query.filter(Config.key.in_([
-        'new_course_shareholder_a',
-        'new_course_shareholder_b', 
-        'renewal_shareholder_a',
-        'renewal_shareholder_b'
+        'shareholder_a_ratio',
+        'shareholder_b_ratio'
     ])).all()
     
     for config in configs:
         profit_config[config.key] = float(config.value)
+    
+    # 确保比例和为100
+    if profit_config['shareholder_a_ratio'] + profit_config['shareholder_b_ratio'] != 100:
+        profit_config['shareholder_b_ratio'] = 100 - profit_config['shareholder_a_ratio']
     
     return render_template('profit_distribution.html', profit_config=profit_config)
 
@@ -484,17 +484,13 @@ def save_profit_config():
     """保存利润分配配置"""
     try:
         # 验证比例是否正确
-        new_course_a = float(request.form.get('new_course_shareholder_a', 50))
-        new_course_b = 100 - new_course_a
-        renewal_a = float(request.form.get('renewal_shareholder_a', 40))
-        renewal_b = 100 - renewal_a
+        shareholder_a = float(request.form.get('shareholder_a_ratio', 50))
+        shareholder_b = 100 - shareholder_a
         
         # 保存配置
         configs = {
-            'new_course_shareholder_a': str(new_course_a),
-            'new_course_shareholder_b': str(new_course_b),
-            'renewal_shareholder_a': str(renewal_a),
-            'renewal_shareholder_b': str(renewal_b)
+            'shareholder_a_ratio': str(shareholder_a),
+            'shareholder_b_ratio': str(shareholder_b)
         }
         
         for key, value in configs.items():
@@ -613,13 +609,14 @@ def manage_config():
         
         if config_type == 'profit_distribution':
             # 处理股东利润分配配置
+            shareholder_a_ratio = float(request.form.get('shareholder_a_ratio', '50'))
+            shareholder_b_ratio = 100 - shareholder_a_ratio
+            
             configs_to_save = {
                 'shareholder_a_name': request.form.get('shareholder_a_name', '股东A'),
                 'shareholder_b_name': request.form.get('shareholder_b_name', '股东B'),
-                'new_course_shareholder_a': request.form.get('new_course_shareholder_a', '50'),
-                'new_course_shareholder_b': str(100 - float(request.form.get('new_course_shareholder_a', '50'))),
-                'renewal_shareholder_a': request.form.get('renewal_shareholder_a', '40'),
-                'renewal_shareholder_b': str(100 - float(request.form.get('renewal_shareholder_a', '40')))
+                'shareholder_a_ratio': str(shareholder_a_ratio),
+                'shareholder_b_ratio': str(shareholder_b_ratio)
             }
             
             for key, value in configs_to_save.items():
@@ -649,8 +646,7 @@ def manage_config():
     config_keys = [
         'trial_cost', 'course_cost', 'taobao_fee_rate', 'shuadan_products',
         'shareholder_a_name', 'shareholder_b_name',
-        'new_course_shareholder_a', 'new_course_shareholder_b',
-        'renewal_shareholder_a', 'renewal_shareholder_b'
+        'shareholder_a_ratio', 'shareholder_b_ratio'
     ]
     
     configs = Config.query.filter(Config.key.in_(config_keys)).all()
@@ -663,10 +659,8 @@ def manage_config():
         'taobao_fee_rate': config_dict.get('taobao_fee_rate', '0'),
         'shareholder_a_name': config_dict.get('shareholder_a_name', '股东A'),
         'shareholder_b_name': config_dict.get('shareholder_b_name', '股东B'),
-        'new_course_shareholder_a': config_dict.get('new_course_shareholder_a', '50'),
-        'new_course_shareholder_b': config_dict.get('new_course_shareholder_b', '50'),
-        'renewal_shareholder_a': config_dict.get('renewal_shareholder_a', '40'),
-        'renewal_shareholder_b': config_dict.get('renewal_shareholder_b', '60'),
+        'shareholder_a_ratio': config_dict.get('shareholder_a_ratio', '50'),
+        'shareholder_b_ratio': config_dict.get('shareholder_b_ratio', '50'),
         # 刷单商品列表（JSON 或逗号分隔）
         'shuadan_products': config_dict.get('shuadan_products', '')
     }

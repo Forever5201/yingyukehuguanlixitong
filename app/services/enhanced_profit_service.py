@@ -121,41 +121,13 @@ class EnhancedProfitService(ProfitService):
             # 7. 计算净利润
             net_profit = total_revenue - total_cost
             
-            # 7. 重新计算股东分配
-            # 获取新课和续课的毛利润（来自base_report）
-            new_course_gross_profit = base_report['profit_by_type'].get('new_course', 0)
-            renewal_gross_profit = base_report['profit_by_type'].get('renewal', 0)
+            # 7. 简化股东分配计算 - 使用统一的分配比例
+            # 获取统一的分配比例
+            distribution_ratios = cls.calculate_shareholder_distribution(100)  # 获取比例
             
-            # 获取分配比例
-            new_distribution_ratios = cls.calculate_shareholder_distribution(100, False)  # 获取比例
-            renewal_distribution_ratios = cls.calculate_shareholder_distribution(100, True)  # 获取比例
-            
-            # 计算每个股东的收入份额
-            shareholder_a_revenue_share = (
-                new_course_gross_profit * (new_distribution_ratios['ratio_a'] / 100) +
-                renewal_gross_profit * (renewal_distribution_ratios['ratio_a'] / 100)
-            )
-            shareholder_b_revenue_share = (
-                new_course_gross_profit * (new_distribution_ratios['ratio_b'] / 100) +
-                renewal_gross_profit * (renewal_distribution_ratios['ratio_b'] / 100)
-            )
-            
-            # 计算需要分担的额外成本（试听课亏损、刷单成本、员工成本等）
-            trial_profit = base_report.get('profit_by_type', {}).get('trial', 0)
-            trial_loss = -trial_profit if trial_profit < 0 else 0  # 只有亏损时才计入成本
-            
-            additional_costs = (
-                trial_loss +
-                taobao_cost['total_cost'] +  # 刷单佣金和手续费
-                employee_cost['total_cost']   # 员工成本
-            )
-            
-            # 每个股东分担50%的额外成本
-            cost_per_shareholder = additional_costs * 0.5
-            
-            # 计算每个股东的净利润
-            shareholder_a_net_profit = shareholder_a_revenue_share - cost_per_shareholder
-            shareholder_b_net_profit = shareholder_b_revenue_share - cost_per_shareholder
+            # 直接按比例分配净利润
+            shareholder_a_net_profit = net_profit * (distribution_ratios['ratio_a'] / 100)
+            shareholder_b_net_profit = net_profit * (distribution_ratios['ratio_b'] / 100)
             
             return {
                 'period': {

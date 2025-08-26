@@ -206,74 +206,36 @@
                             </div>
                         </div>
 
-                        <!-- 正课利润分配 -->
-                        <h3><i class="fas fa-graduation-cap"></i> 正课利润分配</h3>
+                        <!-- 利润分配比例 -->
+                        <h3><i class="fas fa-percentage"></i> 利润分配比例</h3>
                         <div class="form-row">
                             <div class="form-group">
-                                <label for="new_course_shareholder_a" class="shareholder-a-label">
+                                <label for="shareholder_a_ratio" class="shareholder-a-label">
                                     <span class="shareholder-a-name">{{ config.shareholder_a_name or '股东A' }}</span>分配比例 (%)
                                 </label>
                                 <div class="input-group">
                                     <input type="number" 
-                                           id="new_course_shareholder_a" 
-                                           name="new_course_shareholder_a" 
-                                           value="{{ config.new_course_shareholder_a or 50 }}" 
+                                           id="shareholder_a_ratio" 
+                                           name="shareholder_a_ratio" 
+                                           value="{{ config.shareholder_a_ratio or 50 }}" 
                                            step="0.1" 
                                            min="0"
                                            max="100"
                                            class="form-control"
-                                           oninput="updateShareholderB('new_course')">
+                                           oninput="updateShareholderB()">
                                     <span class="input-suffix">%</span>
                                 </div>
                             </div>
                             
                             <div class="form-group">
-                                <label for="new_course_shareholder_b" class="shareholder-b-label">
+                                <label for="shareholder_b_ratio" class="shareholder-b-label">
                                     <span class="shareholder-b-name">{{ config.shareholder_b_name or '股东B' }}</span>分配比例 (%)
                                 </label>
                                 <div class="input-group">
                                     <input type="number" 
-                                           id="new_course_shareholder_b" 
-                                           name="new_course_shareholder_b" 
-                                           value="{{ config.new_course_shareholder_b or 50 }}" 
-                                           class="form-control"
-                                           readonly
-                                           style="background: #e9ecef;">
-                                    <span class="input-suffix">%</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- 续课利润分配 -->
-                        <h3><i class="fas fa-redo"></i> 续课利润分配</h3>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="renewal_shareholder_a" class="shareholder-a-label">
-                                    <span class="shareholder-a-name">{{ config.shareholder_a_name or '股东A' }}</span>分配比例 (%)
-                                </label>
-                                <div class="input-group">
-                                    <input type="number" 
-                                           id="renewal_shareholder_a" 
-                                           name="renewal_shareholder_a" 
-                                           value="{{ config.renewal_shareholder_a or 40 }}" 
-                                           step="0.1" 
-                                           min="0"
-                                           max="100"
-                                           class="form-control"
-                                           oninput="updateShareholderB('renewal')">
-                                    <span class="input-suffix">%</span>
-                                </div>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label for="renewal_shareholder_b" class="shareholder-b-label">
-                                    <span class="shareholder-b-name">{{ config.shareholder_b_name or '股东B' }}</span>分配比例 (%)
-                                </label>
-                                <div class="input-group">
-                                    <input type="number" 
-                                           id="renewal_shareholder_b" 
-                                           name="renewal_shareholder_b" 
-                                           value="{{ config.renewal_shareholder_b or 60 }}" 
+                                           id="shareholder_b_ratio" 
+                                           name="shareholder_b_ratio" 
+                                           value="{{ config.shareholder_b_ratio or 50 }}" 
                                            class="form-control"
                                            readonly
                                            style="background: #e9ecef;">
@@ -520,10 +482,10 @@ function updateSummary() {
 }
 
 // 股东配置相关函数
-function updateShareholderB(type) {
-    const shareholderA = parseFloat(document.getElementById(`${type}_shareholder_a`).value) || 0;
+function updateShareholderB() {
+    const shareholderA = parseFloat(document.getElementById('shareholder_a_ratio').value) || 0;
     const shareholderB = 100 - shareholderA;
-    document.getElementById(`${type}_shareholder_b`).value = shareholderB.toFixed(1);
+    document.getElementById('shareholder_b_ratio').value = shareholderB.toFixed(1);
 }
 
 // 员工管理相关函数

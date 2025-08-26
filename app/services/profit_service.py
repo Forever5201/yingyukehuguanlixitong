@@ -145,27 +145,21 @@ class ProfitService:
     @classmethod
     def calculate_shareholder_distribution(cls, profit: float, is_renewal: bool = False) -> Dict:
         """
-        计算股东利润分配
+        计算股东利润分配（统一分配比例，不区分课程类型）
         
         Args:
             profit: 利润金额
-            is_renewal: 是否为续课
+            is_renewal: 是否为续课（保留参数以兼容旧代码，但不再使用）
             
         Returns:
             股东分配信息
         """
         try:
-            # 获取分配比例配置
-            if is_renewal:
-                config_a_key = 'renewal_shareholder_a'
-                config_b_key = 'renewal_shareholder_b'
-                default_a = 40
-                default_b = 60
-            else:
-                config_a_key = 'new_course_shareholder_a'
-                config_b_key = 'new_course_shareholder_b'
-                default_a = 50
-                default_b = 50
+            # 获取统一的分配比例配置
+            config_a_key = 'shareholder_a_ratio'
+            config_b_key = 'shareholder_b_ratio'
+            default_a = 50
+            default_b = 50
             
             # 查询配置
             configs = Config.query.filter(Config.key.in_([config_a_key, config_b_key])).all()
@@ -173,6 +167,10 @@ class ProfitService:
             
             ratio_a = config_dict.get(config_a_key, default_a) / 100
             ratio_b = config_dict.get(config_b_key, default_b) / 100
+            
+            # 确保比例和为1
+            if ratio_a + ratio_b != 1:
+                ratio_b = 1 - ratio_a
             
             return {
                 'shareholder_a': profit * ratio_a,
