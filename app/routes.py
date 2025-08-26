@@ -213,8 +213,12 @@ def employee_performance():
 
 @main_bp.route('/api/employees/<int:employee_id>/performance')
 def get_employee_performance(employee_id):
-    """获取员工业绩详情 - 优化版，使用PerformanceService"""
+    """获取员工业绩详情"""
     try:
+        employee = Employee.query.get(employee_id)
+        if not employee:
+            return jsonify({'success': False, 'message': '员工不存在'}), 404
+        
         # 获取查询参数
         period = request.args.get('period', 'all')
         
@@ -231,31 +235,89 @@ def get_employee_performance(employee_id):
             start_date = (now.replace(day=1) - timedelta(days=1)).replace(day=1)
             end_date = now.replace(day=1) - timedelta(days=1)
         
-        # 使用服务层获取业绩数据
-        performance = PerformanceService.calculate_employee_performance(
-            employee_id, start_date, end_date
+        # 构建查询
+        trial_query = Course.query.filter_by(
+            assigned_employee_id=employee_id,
+            is_trial=True
+        )
+        formal_query = Course.query.filter_by(
+            assigned_employee_id=employee_id,
+            is_trial=False
         )
         
-        # 格式化返回数据以兼容现有前端
+        # 应用时间过滤
+        if start_date and end_date:
+            trial_query = trial_query.filter(
+                Course.created_at >= start_date,
+                Course.created_at <= end_date
+            )
+            formal_query = formal_query.filter(
+                Course.created_at >= start_date,
+                Course.created_at <= end_date
+            )
+        
+        # 获取课程数据
+        trial_courses = trial_query.order_by(Course.created_at.desc()).all()
+        formal_courses = formal_query.order_by(Course.created_at.desc()).all()
+        
+        # 计算统计数据
+        trial_count = len(trial_courses)
+        converted_count = sum(1 for c in trial_courses if c.converted_to_course)
+        conversion_rate = (converted_count / trial_count * 100) if trial_count > 0 else 0
+        
+        # 计算总业绩
+        total_revenue = sum(c.sessions * c.price for c in formal_courses)
+        
+        # 使用ProfitService计算提成
+        from .services import ProfitService
+        commission_info = ProfitService.calculate_employee_commission(
+            employee_id, formal_courses
+        )
+        
+        # 构建返回数据
         result = {
             'success': True,
-            'employee_name': performance['employee']['name'],
+            'employee_name': employee.name,
             'stats': {
-                'trial_count': performance['trial_courses']['count'],
-                'converted_count': performance['trial_courses']['converted'],
-                'conversion_rate': performance['trial_courses']['conversion_rate'],
-                'formal_count': performance['formal_courses']['total_count'],
-                'total_revenue': performance['total_revenue']
+                'trial_count': trial_count,
+                'converted_count': converted_count,
+                'conversion_rate': conversion_rate,
+                'formal_count': len(formal_courses),
+                'total_revenue': total_revenue
             },
-            'commission': performance['commission']
+            'trial_courses': [{
+                'customer_name': c.customer.name if c.customer else '未知',
+                'trial_price': safe_float(c.trial_price, 0),
+                'trial_status': c.trial_status or 'registered',
+                'created_at': c.created_at.strftime('%Y-%m-%d') if c.created_at else '',
+                'is_converted': bool(c.converted_to_course)
+            } for c in trial_courses],
+            'formal_courses': [{
+                'customer_name': c.customer.name if c.customer else '未知',
+                'course_type': c.course_type or '',
+                'sessions': safe_int(c.sessions, 0),
+                'total_amount': safe_int(c.sessions, 0) * safe_float(c.price, 0),
+                'profit': ProfitService.calculate_course_profit(c).get('profit', 0),
+                'has_refund': ProfitService.calculate_course_profit(c).get('has_refund', False),
+                'is_renewal': bool(c.is_renewal),
+                'created_at': c.created_at.strftime('%Y-%m-%d') if c.created_at else ''
+            } for c in formal_courses],
+            'commission': {
+                'trial_commission': commission_info.get('trial_commission', 0),
+                'new_course_commission': commission_info.get('new_commission', 0),
+                'renewal_commission': commission_info.get('renewal_commission', 0),
+                'total_commission': commission_info.get('total_commission', 0),
+                'base_salary': commission_info.get('base_salary', 0),
+                'total_salary': commission_info.get('total_commission', 0) + commission_info.get('base_salary', 0)
+            }
         }
         
         return jsonify(result)
         
-    except ValueError as e:
-        return jsonify({'success': False, 'message': str(e)}), 404
     except Exception as e:
-        return jsonify({'success': False, 'message': '获取业绩数据失败'}), 500
+        import traceback
+        traceback.print_exc()  # 打印错误到控制台便于调试
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 def calculate_course_profit(course):
     """计算课程利润"""
