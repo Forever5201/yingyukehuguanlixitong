@@ -1,0 +1,128 @@
+{# KPI Card Component - Jinja2 Macro #}
+{# Usage: {{ kpi_card('1,234', '总客户数', 12.5, 'fa-users') }} #}
+
+{% macro kpi_card(value, label, trending_delta=None, icon_class=None) -%}
+<div class="kpi-card">
+    <div class="kpi-card-header">
+        {% if icon_class %}
+        <div class="kpi-card-icon">
+            <i class="fas {{ icon_class }}"></i>
+        </div>
+        {% endif %}
+        <div class="kpi-card-label">{{ label }}</div>
+    </div>
+    
+    <div class="kpi-card-value">{{ value }}</div>
+    
+    {% if trending_delta is not none %}
+    <div class="kpi-card-trend {% if trending_delta >= 0 %}trend-up{% else %}trend-down{% endif %}">
+        <i class="fas {% if trending_delta >= 0 %}fa-arrow-up{% else %}fa-arrow-down{% endif %}"></i>
+        <span>{{ '%.1f'|format(trending_delta|abs) }}%</span>
+    </div>
+    {% endif %}
+</div>
+{%- endmacro %}
+
+{# Styles for KPI Card - Include in page or add to tokens.css #}
+<style>
+.kpi-card {
+    background-color: var(--color-card-bg);
+    border: 1px solid var(--color-border-light);
+    border-radius: var(--radius-lg);
+    padding: var(--space-lg);
+    box-shadow: var(--shadow-sm);
+    transition: all var(--transition-base);
+    position: relative;
+    overflow: hidden;
+}
+
+.kpi-card:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+}
+
+.kpi-card-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    margin-bottom: var(--space-md);
+}
+
+.kpi-card-icon {
+    width: 3rem;
+    height: 3rem;
+    background-color: var(--color-primary-light);
+    color: var(--color-primary);
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--font-size-xl);
+}
+
+.kpi-card-label {
+    font-size: var(--font-size-sm);
+    color: var(--color-muted);
+    font-weight: var(--font-weight-medium);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.kpi-card-value {
+    font-size: var(--font-size-3xl);
+    font-weight: var(--font-weight-bold);
+    color: var(--color-text);
+    line-height: 1;
+    margin-bottom: var(--space-sm);
+}
+
+.kpi-card-trend {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-xs);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    padding: var(--space-xs) var(--space-sm);
+    border-radius: var(--radius-full);
+}
+
+.kpi-card-trend.trend-up {
+    color: var(--color-success);
+    background-color: var(--color-success-light);
+}
+
+.kpi-card-trend.trend-down {
+    color: var(--color-danger);
+    background-color: var(--color-danger-light);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .kpi-card {
+        padding: var(--space-md);
+    }
+    
+    .kpi-card-value {
+        font-size: var(--font-size-2xl);
+    }
+}
+</style>
+
+{# Example Usage with Mock Data #}
+{# 
+<div class="kpi-grid">
+    {{ kpi_card('1,234', '总客户数', 12.5, 'fa-users') }}
+    {{ kpi_card('¥89,456', '本月收入', 8.3, 'fa-dollar-sign') }}
+    {{ kpi_card('156', '活跃学员', -2.1, 'fa-graduation-cap') }}
+    {{ kpi_card('4.8', '满意度评分', 0.5, 'fa-star') }}
+</div>
+
+<style>
+.kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: var(--space-lg);
+    margin-bottom: var(--space-2xl);
+}
+</style>
+#}

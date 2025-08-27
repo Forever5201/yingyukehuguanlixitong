@@ -1,0 +1,243 @@
+{# Filter Panel Component - Jinja2 Include Template #}
+{# Usage: {% include 'components/filter_panel.html' %} #}
+
+<div class="filter-panel">
+    <form method="get" action="{{ request.path }}" class="filter-form">
+        <div class="filter-row">
+            {# Date Range Filter #}
+            <div class="filter-group">
+                <label for="date-from" class="filter-label">开始日期</label>
+                <input type="date" 
+                       id="date-from" 
+                       name="date_from" 
+                       class="form-control" 
+                       value="{{ request.args.get('date_from', '') }}">
+            </div>
+            
+            <div class="filter-group">
+                <label for="date-to" class="filter-label">结束日期</label>
+                <input type="date" 
+                       id="date-to" 
+                       name="date_to" 
+                       class="form-control" 
+                       value="{{ request.args.get('date_to', '') }}">
+            </div>
+            
+            {# Source Filter #}
+            <div class="filter-group">
+                <label for="source" class="filter-label">来源渠道</label>
+                <select id="source" name="source" class="form-control">
+                    <option value="">全部来源</option>
+                    <option value="taobao" {% if request.args.get('source') == 'taobao' %}selected{% endif %}>淘宝</option>
+                    <option value="wechat" {% if request.args.get('source') == 'wechat' %}selected{% endif %}>微信</option>
+                    <option value="douyin" {% if request.args.get('source') == 'douyin' %}selected{% endif %}>抖音</option>
+                    <option value="xiaohongshu" {% if request.args.get('source') == 'xiaohongshu' %}selected{% endif %}>小红书</option>
+                </select>
+            </div>
+            
+            {# Status Filter #}
+            <div class="filter-group">
+                <label for="status" class="filter-label">状态</label>
+                <select id="status" name="status" class="form-control">
+                    <option value="">全部状态</option>
+                    <option value="active" {% if request.args.get('status') == 'active' %}selected{% endif %}>活跃</option>
+                    <option value="pending" {% if request.args.get('status') == 'pending' %}selected{% endif %}>待处理</option>
+                    <option value="completed" {% if request.args.get('status') == 'completed' %}selected{% endif %}>已完成</option>
+                    <option value="cancelled" {% if request.args.get('status') == 'cancelled' %}selected{% endif %}>已取消</option>
+                </select>
+            </div>
+            
+            {# Filter Actions #}
+            <div class="filter-actions">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-filter"></i> 筛选
+                </button>
+                <a href="{{ request.path }}" class="btn btn-outline">
+                    <i class="fas fa-undo"></i> 重置
+                </a>
+            </div>
+        </div>
+        
+        {# Quick Date Range Buttons #}
+        <div class="filter-quick-dates">
+            <span class="quick-date-label">快速选择：</span>
+            <button type="button" class="btn-quick-date" data-range="today">今天</button>
+            <button type="button" class="btn-quick-date" data-range="yesterday">昨天</button>
+            <button type="button" class="btn-quick-date" data-range="week">本周</button>
+            <button type="button" class="btn-quick-date" data-range="month">本月</button>
+            <button type="button" class="btn-quick-date" data-range="quarter">本季度</button>
+        </div>
+    </form>
+</div>
+
+{# Styles for Filter Panel #}
+<style>
+.filter-panel {
+    background-color: var(--color-card-bg);
+    border: 1px solid var(--color-border-light);
+    border-radius: var(--radius-lg);
+    padding: var(--space-lg);
+    margin-bottom: var(--space-lg);
+    box-shadow: var(--shadow-sm);
+}
+
+.filter-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+}
+
+.filter-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-md);
+    align-items: flex-end;
+}
+
+.filter-group {
+    flex: 1;
+    min-width: 200px;
+}
+
+.filter-label {
+    display: block;
+    margin-bottom: var(--space-xs);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-text);
+}
+
+.filter-actions {
+    display: flex;
+    gap: var(--space-sm);
+    align-items: center;
+}
+
+.btn-outline {
+    background-color: transparent;
+    color: var(--color-primary);
+    border: 1px solid var(--color-primary);
+}
+
+.btn-outline:hover {
+    background-color: var(--color-primary-light);
+}
+
+.filter-quick-dates {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    padding-top: var(--space-md);
+    border-top: 1px solid var(--color-border-light);
+}
+
+.quick-date-label {
+    font-size: var(--font-size-sm);
+    color: var(--color-muted);
+    font-weight: var(--font-weight-medium);
+}
+
+.btn-quick-date {
+    padding: var(--space-xs) var(--space-sm);
+    font-size: var(--font-size-sm);
+    background-color: var(--color-bg-secondary);
+    color: var(--color-text);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all var(--transition-base);
+}
+
+.btn-quick-date:hover {
+    background-color: var(--color-primary-light);
+    color: var(--color-primary);
+    border-color: var(--color-primary);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .filter-row {
+        flex-direction: column;
+    }
+    
+    .filter-group {
+        width: 100%;
+    }
+    
+    .filter-actions {
+        width: 100%;
+        justify-content: stretch;
+    }
+    
+    .filter-actions .btn {
+        flex: 1;
+    }
+}
+</style>
+
+{# JavaScript for Quick Date Range #}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const quickDateButtons = document.querySelectorAll('.btn-quick-date');
+    const dateFromInput = document.getElementById('date-from');
+    const dateToInput = document.getElementById('date-to');
+    
+    quickDateButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const range = this.dataset.range;
+            const today = new Date();
+            let fromDate, toDate;
+            
+            switch(range) {
+                case 'today':
+                    fromDate = toDate = today;
+                    break;
+                case 'yesterday':
+                    fromDate = toDate = new Date(today.setDate(today.getDate() - 1));
+                    break;
+                case 'week':
+                    fromDate = new Date(today.setDate(today.getDate() - today.getDay()));
+                    toDate = new Date();
+                    break;
+                case 'month':
+                    fromDate = new Date(today.getFullYear(), today.getMonth(), 1);
+                    toDate = new Date();
+                    break;
+                case 'quarter':
+                    const quarter = Math.floor(today.getMonth() / 3);
+                    fromDate = new Date(today.getFullYear(), quarter * 3, 1);
+                    toDate = new Date();
+                    break;
+            }
+            
+            dateFromInput.value = fromDate.toISOString().split('T')[0];
+            dateToInput.value = toDate.toISOString().split('T')[0];
+        });
+    });
+});
+</script>
+
+{# Backend Query String Example:
+GET /customers?date_from=2024-01-01&date_to=2024-01-31&source=taobao&status=active
+
+In Flask route:
+@app.route('/customers')
+def customers():
+    date_from = request.args.get('date_from')
+    date_to = request.args.get('date_to')
+    source = request.args.get('source')
+    status = request.args.get('status')
+    
+    # Apply filters to query
+    query = Customer.query
+    if date_from:
+        query = query.filter(Customer.created_at >= date_from)
+    if date_to:
+        query = query.filter(Customer.created_at <= date_to)
+    if source:
+        query = query.filter(Customer.source == source)
+    if status:
+        query = query.filter(Customer.status == status)
+    
+    customers = query.all()
+#}

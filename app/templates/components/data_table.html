@@ -1,0 +1,303 @@
+{# Data Table Component - Jinja2 Macro with Virtual Scroll Support #}
+{# Usage: {{ data_table(columns, rows, mode='server', page=1, total_count=0) }} #}
+
+{% macro data_table(columns, rows=[], mode='server', page=1, total_count=0, per_page=50, table_id='dataTable') -%}
+<div class="data-table-container" id="{{ table_id }}-container">
+    {# Table Actions Bar #}
+    <div class="table-actions">
+        <div class="table-info">
+            {% if mode == 'server' %}
+            <span>显示 {{ ((page - 1) * per_page) + 1 }} - {{ min(page * per_page, total_count) }} 条，共 {{ total_count }} 条</span>
+            {% else %}
+            <span class="virtual-scroll-info">共 <span id="{{ table_id }}-count">0</span> 条记录</span>
+            {% endif %}
+        </div>
+        
+        <div class="table-controls">
+            <button class="btn btn-sm" onclick="exportTableData('{{ table_id }}')">
+                <i class="fas fa-download"></i> 导出
+            </button>
+        </div>
+    </div>
+    
+    {# Table Wrapper for Virtual Scroll #}
+    <div class="table-wrapper" id="{{ table_id }}-wrapper">
+        {# For server-side mode, render normal table #}
+        {% if mode == 'server' %}
+        <table class="table data-table" id="{{ table_id }}">
+            <thead>
+                <tr>
+                    {% for column in columns %}
+                    <th class="{% if column.sortable %}sortable{% endif %}" 
+                        {% if column.width %}style="width: {{ column.width }}"{% endif %}
+                        {% if column.sortable %}data-sort="{{ column.key }}"{% endif %}>
+                        {{ column.label }}
+                        {% if column.sortable %}
+                        <i class="fas fa-sort"></i>
+                        {% endif %}
+                    </th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in rows %}
+                <tr>
+                    {% for column in columns %}
+                    <td>
+                        {% if column.render %}
+                            {# Custom render function would be handled by JavaScript #}
+                            <span class="cell-render" data-column="{{ column.key }}" data-value="{{ row[column.key] }}">
+                                {{ row[column.key] }}
+                            </span>
+                        {% else %}
+                            {{ row[column.key] }}
+                        {% endif %}
+                    </td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        
+        {# Pagination for server-side mode #}
+        {% if total_count > per_page %}
+        <div class="pagination">
+            {% set total_pages = (total_count / per_page) | round(0, 'ceil') | int %}
+            
+            <button class="btn btn-sm" {% if page <= 1 %}disabled{% endif %} 
+                    onclick="goToPage({{ page - 1 }})">
+                <i class="fas fa-chevron-left"></i> 上一页
+            </button>
+            
+            <div class="page-numbers">
+                {% for p in range(1, total_pages + 1) %}
+                    {% if p == 1 or p == total_pages or (p >= page - 2 and p <= page + 2) %}
+                        <button class="page-btn {% if p == page %}active{% endif %}" 
+                                onclick="goToPage({{ p }})">{{ p }}</button>
+                    {% elif p == page - 3 or p == page + 3 %}
+                        <span class="page-ellipsis">...</span>
+                    {% endif %}
+                {% endfor %}
+            </div>
+            
+            <button class="btn btn-sm" {% if page >= total_pages %}disabled{% endif %} 
+                    onclick="goToPage({{ page + 1 }})">
+                下一页 <i class="fas fa-chevron-right"></i>
+            </button>
+        </div>
+        {% endif %}
+        
+        {% else %}
+        {# For virtual scroll mode, create placeholders #}
+        <div class="clusterize-scroll" id="{{ table_id }}-scroll">
+            <table class="table data-table" id="{{ table_id }}">
+                <thead>
+                    <tr>
+                        {% for column in columns %}
+                        <th {% if column.width %}style="width: {{ column.width }}"{% endif %}>
+                            {{ column.label }}
+                        </th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+            </table>
+            <div id="{{ table_id }}-content" class="clusterize-content">
+                <table class="table data-table">
+                    <tbody class="clusterize-content-elem"></tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{# Styles for Data Table #}
+<style>
+.data-table-container {
+    background-color: var(--color-card-bg);
+    border: 1px solid var(--color-border-light);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+}
+
+.table-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-md) var(--space-lg);
+    background-color: var(--color-bg-secondary);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.table-info {
+    font-size: var(--font-size-sm);
+    color: var(--color-muted);
+}
+
+.table-wrapper {
+    overflow-x: auto;
+}
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.data-table th {
+    padding: var(--space-md);
+    text-align: left;
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text);
+    background-color: var(--color-bg-secondary);
+    border-bottom: 2px solid var(--color-border);
+    white-space: nowrap;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.data-table th.sortable {
+    cursor: pointer;
+    user-select: none;
+}
+
+.data-table th.sortable:hover {
+    background-color: var(--color-border-light);
+}
+
+.data-table th.sortable i {
+    margin-left: var(--space-xs);
+    font-size: var(--font-size-xs);
+    color: var(--color-muted);
+}
+
+.data-table td {
+    padding: var(--space-md);
+    border-bottom: 1px solid var(--color-border-light);
+}
+
+.data-table tbody tr:hover {
+    background-color: var(--color-bg-secondary);
+}
+
+/* Virtual Scroll Specific */
+.clusterize-scroll {
+    max-height: 600px;
+    overflow: auto;
+}
+
+.clusterize-content {
+    outline: 0;
+}
+
+.clusterize-content td {
+    padding: var(--space-md);
+    border-bottom: 1px solid var(--color-border-light);
+}
+
+/* Pagination */
+.pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: var(--space-lg);
+    background-color: var(--color-bg-secondary);
+    border-top: 1px solid var(--color-border);
+}
+
+.page-numbers {
+    display: flex;
+    gap: var(--space-xs);
+}
+
+.page-btn {
+    min-width: 2.5rem;
+    height: 2.5rem;
+    padding: var(--space-xs) var(--space-sm);
+    font-size: var(--font-size-sm);
+    background-color: var(--color-bg);
+    color: var(--color-text);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all var(--transition-base);
+}
+
+.page-btn:hover {
+    background-color: var(--color-primary-light);
+    color: var(--color-primary);
+    border-color: var(--color-primary);
+}
+
+.page-btn.active {
+    background-color: var(--color-primary);
+    color: white;
+    border-color: var(--color-primary);
+}
+
+.page-ellipsis {
+    padding: 0 var(--space-xs);
+    color: var(--color-muted);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .table-actions {
+        flex-direction: column;
+        gap: var(--space-sm);
+        align-items: stretch;
+    }
+    
+    .data-table {
+        font-size: var(--font-size-sm);
+    }
+    
+    .data-table th,
+    .data-table td {
+        padding: var(--space-sm);
+    }
+}
+
+/* Loading State */
+.table-loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: var(--space-2xl);
+    color: var(--color-muted);
+}
+
+.table-loading i {
+    margin-right: var(--space-sm);
+}
+</style>
+
+{# Example Usage for Virtual Scroll Mode #}
+{# 
+<!-- In your template -->
+<div id="customerTableContainer">
+    {{ data_table(
+        columns=[
+            {'key': 'name', 'label': '姓名', 'width': '150px'},
+            {'key': 'phone', 'label': '电话', 'width': '150px'},
+            {'key': 'status', 'label': '状态', 'width': '100px'},
+            {'key': 'created_at', 'label': '创建时间', 'width': '150px'}
+        ],
+        mode='virtual',
+        table_id='customerTable'
+    ) }}
+</div>
+
+<!-- Include Clusterize.js before data-table.js -->
+<script src="/static/vendor/clusterize.min.js"></script>
+<script src="/static/js/data-table.js"></script>
+<script>
+// Initialize virtual scroll with mock data
+document.addEventListener('DOMContentLoaded', function() {
+    initVirtualTable('customerTable', '/static/json/mock_rows.json');
+});
+</script>
+#}
+{%- endmacro %}

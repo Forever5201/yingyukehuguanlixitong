@@ -1,0 +1,26 @@
+/* Clusterize.js - v0.18.0 - 2017-11-04
+* http://NeXTs.github.com/Clusterize.js/
+* Copyright (c) 2015 Denis Lukov; Licensed GPLv3 */
+
+.clusterize-scroll {
+    overflow: auto;
+}
+
+.clusterize-content {
+    outline: 0;
+}
+
+.clusterize-no-data {
+    text-align: center;
+    color: #999;
+    font-style: italic;
+}
+
+/* Ensure proper scrolling behavior */
+.clusterize-scroll table {
+    table-layout: fixed;
+}
+
+.clusterize-keep-parity {
+    display: none;
+}
