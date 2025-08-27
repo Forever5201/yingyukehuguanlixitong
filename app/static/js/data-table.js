@@ -61,7 +61,7 @@
                 // 加载数据
                 loading.style.display = 'flex';
                 
-                if (this.config.dataUrl) {
+                if (this.config.dataUrl && this.config.dataUrl !== 'None') {
                     const response = await fetch(this.config.dataUrl);
                     if (!response.ok) throw new Error('Failed to load data');
                     this.data = await response.json();

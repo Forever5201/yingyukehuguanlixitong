@@ -197,7 +197,7 @@
     {% else %}
     <div class="data-table-container virtual-mode" 
          id="{{ table_id }}-container"
-         data-url="{{ data_url }}"
+         {% if data_url %}data-url="{{ data_url }}"{% endif %}
          data-row-height="{{ row_height }}">
         
         <!-- 加载指示器 -->
@@ -240,7 +240,7 @@
             mode: '{{ mode }}',
             columns: {{ columns | tojson }},
             {% if mode == 'virtual' %}
-            dataUrl: '{{ data_url }}',
+            {% if data_url %}dataUrl: '{{ data_url }}',{% endif %}
             virtualThreshold: {{ virtual_threshold }},
             rowHeight: {{ row_height }},
             {% else %}
