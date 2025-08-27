@@ -1,0 +1,152 @@
+/* /src/App.css */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* CSS Variables from tokens */
+:root {
+  /* Primary Colors */
+  --color-primary-50: #E7F3FF;
+  --color-primary-100: #C4E0FF;
+  --color-primary-200: #9DCCFF;
+  --color-primary-300: #76B7FF;
+  --color-primary-400: #58A8FF;
+  --color-primary-500: #4A90E2;
+  --color-primary-600: #357ABD;
+  --color-primary-700: #2A5F96;
+  --color-primary-800: #1F456E;
+  --color-primary-900: #142A47;
+  
+  /* Success Colors */
+  --color-success-50: #F0F9E8;
+  --color-success-100: #DCF0C8;
+  --color-success-200: #C7E7A4;
+  --color-success-300: #B2DD80;
+  --color-success-400: #9ED45C;
+  --color-success-500: #52C41A;
+  --color-success-600: #449E16;
+  --color-success-700: #367812;
+  --color-success-800: #28520E;
+  --color-success-900: #1A2C0A;
+  
+  /* Danger Colors */
+  --color-danger-50: #FFF1F0;
+  --color-danger-100: #FFE7E5;
+  --color-danger-200: #FFC8C5;
+  --color-danger-300: #FFA8A5;
+  --color-danger-400: #FF8885;
+  --color-danger-500: #DC3545;
+  --color-danger-600: #C82333;
+  --color-danger-700: #A51C29;
+  --color-danger-800: #82151F;
+  --color-danger-900: #5F0E15;
+  
+  /* Warning Colors */
+  --color-warning-50: #FFFBEB;
+  --color-warning-100: #FFF4CC;
+  --color-warning-200: #FFEC99;
+  --color-warning-300: #FFE366;
+  --color-warning-400: #FFD93D;
+  --color-warning-500: #FFC107;
+  --color-warning-600: #DB9B00;
+  --color-warning-700: #B77C00;
+  --color-warning-800: #935D00;
+  --color-warning-900: #7A4E00;
+  
+  /* Gray Colors */
+  --color-gray-50: #FAFBFC;
+  --color-gray-100: #F4F6F8;
+  --color-gray-200: #E9ECEF;
+  --color-gray-300: #DEE2E6;
+  --color-gray-400: #CED4DA;
+  --color-gray-500: #ADB5BD;
+  --color-gray-600: #6C757D;
+  --color-gray-700: #495057;
+  --color-gray-800: #343A40;
+  --color-gray-900: #212529;
+  
+  /* Semantic Colors */
+  --color-text-primary: #212529;
+  --color-text-secondary: #6C757D;
+  --color-text-disabled: #ADB5BD;
+  --color-text-inverse: #FFFFFF;
+  
+  --color-background-default: #FFFFFF;
+  --color-background-secondary: #F8F9FA;
+  --color-background-tertiary: #E9ECEF;
+  --color-background-inverse: #343A40;
+  
+  --color-border-default: #DEE2E6;
+  --color-border-secondary: #E9ECEF;
+  --color-border-focus: #4A90E2;
+  
+  /* Spacing */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+  --spacing-xxl: 48px;
+  
+  /* Typography */
+  --font-size-xs: 12px;
+  --font-size-sm: 14px;
+  --font-size-base: 16px;
+  --font-size-lg: 18px;
+  --font-size-xl: 20px;
+  --font-size-2xl: 24px;
+  --font-size-3xl: 32px;
+  --font-size-4xl: 40px;
+  
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  
+  --line-height-tight: 1.25;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.75;
+  
+  /* Border Radius */
+  --radius-none: 0;
+  --radius-sm: 4px;
+  --radius-base: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-full: 9999px;
+  
+  /* Shadows */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-base: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+/* Scrollbar styles */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-gray-100);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-gray-400);
+  border-radius: var(--radius-full);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-gray-500);
+}
