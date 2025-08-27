@@ -1,122 +1,60 @@
 {# KPI Card Component - Jinja2 Macro #}
-{# Usage: {{ kpi_card('1,234', '总客户数', 12.5, 'fa-users') }} #}
+{# 
+使用示例：
+{{ kpi_card('1,234', '总客户数', 12.5, 'fa-users') }}
+{{ kpi_card('¥89,456', '本月收入', -3.2, 'fa-dollar-sign') }}
+{{ kpi_card('4.8/5.0', '满意度评分', 0, 'fa-star', 'warning') }}
+#}
 
-{% macro kpi_card(value, label, trending_delta=None, icon_class=None) -%}
-<div class="kpi-card">
-    <div class="kpi-card-header">
+{% macro kpi_card(value, label, trending_delta=None, icon_class=None, variant='primary') -%}
+<div class="kpi-card kpi-card--{{ variant }}">
+    <div class="kpi-card__header">
         {% if icon_class %}
-        <div class="kpi-card-icon">
+        <div class="kpi-card__icon">
             <i class="fas {{ icon_class }}"></i>
         </div>
         {% endif %}
-        <div class="kpi-card-label">{{ label }}</div>
+        <div class="kpi-card__label">{{ label }}</div>
     </div>
     
-    <div class="kpi-card-value">{{ value }}</div>
+    <div class="kpi-card__value">{{ value }}</div>
     
     {% if trending_delta is not none %}
-    <div class="kpi-card-trend {% if trending_delta >= 0 %}trend-up{% else %}trend-down{% endif %}">
-        <i class="fas {% if trending_delta >= 0 %}fa-arrow-up{% else %}fa-arrow-down{% endif %}"></i>
+    <div class="kpi-card__trend kpi-card__trend--{% if trending_delta > 0 %}up{% elif trending_delta < 0 %}down{% else %}neutral{% endif %}">
+        <i class="fas {% if trending_delta > 0 %}fa-arrow-up{% elif trending_delta < 0 %}fa-arrow-down{% else %}fa-minus{% endif %}"></i>
         <span>{{ '%.1f'|format(trending_delta|abs) }}%</span>
     </div>
     {% endif %}
+    
+    <div class="kpi-card__bg-decoration" aria-hidden="true"></div>
 </div>
 {%- endmacro %}
 
-{# Styles for KPI Card - Include in page or add to tokens.css #}
-<style>
-.kpi-card {
-    background-color: var(--color-card-bg);
-    border: 1px solid var(--color-border-light);
-    border-radius: var(--radius-lg);
-    padding: var(--space-lg);
-    box-shadow: var(--shadow-sm);
-    transition: all var(--transition-base);
-    position: relative;
-    overflow: hidden;
-}
+{# 完整使用示例 #}
+{% if false %}
+<!-- 示例：在您的模板中使用 KPI 卡片 -->
+{% from 'components/kpi_card.html' import kpi_card %}
 
-.kpi-card:hover {
-    box-shadow: var(--shadow-md);
-    transform: translateY(-2px);
-}
-
-.kpi-card-header {
-    display: flex;
-    align-items: center;
-    gap: var(--space-md);
-    margin-bottom: var(--space-md);
-}
-
-.kpi-card-icon {
-    width: 3rem;
-    height: 3rem;
-    background-color: var(--color-primary-light);
-    color: var(--color-primary);
-    border-radius: var(--radius-md);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: var(--font-size-xl);
-}
-
-.kpi-card-label {
-    font-size: var(--font-size-sm);
-    color: var(--color-muted);
-    font-weight: var(--font-weight-medium);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-}
-
-.kpi-card-value {
-    font-size: var(--font-size-3xl);
-    font-weight: var(--font-weight-bold);
-    color: var(--color-text);
-    line-height: 1;
-    margin-bottom: var(--space-sm);
-}
-
-.kpi-card-trend {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--space-xs);
-    font-size: var(--font-size-sm);
-    font-weight: var(--font-weight-medium);
-    padding: var(--space-xs) var(--space-sm);
-    border-radius: var(--radius-full);
-}
-
-.kpi-card-trend.trend-up {
-    color: var(--color-success);
-    background-color: var(--color-success-light);
-}
-
-.kpi-card-trend.trend-down {
-    color: var(--color-danger);
-    background-color: var(--color-danger-light);
-}
-
-/* Responsive */
-@media (max-width: 768px) {
-    .kpi-card {
-        padding: var(--space-md);
-    }
-    
-    .kpi-card-value {
-        font-size: var(--font-size-2xl);
-    }
-}
-</style>
-
-{# Example Usage with Mock Data #}
-{# 
 <div class="kpi-grid">
-    {{ kpi_card('1,234', '总客户数', 12.5, 'fa-users') }}
-    {{ kpi_card('¥89,456', '本月收入', 8.3, 'fa-dollar-sign') }}
-    {{ kpi_card('156', '活跃学员', -2.1, 'fa-graduation-cap') }}
-    {{ kpi_card('4.8', '满意度评分', 0.5, 'fa-star') }}
+    <!-- 基础用法 -->
+    {{ kpi_card('1,234', '总客户数') }}
+    
+    <!-- 带图标 -->
+    {{ kpi_card('¥567,890', '本月收入', icon_class='fa-dollar-sign') }}
+    
+    <!-- 带趋势（正增长） -->
+    {{ kpi_card('3,456', '活跃学员', 15.8, 'fa-graduation-cap') }}
+    
+    <!-- 带趋势（负增长） -->
+    {{ kpi_card('89%', '完成率', -5.2, 'fa-check-circle') }}
+    
+    <!-- 不同变体 -->
+    {{ kpi_card('4.8/5.0', '满意度', 2.1, 'fa-star', 'success') }}
+    {{ kpi_card('12', '待处理', 0, 'fa-clock', 'warning') }}
+    {{ kpi_card('3', '异常', -10.5, 'fa-exclamation-triangle', 'danger') }}
 </div>
 
+<!-- 网格布局样式 -->
 <style>
 .kpi-grid {
     display: grid;
@@ -125,4 +63,4 @@
     margin-bottom: var(--space-2xl);
 }
 </style>
-#}
+{% endif %}
