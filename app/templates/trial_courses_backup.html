@@ -232,28 +232,54 @@
 
 {% block content %}
 <div class="page-container">
-    <!-- 引入 KPI 卡片组件 -->
-    {% from 'components/kpi_card.html' import kpi_card %}
-    
     <!-- 统计卡片 -->
-    <div class="kpi-grid">
-        {{ kpi_card(stats.total_trials, '试听课总数', None, 'fa-play-circle', 'primary') }}
-        {{ kpi_card('¥' ~ "%.2f"|format(stats.total_revenue), '总收入', None, 'fa-money-bill-wave', 'success') }}
-        {{ kpi_card('¥' ~ "%.2f"|format(stats.total_cost), '总成本', None, 'fa-coins', 'warning') }}
-        {{ kpi_card('¥' ~ "%.2f"|format(stats.total_profit), '总利润', (stats.total_profit / stats.total_revenue * 100) if stats.total_revenue > 0 else 0, 'fa-chart-line', 'info') }}
-        {{ kpi_card('¥' ~ "%.2f"|format(stats.total_fees), '总手续费', None, 'fa-percentage', 'default') }}
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-play-circle"></i>
+            </div>
+            <div class="stat-content">
+                <h3>{{ stats.total_trials }}</h3>
+                <p>试听课总数</p>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-money-bill-wave"></i>
+            </div>
+            <div class="stat-content">
+                <h3>¥{{ "%.2f"|format(stats.total_revenue) }}</h3>
+                <p>总收入</p>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-coins"></i>
+            </div>
+            <div class="stat-content">
+                <h3>¥{{ "%.2f"|format(stats.total_cost) }}</h3>
+                <p>总成本</p>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-chart-line"></i>
+            </div>
+            <div class="stat-content">
+                <h3>¥{{ "%.2f"|format(stats.total_profit) }}</h3>
+                <p>总利润</p>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-percentage"></i>
+            </div>
+            <div class="stat-content">
+                <h3>¥{{ "%.2f"|format(stats.total_fees) }}</h3>
+                <p>总手续费</p>
+            </div>
+        </div>
     </div>
-
-    <!-- 筛选面板 -->
-    {% with show_status=true, show_source=true, custom_status_options=[
-        {'value': 'registered', 'label': '已报名'},
-        {'value': 'not_registered', 'label': '未报名'},
-        {'value': 'completed', 'label': '已试听'},
-        {'value': 'converted', 'label': '已转正课'},
-        {'value': 'refunded', 'label': '已退费'}
-    ] %}
-        {% include 'components/filter_panel.html' %}
-    {% endwith %}
 
     <!-- 状态统计详情 -->
     <div class="status-stats-section">

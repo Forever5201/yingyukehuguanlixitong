@@ -3723,3 +3723,13 @@ def api_mock_customers():
         })
     
     return jsonify(customers)
+
+@main_bp.route('/charts-demo')
+def charts_demo():
+    """图表组件演示页面"""
+    return render_template('charts_demo.html')
+
+@main_bp.route('/mock-data-generator')
+def mock_data_generator():
+    """模拟数据生成器页面"""
+    return send_from_directory('static/json', 'generate_mock_data.html')
