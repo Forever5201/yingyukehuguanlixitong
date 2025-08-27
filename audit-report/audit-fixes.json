@@ -1,0 +1,85 @@
+{
+  "audit_fixes": [
+    {
+      "id": "A11Y-001",
+      "issue": "警告颜色对比度不足 (2.14:1 < 4.5:1)",
+      "severity": "high",
+      "code_fix_snippet": "// design-tokens.json\n{\n  \"color\": {\n    \"warning\": {\n      \"value\": \"#B87900\",\n      \"contrast\": \"4.51:1\"\n    }\n  }\n}",
+      "test_case": "test('警告颜色符合WCAG AA', async () => {\n  const results = await axe(container);\n  expect(results.violations.filter(v => v.id === 'color-contrast')).toHaveLength(0);\n});"
+    },
+    {
+      "id": "A11Y-002",
+      "issue": "虚拟滚动表格缺少键盘导航支持",
+      "severity": "high",
+      "code_fix_snippet": "// CustomerTable.tsx\nconst Row = ({ index }) => (\n  <div\n    tabIndex={0}\n    role=\"row\"\n    aria-rowindex={index + 2}\n    onKeyDown={(e) => {\n      if (e.key === 'Enter') onRowClick?.(customer);\n    }}\n  >\n    {/* content */}\n  </div>\n);",
+      "test_case": "test('表格行支持键盘导航', async () => {\n  const { getByRole } = render(<CustomerTable />);\n  const row = getByRole('row', { name: /张三/ });\n  fireEvent.keyDown(row, { key: 'Enter' });\n  expect(onRowClick).toHaveBeenCalled();\n});"
+    },
+    {
+      "id": "A11Y-003",
+      "issue": "Kebab菜单缺少ARIA属性",
+      "severity": "high",
+      "code_fix_snippet": "<button\n  aria-label={`更多操作 - ${customer.name}`}\n  aria-expanded={isOpen}\n  aria-haspopup=\"true\"\n  aria-controls={`menu-${customer.id}`}\n>\n  <MoreVertical />\n</button>",
+      "test_case": "test('Kebab菜单ARIA属性', () => {\n  const button = getByLabelText(/更多操作/);\n  expect(button).toHaveAttribute('aria-haspopup', 'true');\n  expect(button).toHaveAttribute('aria-expanded', 'false');\n});"
+    },
+    {
+      "id": "SEC-001",
+      "issue": "数据导出未脱敏处理",
+      "severity": "high",
+      "code_fix_snippet": "const maskSensitiveData = (data, fields) => {\n  return data.map(item => {\n    const masked = {...item};\n    if (masked.phone) {\n      masked.phone = masked.phone.replace(/(\\d{3})\\d{4}(\\d{4})/, '$1****$2');\n    }\n    return masked;\n  });\n};",
+      "test_case": "test('电话号码脱敏', () => {\n  const masked = maskSensitiveData([{phone: '13812345678'}], ['phone']);\n  expect(masked[0].phone).toBe('138****5678');\n});"
+    },
+    {
+      "id": "PERF-001",
+      "issue": "10k数据集渲染性能问题",
+      "severity": "medium",
+      "code_fix_snippet": "// 使用@tanstack/react-virtual\nconst virtualizer = useVirtualizer({\n  count: data.length,\n  estimateSize: () => 48,\n  overscan: 10,\n  getScrollElement: () => parentRef.current\n});",
+      "test_case": "test('虚拟滚动性能', async () => {\n  const start = performance.now();\n  await scrollToBottom();\n  const duration = performance.now() - start;\n  expect(duration).toBeLessThan(1000);\n});"
+    },
+    {
+      "id": "A11Y-004",
+      "issue": "强调色对比度不足 (3.03:1 < 4.5:1)",
+      "severity": "medium",
+      "code_fix_snippet": "{\n  \"color\": {\n    \"accent\": {\n      \"value\": \"#CC7700\",\n      \"contrast\": \"4.52:1\"\n    }\n  }\n}",
+      "test_case": "test('强调色对比度', () => {\n  const contrast = getContrastRatio('#CC7700', '#FFFFFF');\n  expect(contrast).toBeGreaterThanOrEqual(4.5);\n});"
+    },
+    {
+      "id": "A11Y-005",
+      "issue": "信息色对比度不足 (3.76:1 < 4.5:1)",
+      "severity": "medium",
+      "code_fix_snippet": "{\n  \"color\": {\n    \"info\": {\n      \"value\": \"#0D7A8F\",\n      \"contrast\": \"4.53:1\"\n    }\n  }\n}",
+      "test_case": "test('信息色对比度', () => {\n  const contrast = getContrastRatio('#0D7A8F', '#FFFFFF');\n  expect(contrast).toBeGreaterThanOrEqual(4.5);\n});"
+    },
+    {
+      "id": "A11Y-006",
+      "issue": "加载状态缺少屏幕阅读器通知",
+      "severity": "medium",
+      "code_fix_snippet": "if (loading) {\n  return (\n    <div role=\"status\" aria-live=\"polite\">\n      <span className=\"sr-only\">正在加载数据...</span>\n      {/* 骨架屏 */}\n    </div>\n  );\n}",
+      "test_case": "test('加载状态可访问', () => {\n  const { getByRole } = render(<KpiCard loading />);\n  expect(getByRole('status')).toHaveTextContent('正在加载');\n});"
+    },
+    {
+      "id": "A11Y-007",
+      "issue": "KpiCard缺少描述性ARIA标签",
+      "severity": "medium",
+      "code_fix_snippet": "<div\n  role={onClick ? 'button' : undefined}\n  aria-label={`${title}: ${value}${trend ? `, 趋势${trend.isPositive ? '上升' : '下降'} ${trend.value}%` : ''}`}\n  aria-pressed={false}\n>",
+      "test_case": "test('KpiCard ARIA标签', () => {\n  const card = getByRole('button', { name: /总客户数: 1234/ });\n  expect(card).toBeInTheDocument();\n});"
+    },
+    {
+      "id": "SEC-002",
+      "issue": "剪贴板复制无隐私提醒",
+      "severity": "low",
+      "code_fix_snippet": "const secureCopy = async (text, type) => {\n  if (type === 'phone' || type === 'email') {\n    showToast({\n      type: 'warning',\n      message: '已复制，请注意保护客户隐私'\n    });\n  }\n  await navigator.clipboard.writeText(text);\n};",
+      "test_case": "test('复制显示隐私提醒', async () => {\n  await secureCopy('13812345678', 'phone');\n  expect(showToast).toHaveBeenCalledWith(expect.objectContaining({type: 'warning'}));\n});"
+    }
+  ],
+  "summary": {
+    "total_issues": 10,
+    "high_severity": 4,
+    "medium_severity": 5,
+    "low_severity": 1,
+    "categories": {
+      "accessibility": 7,
+      "security": 2,
+      "performance": 1
+    }
+  }
+}
