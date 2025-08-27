@@ -2,6 +2,244 @@
 
 {% block title %}股东利润分配报表{% endblock %}
 
+{% block head %}
+<style>
+/* 利润分配页面专属样式 */
+.profit-distribution-container {
+    padding: 20px;
+}
+
+.header-section {
+    margin-bottom: 30px;
+}
+
+.header-section h1 {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 20px;
+}
+
+.period-selector {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.btn-period {
+    padding: 8px 20px;
+    border: 1px solid var(--border-color);
+    background: white;
+    color: var(--text-secondary);
+    border-radius: 20px;
+    transition: all var(--transition-fast) ease;
+    cursor: pointer;
+}
+
+.btn-period:hover {
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+}
+
+.btn-period.active {
+    background: var(--primary-gradient);
+    color: white;
+    border-color: transparent;
+}
+
+.custom-date-range {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+/* 增强的卡片样式 */
+.summary-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.card {
+    background: white;
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.card-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    flex-shrink: 0;
+}
+
+.revenue-card .card-icon {
+    background: linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%);
+    color: white;
+}
+
+.cost-card .card-icon {
+    background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+    color: white;
+}
+
+.profit-card .card-icon {
+    background: var(--primary-gradient);
+    color: white;
+}
+
+.card-content {
+    flex: 1;
+}
+
+.card h3 {
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+    font-weight: 500;
+}
+
+.card .amount {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.card .details {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 8px;
+}
+
+.card .details span {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.card .details em {
+    font-style: normal;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.card-chart {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    opacity: 0.6;
+}
+
+.card-trend {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--success-color);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.card-trend.negative {
+    color: var(--danger-color);
+}
+
+/* 图表区域 */
+.charts-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+@media (max-width: 968px) {
+    .charts-row {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* 详细表格样式 */
+.section {
+    background: white;
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.section h2 {
+    font-size: 20px;
+    font-weight: 600;
+    margin-bottom: 20px;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.detail-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.detail-table td {
+    padding: 12px 16px;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.detail-table td:last-child {
+    text-align: right;
+    font-weight: 600;
+}
+
+.detail-table tr:last-child td {
+    border-bottom: none;
+}
+
+.detail-table .total-row {
+    font-weight: 700;
+    font-size: 16px;
+    border-top: 2px solid var(--border-color);
+    background: #f8f9fa;
+}
+
+/* 导出按钮 */
+.export-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    background: var(--success-gradient);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--transition-fast) ease;
+}
+
+.export-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="profit-distribution-container">
     <div class="header-section">
@@ -33,31 +271,68 @@
     <div id="reportContent" style="display: none;">
         <!-- 概览卡片 -->
         <div class="summary-cards">
-            <div class="card revenue-card">
-                <h3>总收入</h3>
-                <p class="amount" id="totalRevenue">¥0</p>
-                <div class="details">
-                    <span>课程收入: <em id="courseRevenue">¥0</em></span>
-
+            <div class="card revenue-card animate__animated animate__fadeInUp">
+                <div class="card-icon">
+                    <i class="fas fa-chart-line"></i>
+                </div>
+                <div class="card-content">
+                    <h3>总收入</h3>
+                    <p class="amount" id="totalRevenue">¥0</p>
+                    <div class="details">
+                        <span>课程收入: <em id="courseRevenue">¥0</em></span>
+                    </div>
+                </div>
+                <div class="card-chart">
+                    <canvas id="revenueSparkline" width="100" height="40"></canvas>
                 </div>
             </div>
             
-            <div class="card cost-card">
-                <h3>总成本</h3>
-                <p class="amount" id="totalCost">¥0</p>
-                <div class="details">
-                    <span>课程成本: <em id="courseCost">¥0</em></span>
-                    <span>刷单费用: <em id="taobaoCost">¥0</em></span>
-                    <span>员工成本: <em id="employeeCost">¥0</em></span>
+            <div class="card cost-card animate__animated animate__fadeInUp" style="animation-delay: 0.1s;">
+                <div class="card-icon">
+                    <i class="fas fa-calculator"></i>
+                </div>
+                <div class="card-content">
+                    <h3>总成本</h3>
+                    <p class="amount" id="totalCost">¥0</p>
+                    <div class="details">
+                        <span>课程成本: <em id="courseCost">¥0</em></span>
+                        <span>刷单费用: <em id="taobaoCost">¥0</em></span>
+                        <span>员工成本: <em id="employeeCost">¥0</em></span>
+                    </div>
                 </div>
             </div>
             
-            <div class="card profit-card">
-                <h3>净利润</h3>
-                <p class="amount" id="netProfit">¥0</p>
-                <div class="details">
-                    <span>利润率: <em id="profitMargin">0%</em></span>
+            <div class="card profit-card animate__animated animate__fadeInUp" style="animation-delay: 0.2s;">
+                <div class="card-icon">
+                    <i class="fas fa-coins"></i>
                 </div>
+                <div class="card-content">
+                    <h3>净利润</h3>
+                    <p class="amount" id="netProfit">¥0</p>
+                    <div class="details">
+                        <span>利润率: <em id="profitMargin">0%</em></span>
+                    </div>
+                </div>
+                <div class="card-trend" id="profitTrend">
+                    <i class="fas fa-arrow-up"></i> +15%
+                </div>
+            </div>
+        </div>
+        
+        <!-- 图表区域 -->
+        <div class="charts-row">
+            <div class="chart-container">
+                <div class="chart-header">
+                    <h3 class="chart-title">收入构成分析</h3>
+                </div>
+                <canvas id="revenueCompositionChart"></canvas>
+            </div>
+            
+            <div class="chart-container">
+                <div class="chart-header">
+                    <h3 class="chart-title">成本结构分析</h3>
+                </div>
+                <canvas id="costStructureChart"></canvas>
             </div>
         </div>
         
@@ -536,6 +811,10 @@ function displayReport(report) {
     document.getElementById('shareholderAProfit').textContent = formatCurrency(report.shareholder_distribution.shareholder_a_net_profit);
     document.getElementById('shareholderBProfit').textContent = formatCurrency(report.shareholder_distribution.shareholder_b_net_profit);
     document.getElementById('totalDistributed').textContent = formatCurrency(report.shareholder_distribution.total_distributed);
+    
+    // 初始化图表
+    initCharts(report);
+    
     } catch (error) {
         console.error('显示报表时出错:', error);
         console.error('报表数据:', report);
@@ -546,6 +825,151 @@ function displayReport(report) {
 // 格式化货币
 function formatCurrency(amount) {
     return '¥' + Number(amount).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+
+// 初始化图表
+let revenueChart = null;
+let costChart = null;
+
+function initCharts(data) {
+    // 收入构成图表
+    if (revenueChart) {
+        revenueChart.destroy();
+    }
+    
+    const revenueCtx = document.getElementById('revenueCompositionChart').getContext('2d');
+    revenueChart = new Chart(revenueCtx, {
+        type: 'pie',
+        data: {
+            labels: ['试听课收入', '新课收入', '续课收入'],
+            datasets: [{
+                data: [
+                    data.revenue.trial_revenue,
+                    data.revenue.new_course_revenue,
+                    data.revenue.renewal_revenue
+                ],
+                backgroundColor: [
+                    '#667eea',
+                    '#764ba2',
+                    '#f093fb'
+                ],
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        padding: 15,
+                        usePointStyle: true,
+                        font: {
+                            size: 12
+                        }
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const label = context.label || '';
+                            const value = formatCurrency(context.parsed);
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = ((context.parsed / total) * 100).toFixed(1);
+                            return `${label}: ${value} (${percentage}%)`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+    
+    // 成本结构图表
+    if (costChart) {
+        costChart.destroy();
+    }
+    
+    const costCtx = document.getElementById('costStructureChart').getContext('2d');
+    costChart = new Chart(costCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['课程成本', '总手续费', '刷单佣金', '员工工资', '员工提成'],
+            datasets: [{
+                data: [
+                    data.cost.course_cost,
+                    data.cost.total_fee,
+                    data.cost.taobao_commission,
+                    data.cost.employee_salary,
+                    data.cost.employee_commission
+                ],
+                backgroundColor: [
+                    '#ef4444',
+                    '#f59e0b',
+                    '#10b981',
+                    '#3b82f6',
+                    '#8b5cf6'
+                ],
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '60%',
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        padding: 15,
+                        usePointStyle: true,
+                        font: {
+                            size: 12
+                        }
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const label = context.label || '';
+                            const value = formatCurrency(context.parsed);
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = ((context.parsed / total) * 100).toFixed(1);
+                            return `${label}: ${value} (${percentage}%)`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+    
+    // 创建迷你图表
+    const sparklineCtx = document.getElementById('revenueSparkline').getContext('2d');
+    new Chart(sparklineCtx, {
+        type: 'line',
+        data: {
+            labels: ['', '', '', '', '', ''],
+            datasets: [{
+                data: [65, 78, 66, 80, 76, 85],
+                borderColor: '#667eea',
+                borderWidth: 2,
+                tension: 0.4,
+                pointRadius: 0,
+                fill: false
+            }]
+        },
+        options: {
+            responsive: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: { enabled: false }
+            },
+            scales: {
+                x: { display: false },
+                y: { display: false }
+            }
+        }
+    });
 }
 
 // 导出报表
