@@ -5,6 +5,7 @@ from .performance_service import PerformanceService
 from .refund_service import RefundService
 from .transaction_service import TransactionService, ComplexTransactionManager
 from .enhanced_profit_service import EnhancedProfitService
+from .operational_cost_service import OperationalCostService
 
 __all__ = [
     'CourseService',
@@ -13,5 +14,6 @@ __all__ = [
     'RefundService',
     'TransactionService',
     'ComplexTransactionManager',
-    'EnhancedProfitService'
+    'EnhancedProfitService',
+    'OperationalCostService'
 ]

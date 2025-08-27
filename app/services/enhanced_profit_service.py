@@ -7,6 +7,7 @@ from datetime import datetime
 from sqlalchemy import and_, func
 from ..models import db, Course, Customer, Config, CourseRefund, Employee, CommissionConfig, TaobaoOrder
 from .profit_service import ProfitService
+from .operational_cost_service import OperationalCostService
 import logging
 
 logger = logging.getLogger(__name__)
@@ -103,28 +104,32 @@ class EnhancedProfitService(ProfitService):
             # 3. 计算员工成本
             employee_cost = cls.calculate_employee_cost(start_date, end_date)
             
-            # 4. 重新计算总收入和总成本
+            # 4. 计算运营成本（新增）
+            operational_cost = OperationalCostService.allocate_operational_costs_to_courses(start_date, end_date)
+            
+            # 5. 重新计算总收入和总成本
             # 总收入 = 课程收入（不包含刷单金额）
             total_revenue = base_report['summary']['total_revenue']
             
-            # 5. 计算试听课收入和正课收入的详细分类
+            # 6. 计算试听课收入和正课收入的详细分类
             revenue_detail = cls.calculate_revenue_detail(start_date, end_date)
             
-            # 6. 总成本 = 课程成本（不含手续费） + 所有手续费 + 刷单佣金 + 刷单手续费 + 员工成本
+            # 7. 总成本 = 课程成本（不含手续费） + 所有手续费 + 刷单佣金 + 刷单手续费 + 员工成本 + 运营成本
             # 从base_report中减去已计算的手续费，避免重复
             course_cost_without_fee = base_report['summary']['total_cost'] - base_report.get('total_fee', 0)
-            # 总手续费只包含课程相关手续费（试听、正课、续课）
-            total_fee_courses = revenue_detail['total_fee']
+            # 总手续费 = 课程手续费 + 淘宝刷单手续费
+            total_fee_courses = base_report['summary']['total_fee']
+            total_fee_all = total_fee_courses + taobao_cost['total_fee']  # 所有手续费
             total_cost = (course_cost_without_fee +          # 课程成本（不含手续费）
-                         total_fee_courses +                  # 课程手续费（试听+正课+续课）
-                         taobao_cost['total_fee'] +          # 刷单手续费
+                         total_fee_all +                     # 所有手续费（课程手续费+淘宝刷单手续费）
                          taobao_cost['total_commission'] +   # 刷单佣金
-                         employee_cost['total_cost'])         # 员工成本
+                         employee_cost['total_cost'] +        # 员工成本
+                         operational_cost['total_operational_cost'])  # 运营成本（新增）
             
-            # 7. 计算净利润
+            # 8. 计算净利润
             net_profit = total_revenue - total_cost
             
-            # 7. 简化股东分配计算 - 使用统一的分配比例
+            # 9. 简化股东分配计算 - 使用统一的分配比例
             # 获取统一的分配比例
             distribution_ratios = cls.calculate_shareholder_distribution(100)  # 获取比例
             
@@ -147,11 +152,12 @@ class EnhancedProfitService(ProfitService):
                 },
                 'cost': {
                     'course_cost': course_cost_without_fee,  # 课程成本（不含手续费）
-                    'total_fee': total_fee_courses,  # 总手续费（仅包含课程手续费）
+                    'total_fee': total_fee_all,  # 总手续费（课程手续费+淘宝刷单手续费）
                     'taobao_commission': taobao_cost['total_commission'],
                     'taobao_fee': taobao_cost['total_fee'],
                     'employee_salary': employee_cost['total_salary'],
                     'employee_commission': employee_cost['total_commission'],
+                    'operational_cost': operational_cost['total_operational_cost'],  # 运营成本（新增）
                     'total_cost': total_cost
                 },
                 'profit': {
@@ -164,6 +170,7 @@ class EnhancedProfitService(ProfitService):
                     'shareholder_b_net_profit': shareholder_b_net_profit,
                     'total_distributed': shareholder_a_net_profit + shareholder_b_net_profit
                 },
+                'operational_cost_detail': operational_cost,  # 运营成本详情（新增）
                 'statistics': {
                     'course_count': base_report['summary']['course_count'],
                     'taobao_order_count': taobao_cost['order_count'],

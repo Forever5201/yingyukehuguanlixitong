@@ -1,5 +1,5 @@
 from flask import render_template, request, redirect, url_for, jsonify, flash, make_response, send_from_directory, current_app, Blueprint, session
-from .models import db, Customer, Config, TaobaoOrder, Course, Employee, CommissionConfig, CourseRefund
+from .models import db, Customer, Config, TaobaoOrder, Course, Employee, CommissionConfig, CourseRefund, OperationalCost
 from datetime import datetime, timedelta
 import csv
 from io import StringIO, BytesIO
@@ -8,7 +8,7 @@ import os
 import json
 
 # 导入服务层
-from .services import RefundService, ProfitService, PerformanceService, TransactionService, EnhancedProfitService
+from .services import RefundService, ProfitService, PerformanceService, TransactionService, EnhancedProfitService, OperationalCostService
 
 # 创建主蓝图
 main_bp = Blueprint('main', __name__)
@@ -533,15 +533,13 @@ def get_profit_report():
         # 使用服务层生成利润报表
         report = ProfitService.generate_profit_report(start_date, end_date)
         
-        # 获取利润分配配置（用于兼容现有前端）
+        # 获取统一的股东分配比例配置
         profit_config = {
-            'new_course_shareholder_a': report['shareholder_distribution']['new_course']['ratio_a'],
-            'new_course_shareholder_b': report['shareholder_distribution']['new_course']['ratio_b'],
-            'renewal_shareholder_a': report['shareholder_distribution']['renewal']['ratio_a'],
-            'renewal_shareholder_b': report['shareholder_distribution']['renewal']['ratio_b']
+            'shareholder_a_ratio': report['shareholder_distribution']['new_course']['ratio_a'],
+            'shareholder_b_ratio': report['shareholder_distribution']['new_course']['ratio_b']
         }
         
-        # 格式化结果以兼容现有前端
+        # 格式化结果
         result = {
             'success': True,
             'config': profit_config,
@@ -552,7 +550,9 @@ def get_profit_report():
                 'new_course_shareholder_b': report['shareholder_distribution']['new_course']['shareholder_b'],
                 'renewal_profit': report['profit_by_type']['renewal'],
                 'renewal_shareholder_a': report['shareholder_distribution']['renewal']['shareholder_a'],
-                'renewal_shareholder_b': report['shareholder_distribution']['renewal']['shareholder_b']
+                'renewal_shareholder_b': report['shareholder_distribution']['renewal']['shareholder_b'],
+                'total_shareholder_a': report['shareholder_distribution']['total']['shareholder_a'],
+                'total_shareholder_b': report['shareholder_distribution']['total']['shareholder_b']
             }
         }
         
@@ -629,6 +629,34 @@ def manage_config():
             
             db.session.commit()
             flash('股东配置已更新', 'success')
+        elif config_type == 'operational_cost':
+            # 处理运营成本配置（新增）
+            try:
+                # 获取运营成本数据
+                cost_data = {
+                    'cost_type': request.form.get('cost_type'),
+                    'cost_name': request.form.get('cost_name'),
+                    'amount': request.form.get('amount'),
+                    'cost_date': request.form.get('cost_date'),
+                    'billing_period': request.form.get('billing_period', 'month'),
+                    'allocation_method': request.form.get('allocation_method', 'proportional'),
+                    'allocated_to_courses': bool(request.form.get('allocated_to_courses', True)),
+                    'description': request.form.get('description', ''),
+                    'invoice_number': request.form.get('invoice_number', ''),
+                    'supplier': request.form.get('supplier', ''),
+                    'status': request.form.get('status', 'active')
+                }
+                
+                # 使用服务层创建运营成本
+                success, message, cost = OperationalCostService.create_operational_cost(cost_data)
+                
+                if success:
+                    flash(f'运营成本添加成功: {message}', 'success')
+                else:
+                    flash(f'运营成本添加失败: {message}', 'error')
+                    
+            except Exception as e:
+                flash(f'运营成本配置失败: {str(e)}', 'error')
         else:
             # 处理基础配置
             for key in ['trial_cost', 'course_cost', 'taobao_fee_rate', 'shuadan_products']:
@@ -636,7 +664,7 @@ def manage_config():
                 if not config_item:
                     config_item = Config(key=key)
                     db.session.add(config_item)
-                config_item.value = request.form[key]
+                config_item.value = request[key]
             db.session.commit()
             flash('基础配置已更新', 'success')
             
@@ -1194,6 +1222,7 @@ def manage_trial_courses():
             is_trial=True,
             trial_price=trial_price,
             source=source,
+            payment_channel=source,  # 试听课的支付渠道与渠道来源保持一致
             cost=total_trial_cost,
             trial_status='registered',
             assigned_employee_id=assigned_employee_id
@@ -1214,6 +1243,7 @@ def manage_trial_courses():
                 # 更新课程信息
                 course.trial_price = trial_price
                 course.source = source
+                course.payment_channel = source  # 试听课的支付渠道与渠道来源保持一致
                 
                 # 更新客户信息
                 customer = Customer.query.get(course.customer_id)
@@ -1700,7 +1730,8 @@ def apply_course_refund(course_id):
             'refund_channel': data.get('refund_channel', '原路退回'),
             'refund_fee': float(data.get('refund_fee', 0)),
             'remark': data.get('remark', ''),
-            'operator_name': session.get('user_name', 'System')
+            'operator_name': session.get('user_name', 'System'),
+            'refund_date': data.get('refund_date')  # 退课时间
         }
         
         # 使用服务层处理退费（自带事务管理）
@@ -1834,7 +1865,8 @@ def create_trial_course():
             sessions=data['sessions'],
             gift_sessions=data['gift_sessions'],
             price=data['price'],
-            payment_channel=data['payment_channel'],
+            source=data.get('source', '淘宝'),  # 添加渠道来源
+            payment_channel=data.get('payment_channel', data.get('source', '淘宝')),  # 支付渠道与渠道来源保持一致
             snapshot_fee_rate=data.get('snapshot_fee_rate'),
             custom_course_cost=data.get('custom_course_cost'),
             assigned_employee_id=data.get('assigned_employee_id'),  # 添加员工分配
@@ -2071,6 +2103,32 @@ def delete_config(key):
         return {'message': 'Config deleted successfully'}
     except Exception as e:
         return {'error': str(e)}, 500
+
+@main_bp.route('/api/profit-distribution-ratios')
+def get_profit_distribution_ratios():
+    """获取利润分配比例配置"""
+    try:
+        # 获取统一的分配比例配置
+        config_a = Config.query.filter_by(key='shareholder_a_ratio').first()
+        config_b = Config.query.filter_by(key='shareholder_b_ratio').first()
+        
+        # 默认值
+        ratio_a = float(config_a.value) if config_a else 50
+        ratio_b = float(config_b.value) if config_b else 50
+        
+        # 确保比例和为100
+        if ratio_a + ratio_b != 100:
+            ratio_b = 100 - ratio_a
+        
+        return jsonify({
+            'success': True,
+            'ratios': {
+                'shareholder_a_ratio': ratio_a,
+                'shareholder_b_ratio': ratio_b
+            }
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 @main_bp.route('/api/formal-courses/status-stats', methods=['GET'])
 def api_formal_courses_status_stats():
@@ -2333,10 +2391,15 @@ def manage_formal_courses():
     # 计算利润
     total_profit = total_revenue - total_cost
     
+    # 获取今天的日期
+    from datetime import datetime
+    today_date = datetime.now().strftime('%Y-%m-%d')
+    
     return render_template('formal_courses.html', 
                          formal_courses=formal_courses,
                          customers=customers,
                          taobao_fee_rate=taobao_fee_rate,
+                         today_date=today_date,
                          stats={
                              'total_courses': formal_stats.total_courses or 0,
                              'total_revenue': total_revenue,
@@ -2365,6 +2428,10 @@ def renew_course(course_id):
         renewal_reason = request.form.get('renewal_reason', '')
         assigned_employee_id = request.form.get('assigned_employee_id')
         
+        # 获取退课相关信息
+        refund_date = request.form.get('refund_date')
+        refund_reason = request.form.get('refund_reason')
+        
         # 获取正课成本配置
         course_cost_config = Config.query.filter_by(key='course_cost').first()
         course_cost_per_session = float(course_cost_config.value) if course_cost_config else 0
@@ -2389,7 +2456,9 @@ def renew_course(course_id):
             'discount_amount': discount_amount,
             'original_course_id': course_id,
             'course_cost_per_session': course_cost_per_session,
-            'taobao_fee_rate': taobao_fee_rate * 100  # 存储为百分比
+            'taobao_fee_rate': taobao_fee_rate * 100,  # 存储为百分比
+            'refund_date': refund_date,  # 退课时间
+            'refund_reason': refund_reason  # 退课原因
         }
         
         # 创建续课记录
@@ -2421,7 +2490,11 @@ def renew_course(course_id):
     # 获取员工列表
     employees = Employee.query.order_by(Employee.name).all()
     
-    return render_template('renew_course.html', course=course, employees=employees)
+    # 获取今天的日期
+    from datetime import datetime
+    today_date = datetime.now().strftime('%Y-%m-%d')
+    
+    return render_template('renew_course.html', course=course, employees=employees, today_date=today_date)
 
 @main_bp.route('/convert-trial/<int:trial_id>', methods=['GET', 'POST'])
 def convert_trial_to_course(trial_id):
@@ -2542,6 +2615,69 @@ def formal_course_details(course_id):
     if course.converted_from_trial:
         trial_course = Course.query.get(course.converted_from_trial)
     
+    # 获取该正课的所有续课记录
+    renewal_courses = Course.query.filter_by(
+        renewal_from_course_id=course_id,
+        is_renewal=True,
+        is_trial=False
+    ).order_by(Course.created_at.desc()).all()
+    
+    # 处理续课信息
+    renewal_data = []
+    for renewal in renewal_courses:
+        # 解析meta信息获取续课详情
+        import json
+        meta_data = {}
+        if renewal.meta:
+            try:
+                meta_data = json.loads(renewal.meta)
+            except:
+                pass
+        
+        # 计算续课的成本信息
+        renewal_sessions = safe_int(renewal.sessions, 0)
+        renewal_price = safe_float(renewal.price, 0)
+        renewal_other_cost = safe_float(renewal.other_cost, 0)
+        
+        # 获取续课的单节成本（优先使用自定义成本，其次使用快照成本，最后使用配置成本）
+        renewal_cost_per_session = None
+        if hasattr(renewal, 'custom_course_cost') and renewal.custom_course_cost is not None:
+            renewal_cost_per_session = safe_float(renewal.custom_course_cost, 0)
+        elif hasattr(renewal, 'snapshot_course_cost') and renewal.snapshot_course_cost is not None:
+            renewal_cost_per_session = safe_float(renewal.snapshot_course_cost, 0)
+        else:
+            cfg = Config.query.filter_by(key='course_cost').first()
+            renewal_cost_per_session = safe_float(cfg.value, 0) if cfg else 0
+        
+        # 计算手续费
+        renewal_fee = 0
+        if renewal.payment_channel == '淘宝':
+            fee_rate = 0.006  # 默认淘宝手续费率
+            if hasattr(renewal, 'snapshot_fee_rate') and renewal.snapshot_fee_rate is not None:
+                fee_rate = safe_float(renewal.snapshot_fee_rate, 0.006)
+            renewal_fee = renewal_sessions * renewal_price * fee_rate
+        
+        renewal_info = {
+            'id': renewal.id,
+            'course_type': renewal.course_type,
+            'sessions': renewal.sessions,
+            'gift_sessions': renewal.gift_sessions,
+            'price': renewal.price,
+            'payment_channel': renewal.payment_channel,
+            'other_cost': renewal.other_cost,
+            'cost': renewal_cost_per_session,  # 单节成本
+            'created_at': renewal.created_at,
+            'renewal_reason': meta_data.get('renewal_reason', ''),
+            'discount_amount': meta_data.get('discount_amount', 0),
+            'assigned_employee': renewal.assigned_employee,  # 直接传递Employee对象
+            'assigned_employee_name': renewal.assigned_employee.name if renewal.assigned_employee else None,
+            'refund_date': meta_data.get('refund_date', ''),  # 退课时间
+            'refund_reason': meta_data.get('refund_reason', ''),  # 退课原因
+            'fee': renewal_fee,  # 手续费
+            'total_cost': (renewal_sessions * renewal_cost_per_session) + renewal_other_cost + renewal_fee if renewal_cost_per_session is not None else None  # 总成本
+        }
+        renewal_data.append(renewal_info)
+    
     # 解析meta信息
     import json
     meta_data = {}
@@ -2607,6 +2743,7 @@ def formal_course_details(course_id):
     return render_template('formal_course_details.html',
                          course=course,
                          trial_course=trial_course,
+                         renewal_courses=renewal_data,  # 新增续课信息
                          meta_data=meta_data,
                          calculations={
                              'revenue': revenue,
@@ -2638,6 +2775,42 @@ def get_formal_course(course_id):
     try:
         course = Course.query.filter_by(id=course_id, is_trial=False).first_or_404()
         
+        # 查询该正课的所有续课记录
+        renewal_courses = Course.query.filter_by(
+            renewal_from_course_id=course_id,
+            is_renewal=True,
+            is_trial=False
+        ).order_by(Course.created_at.desc()).all()
+        
+        # 处理续课信息
+        renewal_data = []
+        for renewal in renewal_courses:
+            # 解析meta信息获取续课详情
+            import json
+            meta_data = {}
+            if renewal.meta:
+                try:
+                    meta_data = json.loads(renewal.meta)
+                except:
+                    pass
+            
+            renewal_info = {
+                'id': renewal.id,
+                'course_type': renewal.course_type,
+                'sessions': renewal.sessions,
+                'gift_sessions': renewal.gift_sessions,
+                'price': renewal.price,
+                'payment_channel': renewal.payment_channel,
+                'other_cost': renewal.other_cost,
+                'created_at': renewal.created_at.isoformat() if renewal.created_at else None,
+                'renewal_reason': meta_data.get('renewal_reason', ''),
+                'discount_amount': meta_data.get('discount_amount', 0),
+                'assigned_employee_name': renewal.assigned_employee.name if renewal.assigned_employee else None,
+                'refund_date': meta_data.get('refund_date', ''),  # 退课时间
+                'refund_reason': meta_data.get('refund_reason', '')  # 退课原因
+            }
+            renewal_data.append(renewal_info)
+        
         course_data = {
             'success': True,
             'id': course.id,
@@ -2659,7 +2832,9 @@ def get_formal_course(course_id):
             'custom_course_cost': course.custom_course_cost,
             'source': '试听课转化' if course.converted_from_trial else '直接报名',
             'converted_from_trial': course.converted_from_trial,
-            'created_at': course.created_at.isoformat() if course.created_at else None
+            'created_at': course.created_at.isoformat() if course.created_at else None,
+            'renewal_courses': renewal_data,  # 新增续课信息
+            'renewal_count': len(renewal_data)  # 续课数量
         }
         
         return jsonify(course_data)
@@ -3248,3 +3423,242 @@ def edit_refund(refund_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': str(e)}), 500
+
+@main_bp.route('/api/operational-costs', methods=['GET'])
+def get_operational_costs():
+    """获取运营成本列表"""
+    try:
+        # 获取查询参数
+        start_date = request.args.get('start_date')
+        end_date = request.args.get('end_date')
+        cost_type = request.args.get('cost_type')
+        status = request.args.get('status', 'active')
+        
+        # 转换日期格式
+        start_date_obj = None
+        end_date_obj = None
+        
+        if start_date:
+            start_date_obj = datetime.strptime(start_date, '%Y-%m-%d').date()
+        if end_date:
+            end_date_obj = datetime.strptime(end_date, '%Y-%m-%d').date()
+        
+        # 获取成本列表
+        costs = OperationalCostService.get_operational_costs(
+            start_date=start_date_obj,
+            end_date=end_date_obj,
+            cost_type=cost_type,
+            status=status
+        )
+        
+        # 转换为JSON格式
+        cost_list = []
+        for cost in costs:
+            cost_list.append({
+                'id': cost.id,
+                'cost_type': cost.cost_type,
+                'cost_name': cost.cost_name,
+                'amount': cost.amount,
+                'cost_date': cost.cost_date.strftime('%Y-%m-%d'),
+                'billing_period': cost.billing_period,
+                'allocation_method': cost.allocation_method,
+                'allocated_to_courses': cost.allocated_to_courses,
+                'description': cost.description,
+                'invoice_number': cost.invoice_number,
+                'supplier': cost.supplier,
+                'status': cost.status,
+                'created_at': cost.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                'updated_at': cost.updated_at.strftime('%Y-%m-%d %H:%M:%S')
+            })
+        
+        return jsonify({
+            'success': True,
+            'costs': cost_list,
+            'total_count': len(cost_list)
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'获取运营成本列表失败: {str(e)}'
+        }), 500
+
+@main_bp.route('/api/operational-costs', methods=['POST'])
+def create_operational_cost():
+    """创建运营成本记录"""
+    try:
+        # 优先获取JSON数据，如果没有则获取表单数据
+        if request.is_json:
+            cost_data = request.get_json()
+        else:
+            cost_data = {
+                'cost_type': request.form.get('cost_type'),
+                'cost_name': request.form.get('cost_name'),
+                'amount': request.form.get('amount'),
+                'cost_date': request.form.get('cost_date'),
+                'billing_period': request.form.get('billing_period', 'month'),
+                'allocation_method': request.form.get('allocation_method', 'proportional'),
+                'allocated_to_courses': bool(request.form.get('allocated_to_courses', True)),
+                'description': request.form.get('description', ''),
+                'invoice_number': request.form.get('invoice_number', ''),
+                'supplier': request.form.get('supplier', ''),
+                'status': request.form.get('status', 'active')
+            }
+        
+        # 使用服务层创建成本
+        success, message, cost = OperationalCostService.create_operational_cost(cost_data)
+        
+        if success:
+            return jsonify({
+                'success': True,
+                'message': message,
+                'cost': cost.to_dict() if hasattr(cost, 'to_dict') else {
+                    'id': cost.id,
+                    'cost_type': cost.cost_type,
+                    'cost_name': cost.cost_name,
+                    'amount': cost.amount,
+                    'cost_date': cost.cost_date.strftime('%Y-%m-%d') if cost.cost_date else None,
+                    'billing_period': cost.billing_period,
+                    'allocation_method': cost.allocation_method,
+                    'allocated_to_courses': cost.allocated_to_courses,
+                    'description': cost.description,
+                    'invoice_number': cost.invoice_number,
+                    'supplier': cost.supplier,
+                    'status': cost.status
+                }
+            }), 201
+        else:
+            return jsonify({
+                'success': False,
+                'message': message
+            }), 400
+            
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'创建运营成本失败: {str(e)}'
+        }), 500
+
+@main_bp.route('/api/operational-costs/<int:cost_id>', methods=['PUT'])
+def update_operational_cost(cost_id):
+    """更新运营成本记录"""
+    try:
+        # 获取JSON数据
+        cost_data = request.get_json()
+        
+        # 使用服务层更新成本
+        success, message = OperationalCostService.update_operational_cost(cost_id, cost_data)
+        
+        if success:
+            # 获取更新后的成本记录
+            updated_cost = OperationalCost.query.get(cost_id)
+            if updated_cost:
+                return jsonify({
+                    'success': True,
+                    'message': message,
+                    'cost': {
+                        'id': updated_cost.id,
+                        'cost_type': updated_cost.cost_type,
+                        'cost_name': updated_cost.cost_name,
+                        'amount': updated_cost.amount,
+                        'cost_date': updated_cost.cost_date.strftime('%Y-%m-%d') if updated_cost.cost_date else None,
+                        'billing_period': updated_cost.billing_period,
+                        'allocation_method': updated_cost.allocation_method,
+                        'allocated_to_courses': updated_cost.allocated_to_courses,
+                        'description': updated_cost.description,
+                        'invoice_number': updated_cost.invoice_number,
+                        'supplier': updated_cost.supplier,
+                        'status': updated_cost.status
+                    }
+                })
+            else:
+                return jsonify({
+                    'success': True,
+                    'message': message
+                })
+        else:
+            return jsonify({
+                'success': False,
+                'message': message
+            }), 400
+            
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'更新运营成本失败: {str(e)}'
+        }), 500
+
+@main_bp.route('/api/operational-costs/<int:cost_id>', methods=['DELETE'])
+def delete_operational_cost(cost_id):
+    """删除运营成本记录"""
+    try:
+        # 使用服务层删除成本
+        success, message = OperationalCostService.delete_operational_cost(cost_id)
+        
+        if success:
+            return jsonify({
+                'success': True,
+                'message': message
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': message
+            }), 400
+            
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'删除运营成本失败: {str(e)}'
+        }), 500
+
+@main_bp.route('/api/operational-costs/statistics')
+def get_operational_cost_statistics():
+    """获取运营成本统计信息"""
+    try:
+        # 获取查询参数
+        start_date = request.args.get('start_date')
+        end_date = request.args.get('end_date')
+        
+        # 转换日期格式
+        start_date_obj = None
+        end_date_obj = None
+        
+        if start_date:
+            start_date_obj = datetime.strptime(start_date, '%Y-%m-%d')
+        if end_date:
+            end_date_obj = datetime.strptime(end_date, '%Y-%m-%d')
+        
+        # 获取统计信息
+        statistics = OperationalCostService.calculate_operational_costs_for_period(
+            start_date_obj, end_date_obj
+        )
+        
+        return jsonify({
+            'success': True,
+            'statistics': statistics
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'获取运营成本统计失败: {str(e)}'
+        }), 500
+
+@main_bp.route('/api/operational-costs/options')
+def get_operational_cost_options():
+    """获取运营成本相关选项"""
+    try:
+        return jsonify({
+            'success': True,
+            'cost_types': OperationalCostService.get_cost_type_options(),
+            'billing_periods': OperationalCostService.get_billing_period_options(),
+            'allocation_methods': ['proportional', 'equal'],
+            'statuses': ['active', 'archived']
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'获取选项失败: {str(e)}'
+        }), 500

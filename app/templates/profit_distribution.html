@@ -117,6 +117,10 @@
                     <td>员工提成</td>
                     <td class="amount" id="employeeCommission">¥0</td>
                 </tr>
+                <tr>
+                    <td>运营成本</td>
+                    <td class="amount" id="operationalCost">¥0</td>
+                </tr>
                 <tr class="total">
                     <td>总成本</td>
                     <td class="amount" id="totalCostDetail">¥0</td>
@@ -525,6 +529,7 @@ function displayReport(report) {
     document.getElementById('taobaoCommission').textContent = formatCurrency(report.cost.taobao_commission);
     document.getElementById('employeeSalary').textContent = formatCurrency(report.cost.employee_salary);
     document.getElementById('employeeCommission').textContent = formatCurrency(report.cost.employee_commission);
+    document.getElementById('operationalCost').textContent = formatCurrency(report.cost.operational_cost);
     document.getElementById('totalCostDetail').textContent = formatCurrency(report.cost.total_cost);
     
     // 股东分配（简化版）
@@ -570,6 +575,7 @@ function exportReport() {
     csv += `刷单佣金,${currentReport.cost.taobao_commission}\n`;
     csv += `员工工资,${currentReport.cost.employee_salary}\n`;
     csv += `员工提成,${currentReport.cost.employee_commission}\n`;
+    csv += `运营成本,${currentReport.cost.operational_cost}\n`;
     csv += `总成本,${currentReport.cost.total_cost}\n\n`;
     
     csv += '利润\n';

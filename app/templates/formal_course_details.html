@@ -161,111 +161,328 @@
     </div>
 
     <!-- 退费记录 -->
+    {% if refund_history %}
     <div class="detail-section">
-        <h3><i class="fas fa-undo-alt"></i> 退费信息</h3>
-        <div class="info-grid">
-            <div class="info-item">
-                <label>已退费节数：</label>
-                <span data-refund-summary="total_refunded_sessions">{{ refund_summary.total_refunded_sessions }} 节</span>
-            </div>
-            <div class="info-item">
-                <label>实际退款金额：</label>
-                <span data-refund-summary="total_refunded_amount">¥{{ "%.2f"|format(refund_summary.total_refunded_amount - refund_summary.total_refunded_fees) }}</span>
-            </div>
-            <div class="info-item">
-                <label>可退费节数：</label>
-                <span data-refund-summary="refundable_sessions" style="color: #dc3545; font-weight: bold;">{{ refund_summary.refundable_sessions }} 节</span>
-            </div>
-            <div class="info-item">
-                <label>单节价格：</label>
-                <span>¥{{ "%.2f"|format(refund_summary.unit_price) }}</span>
+        <h3><i class="fas fa-undo-alt"></i> 退费记录</h3>
+        <div class="refund-summary" style="margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 5px;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px;">
+                <div>
+                    <strong>已退费节数：</strong>
+                    <span data-refund-summary="total_refunded_sessions">{{ refund_summary.total_refunded_sessions }}</span> 节
+                </div>
+                <div>
+                    <strong>实际退款金额：</strong>
+                    <span data-refund-summary="total_refunded_amount">¥{{ "%.2f"|format(refund_summary.total_refunded_amount - refund_summary.total_refunded_fees) }}</span>
+                </div>
+                <div>
+                    <strong>可退费节数：</strong>
+                    <span data-refund-summary="refundable_sessions">{{ refund_summary.refundable_sessions }}</span> 节
+                </div>
             </div>
         </div>
-
-        {% if refund_history and refund_history|length > 0 %}
-        <div style="margin-top: 20px;">
-            <h4 style="margin-bottom: 15px; color: #495057;">退费记录</h4>
-            <div class="refund-records">
-                {% for r in refund_history %}
-                <div class="refund-record-item" style="background: #f8f9fa; padding: 15px; margin-bottom: 12px; border-radius: 6px; border-left: 4px solid #007bff;">
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; font-size: 0.9em;">
-                        <div>
-                            <strong>退费时间：</strong>
-                            <span>{{ r.refund_date.strftime('%Y-%m-%d %H:%M:%S') if r.refund_date else '未记录' }}</span>
-                        </div>
-                        <div>
-                            <strong>退费节数：</strong>
-                            <input type="number" min="1" step="1" value="{{ r.refund_sessions }}" id="rf_sessions_{{ r.id }}" class="form-control" style="width: 80px; display: inline-block;" />
-                        </div>
-                        <div>
-                            <strong>实际退款：</strong>
-                            <input type="number" min="0" step="0.01" value="{{ '%.2f'|format((r.refund_amount or 0) - (r.refund_fee or 0)) }}" id="rf_amount_{{ r.id }}" class="form-control" style="width: 100px; display: inline-block;" />
-                        </div>
-                        <div>
-                            <strong>退费原因：</strong>
-                            <select id="rf_reason_{{ r.id }}" class="form-control" style="width: 120px; display: inline-block;">
-                                <option value="">请选择</option>
-                                <option value="个人原因" {{ 'selected' if r.refund_reason == '个人原因' else '' }}>个人原因</option>
-                                <option value="时间冲突" {{ 'selected' if r.refund_reason == '时间冲突' else '' }}>时间冲突</option>
-                                <option value="教学质量" {{ 'selected' if r.refund_reason == '教学质量' else '' }}>教学质量问题</option>
-                                <option value="搬家" {{ 'selected' if r.refund_reason == '搬家' else '' }}>搬家/地址变更</option>
-                                <option value="经济原因" {{ 'selected' if r.refund_reason == '经济原因' else '' }}>经济原因</option>
-                                <option value="其他" {{ 'selected' if r.refund_reason == '其他' else '' }}>其他原因</option>
-                            </select>
-                        </div>
-                        <div>
-                            <strong>退费渠道：</strong>
-                            <select id="rf_channel_{{ r.id }}" class="form-control" style="width: 100px; display: inline-block;">
-                                <option value="">请选择</option>
-                                <option value="微信" {{ 'selected' if r.refund_channel == '微信' else '' }}>微信</option>
-                                <option value="淘宝" {{ 'selected' if r.refund_channel == '淘宝' else '' }}>淘宝</option>
-                                <option value="支付宝" {{ 'selected' if r.refund_channel == '支付宝' else '' }}>支付宝</option>
-                                <option value="其他" {{ 'selected' if r.refund_channel == '其他' else '' }}>其他</option>
-                            </select>
-                        </div>
-                        <div>
-                            <strong>手续费：</strong>
-                            <input type="number" min="0" step="0.01" value="{{ '%.2f'|format(r.refund_fee or 0) }}" id="rf_fee_{{ r.id }}" class="form-control" style="width: 80px; display: inline-block;" />
-                        </div>
-                        <div>
-                            <strong>操作人：</strong>
-                            <span>{{ r.operator_name or '未记录' }}</span>
-                        </div>
-                        <div>
-                            <strong>状态：</strong>
-                            <span class="status-badge status-{{ r.status }}">{{ r.status }}</span>
-                        </div>
-                        <div style="grid-column: 1 / -1;">
-                            <button class="btn btn-sm btn-primary" onclick="saveRefund({{ r.id }})">保存修改</button>
-                        </div>
+        
+        <div class="refund-table">
+            {% for r in refund_history %}
+            <div class="refund-item" style="margin-bottom: 20px; padding: 15px; border: 1px solid #dee2e6; border-radius: 8px; background: #f8f9fa;">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; align-items: center;">
+                    <div>
+                        <strong>退费时间：</strong>
+                        <input type="date" value="{{ r.refund_date.strftime('%Y-%m-%d') if r.refund_date else '' }}" id="rf_date_{{ r.id }}" class="form-control" style="width: 130px; display: inline-block;" />
                     </div>
-                    <div style="margin-top: 10px; padding: 8px; background: white; border-radius: 4px; border-left: 3px solid #6c757d;">
-                        <strong>备注：</strong>
-                        <textarea id="rf_remark_{{ r.id }}" class="form-control" style="width: 100%; margin-top: 5px; min-height: 60px;" placeholder="请输入备注信息">{{ r.remark or '' }}</textarea>
+                    <div>
+                        <strong>退费节数：</strong>
+                        <input type="number" min="1" step="1" value="{{ r.refund_sessions }}" id="rf_sessions_{{ r.id }}" class="form-control" style="width: 80px; display: inline-block;" />
+                    </div>
+                    <div>
+                        <strong>实际退款：</strong>
+                        <input type="number" min="0" step="0.01" value="{{ '%.2f'|format((r.refund_amount or 0) - (r.refund_fee or 0)) }}" id="rf_amount_{{ r.id }}" class="form-control" style="width: 100px; display: inline-block;" />
+                    </div>
+                    <div>
+                        <strong>退费原因：</strong>
+                        <select id="rf_reason_{{ r.id }}" class="form-control" style="width: 120px; display: inline-block;">
+                            <option value="">请选择</option>
+                            <option value="个人原因" {{ 'selected' if r.refund_reason == '个人原因' else '' }}>个人原因</option>
+                            <option value="时间冲突" {{ 'selected' if r.refund_reason == '时间冲突' else '' }}>时间冲突</option>
+                            <option value="教学质量" {{ 'selected' if r.refund_reason == '教学质量' else '' }}>教学质量问题</option>
+                            <option value="搬家" {{ 'selected' if r.refund_reason == '搬家' else '' }}>搬家/地址变更</option>
+                            <option value="经济原因" {{ 'selected' if r.refund_reason == '经济原因' else '' }}>经济原因</option>
+                            <option value="其他" {{ 'selected' if r.refund_reason == '其他' else '' }}>其他原因</option>
+                        </select>
+                    </div>
+                    <div>
+                        <strong>退费渠道：</strong>
+                        <select id="rf_channel_{{ r.id }}" class="form-control" style="width: 100px; display: inline-block;">
+                            <option value="">请选择</option>
+                            <option value="微信" {{ 'selected' if r.refund_channel == '微信' else '' }}>微信</option>
+                            <option value="淘宝" {{ 'selected' if r.refund_channel == '淘宝' else '' }}>淘宝</option>
+                            <option value="支付宝" {{ 'selected' if r.refund_channel == '支付宝' else '' }}>支付宝</option>
+                            <option value="其他" {{ 'selected' if r.refund_channel == '其他' else '' }}>其他</option>
+                        </select>
+                    </div>
+                    <div>
+                        <strong>手续费：</strong>
+                        <input type="number" min="0" step="0.01" value="{{ '%.2f'|format(r.refund_fee or 0) }}" id="rf_fee_{{ r.id }}" class="form-control" style="width: 80px; display: inline-block;" />
+                    </div>
+                    <div>
+                        <strong>操作人：</strong>
+                        <span>{{ r.operator_name or '未记录' }}</span>
+                    </div>
+                    <div>
+                        <strong>状态：</strong>
+                        <span class="status-badge status-{{ r.status }}">{{ r.status }}</span>
+                    </div>
+                    <div style="grid-column: 1 / -1;">
+                        <button class="btn btn-sm btn-primary" onclick="saveRefund({{ r.id }})">保存修改</button>
                     </div>
                 </div>
-                {% endfor %}
-            </div>
-        </div>
-        {% else %}
-        <div style="margin-top: 10px; color: #666;">暂无退费记录</div>
-        {% endif %}
-    </div>
-
-    <!-- 扩展信息（如果有） -->
-    {% if meta_data %}
-    <div class="detail-section">
-        <h3><i class="fas fa-info-circle"></i> 扩展信息</h3>
-        <div class="info-grid">
-            {% for key, value in meta_data.items() %}
-            <div class="info-item">
-                <label>{{ key }}：</label>
-                <span>{{ value }}</span>
+                <div style="margin-top: 10px; padding: 8px; background: white; border-radius: 4px; border-left: 3px solid #6c757d;">
+                    <strong>备注：</strong>
+                    <textarea id="rf_remark_{{ r.id }}" class="form-control" style="width: 100%; margin-top: 5px; min-height: 60px;" placeholder="请输入备注信息">{{ r.remark or '' }}</textarea>
+                </div>
             </div>
             {% endfor %}
         </div>
     </div>
+    {% else %}
+    <div style="margin-top: 10px; color: #666;">暂无退费记录</div>
     {% endif %}
+
+    <!-- 续课信息 -->
+    {% if renewal_courses %}
+    <div class="detail-section">
+        <h3><i class="fas fa-plus-circle"></i> 续课信息</h3>
+        <div class="renewal-summary" style="margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 5px;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px;">
+                <div>
+                    <strong>续课总数：</strong>
+                    <span>{{ renewal_courses|length }}</span> 次
+                </div>
+                <div>
+                    <strong>总续课节数：</strong>
+                    <span>
+                        {% set total_sessions = namespace(value=0) %}
+                        {% for renewal in renewal_courses %}
+                            {% set total_sessions.value = total_sessions.value + (renewal.sessions or 0) %}
+                        {% endfor %}
+                        {{ total_sessions.value }}
+                    </span> 节
+                </div>
+                <div>
+                    <strong>总续课收入：</strong>
+                    <span>
+                        {% set total_revenue = namespace(value=0) %}
+                        {% for renewal in renewal_courses %}
+                            {% set total_revenue.value = total_revenue.value + ((renewal.sessions or 0) * (renewal.price or 0)) %}
+                        {% endfor %}
+                        ¥{{ "%.2f"|format(total_revenue.value) }}
+                    </span>
+                </div>
+                <div>
+                    <strong>最新续课时间：</strong>
+                    <span>
+                        {% set latest_date = namespace(value=None) %}
+                        {% for renewal in renewal_courses %}
+                            {% if renewal.created_at %}
+                                {% if not latest_date.value or renewal.created_at > latest_date.value %}
+                                    {% set latest_date.value = renewal.created_at %}
+                                {% endif %}
+                            {% endif %}
+                        {% endfor %}
+                        {{ latest_date.value.strftime('%Y-%m-%d') if latest_date.value else '无' }}
+                    </span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="renewal-table">
+            {% for renewal in renewal_courses %}
+            <div class="renewal-item" style="margin-bottom: 20px; padding: 15px; border: 1px solid #dee2e6; border-radius: 8px; background: #f8f9fa; border-left: 3px solid #28a745;">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; align-items: center;">
+                    <div>
+                        <strong>续课时间：</strong>
+                        <span>{{ renewal.created_at.strftime('%Y-%m-%d') if renewal.created_at else '未记录' }}</span>
+                    </div>
+                    <div>
+                        <strong>课程类型：</strong>
+                        <span>{{ renewal.course_type or '未记录' }}</span>
+                    </div>
+                    <div>
+                        <strong>续课节数：</strong>
+                        <span>{{ renewal.sessions or 0 }}</span> 节
+                    </div>
+                    <div>
+                        <strong>单节价格：</strong>
+                        <span>¥{{ "%.2f"|format(renewal.price or 0) }}</span>
+                    </div>
+                    <div>
+                        <strong>赠课节数：</strong>
+                        <span>{{ renewal.gift_sessions or 0 }}</span> 节
+                    </div>
+                    <div>
+                        <strong>支付渠道：</strong>
+                        <span>{{ renewal.payment_channel or '未记录' }}</span>
+                    </div>
+                    <div>
+                        <strong>其他成本：</strong>
+                        <span>¥{{ "%.2f"|format(renewal.other_cost or 0) }}</span>
+                    </div>
+                    <div>
+                        <strong>负责员工：</strong>
+                        <span>{{ renewal.assigned_employee.name if renewal.assigned_employee else '未分配' }}</span>
+                    </div>
+                </div>
+                {% if renewal.renewal_reason or renewal.discount_amount > 0 or renewal.refund_date or renewal.refund_reason %}
+                <div style="margin-top: 15px; padding: 10px; background: white; border-radius: 4px; border-left: 3px solid #28a745;">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                        {% if renewal.renewal_reason %}
+                        <div>
+                            <strong>续课原因：</strong>
+                            <span>{{ renewal.renewal_reason }}</span>
+                        </div>
+                        {% endif %}
+                        {% if renewal.discount_amount > 0 %}
+                        <div>
+                            <strong>优惠金额：</strong>
+                            <span>¥{{ "%.2f"|format(renewal.discount_amount) }}</span>
+                        </div>
+                        {% endif %}
+                        {% if renewal.refund_date %}
+                        <div>
+                            <strong>退课时间：</strong>
+                            <span>{{ renewal.refund_date }}</span>
+                        </div>
+                        {% endif %}
+                        {% if renewal.refund_reason %}
+                        <div>
+                            <strong>退课原因：</strong>
+                            <span>{{ renewal.refund_reason }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+                
+                <!-- 续课计算明细 -->
+                <div style="margin-top: 15px; padding: 15px; background: white; border-radius: 4px; border-left: 3px solid #007bff;">
+                    <h5 style="margin: 0 0 15px 0; color: #007bff; font-weight: 600;">
+                        <i class="fas fa-calculator"></i> 计算明细
+                    </h5>
+                    
+                    <!-- 收入计算 -->
+                    <div style="margin-bottom: 15px;">
+                        <h6 style="color: #28a745; margin-bottom: 10px;">收入计算</h6>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; font-size: 14px;">
+                            <div>
+                                <strong>续课节数：</strong>
+                                <span>{{ renewal.sessions or 0 }} 节</span>
+                            </div>
+                            <div>
+                                <strong>单节价格：</strong>
+                                <span>¥{{ "%.2f"|format(renewal.price or 0) }}</span>
+                            </div>
+                            <div>
+                                <strong>基础收入：</strong>
+                                <span>¥{{ "%.2f"|format((renewal.sessions or 0) * (renewal.price or 0)) }}</span>
+                            </div>
+                            {% if renewal.discount_amount and renewal.discount_amount > 0 %}
+                            <div>
+                                <strong>优惠金额：</strong>
+                                <span style="color: #dc3545;">-¥{{ "%.2f"|format(renewal.discount_amount) }}</span>
+                            </div>
+                            <div>
+                                <strong>实际收入：</strong>
+                                <span style="color: #28a745; font-weight: 600;">¥{{ "%.2f"|format(((renewal.sessions or 0) * (renewal.price or 0)) - (renewal.discount_amount or 0)) }}</span>
+                            </div>
+                            {% else %}
+                            <div>
+                                <strong>实际收入：</strong>
+                                <span style="color: #28a745; font-weight: 600;">¥{{ "%.2f"|format((renewal.sessions or 0) * (renewal.price or 0)) }}</span>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <!-- 成本计算 -->
+                    <div style="margin-bottom: 15px;">
+                        <h6 style="color: #dc3545; margin-bottom: 10px;">成本计算</h6>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; font-size: 14px;">
+                            <div>
+                                <strong>续课节数：</strong>
+                                <span>{{ renewal.sessions or 0 }} 节</span>
+                            </div>
+                            <div>
+                                <strong>单节成本：</strong>
+                                <span>¥{{ '%.2f'|format(renewal.cost or 0) if renewal.cost else '未设置' }}</span>
+                            </div>
+                            <div>
+                                <strong>课时成本：</strong>
+                                <span>¥{{ "%.2f"|format((renewal.sessions or 0) * (renewal.cost or 0)) if renewal.cost else '未设置' }}</span>
+                            </div>
+                            <div>
+                                <strong>其他成本：</strong>
+                                <span>¥{{ "%.2f"|format(renewal.other_cost or 0) }}</span>
+                            </div>
+                            {% if renewal.fee and renewal.fee > 0 %}
+                            <div>
+                                <strong>手续费：</strong>
+                                <span>¥{{ "%.2f"|format(renewal.fee) }}</span>
+                            </div>
+                            {% endif %}
+                            <div>
+                                <strong>总成本：</strong>
+                                <span style="color: #dc3545; font-weight: 600;">
+                                    ¥{{ "%.2f"|format(renewal.total_cost) if renewal.total_cost else '未设置' }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 利润计算 -->
+                    <div>
+                        <h6 style="color: #ffc107; margin-bottom: 10px;">利润计算</h6>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; font-size: 14px;">
+                            <div>
+                                <strong>实际收入：</strong>
+                                <span>¥{{ "%.2f"|format(((renewal.sessions or 0) * (renewal.price or 0)) - (renewal.discount_amount or 0)) }}</span>
+                            </div>
+                            <div>
+                                <strong>总成本：</strong>
+                                <span>¥{{ "%.2f"|format(renewal.total_cost) if renewal.total_cost else '未设置' }}</span>
+                            </div>
+                            <div>
+                                <strong>净利润：</strong>
+                                <span style="color: #28a745; font-weight: 600; font-size: 16px;">
+                                    ¥{{ "%.2f"|format(
+                                        (((renewal.sessions or 0) * (renewal.price or 0)) - (renewal.discount_amount or 0)) - (renewal.total_cost or 0)
+                                    ) if renewal.total_cost else '未设置' }}
+                                </span>
+                            </div>
+                            {% if renewal.total_cost %}
+                            <div>
+                                <strong>利润率：</strong>
+                                <span style="color: #007bff; font-weight: 600;">
+                                    {{ "%.1f"|format(
+                                        (((((renewal.sessions or 0) * (renewal.price or 0)) - (renewal.discount_amount or 0)) - (renewal.total_cost or 0)) / 
+                                        (((renewal.sessions or 0) * (renewal.price or 0)) - (renewal.discount_amount or 0))) * 100
+                                    ) if ((renewal.sessions or 0) * (renewal.price or 0)) - (renewal.discount_amount or 0) > 0 else 0 }}%
+                                </span>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% else %}
+    <div class="detail-section">
+        <h3><i class="fas fa-plus-circle"></i> 续课信息</h3>
+        <div style="margin-top: 10px; color: #666;">暂无续课记录</div>
+    </div>
+    {% endif %}
+
+
 </div>
 
 <style>
