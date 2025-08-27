@@ -1,7 +1,234 @@
 {% extends "base.html" %}
 
-{% block title %}试听课管理 - 客户管理系统{% endblock %}
-{% block page_title %}试听课管理{% endblock %}
+{% block title %}试听课管理 - 教育培训管理系统{% endblock %}
+{% block page_title %}试听课管理中心{% endblock %}
+
+{% block head %}
+<style>
+/* 试听课页面专属样式 */
+.page-header-section {
+    margin-bottom: 30px;
+}
+
+.page-main-title {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--edu-gray-900);
+    margin-bottom: 8px;
+}
+
+.page-subtitle {
+    font-size: 16px;
+    color: var(--edu-gray-600);
+}
+
+/* 状态进度条 */
+.stat-progress {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: var(--edu-gray-200);
+    border-radius: 0 0 var(--edu-radius-lg) var(--edu-radius-lg);
+    overflow: hidden;
+}
+
+.stat-progress .progress-bar {
+    height: 100%;
+    background: var(--edu-gradient-success);
+    transition: width 0.6s ease;
+}
+
+/* 状态统计卡片美化 */
+.status-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+    margin-top: 24px;
+}
+
+.status-stat-card {
+    background: white;
+    border-radius: var(--edu-radius-md);
+    padding: 20px;
+    box-shadow: var(--edu-shadow-sm);
+    transition: all 0.3s ease;
+}
+
+.status-stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--edu-shadow-md);
+}
+
+.status-stat-card.registered {
+    border-left: 4px solid var(--edu-primary);
+}
+
+.status-stat-card.not-registered {
+    border-left: 4px solid var(--edu-warm);
+}
+
+.status-stat-card.completed {
+    border-left: 4px solid var(--edu-success);
+}
+
+.status-stat-card.converted {
+    border-left: 4px solid var(--edu-purple);
+}
+
+.status-stat-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+    font-weight: 600;
+    color: var(--edu-gray-800);
+}
+
+.status-stat-content .stat-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--edu-gray-100);
+    font-size: 14px;
+}
+
+.status-stat-content .stat-row:last-child {
+    border-bottom: none;
+}
+
+.status-stat-content .stat-row.profit {
+    font-weight: 600;
+    padding-top: 12px;
+}
+
+.profit-positive {
+    color: var(--edu-success);
+}
+
+.profit-negative {
+    color: var(--edu-danger);
+}
+
+/* 表格视图切换 */
+.view-options {
+    display: flex;
+    gap: 4px;
+    background: var(--edu-gray-100);
+    padding: 4px;
+    border-radius: var(--edu-radius-sm);
+}
+
+.view-btn {
+    padding: 6px 12px;
+    background: transparent;
+    border: none;
+    color: var(--edu-gray-600);
+    cursor: pointer;
+    border-radius: var(--edu-radius-sm);
+    transition: all 0.2s ease;
+}
+
+.view-btn.active {
+    background: white;
+    color: var(--edu-primary);
+    box-shadow: var(--edu-shadow-sm);
+}
+
+/* 表格头部 */
+.table-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    border-bottom: 1px solid var(--edu-gray-200);
+}
+
+.table-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--edu-gray-900);
+    margin: 0;
+}
+
+.table-info {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.record-count {
+    font-size: 14px;
+    color: var(--edu-gray-600);
+}
+
+/* 年级标签 */
+.grade-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    background: var(--edu-gradient-primary);
+    color: white;
+    border-radius: var(--edu-radius-full);
+    font-size: 13px;
+    font-weight: 500;
+}
+
+/* 位置信息 */
+.location-info {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--edu-gray-600);
+    font-size: 14px;
+}
+
+.location-info i {
+    color: var(--edu-primary);
+}
+
+/* 批量操作栏 */
+.batch-actions {
+    background: var(--edu-gradient-light);
+    border: 1px solid var(--edu-primary-light);
+    border-radius: var(--edu-radius-md);
+    padding: 12px 16px;
+    margin-bottom: 20px;
+    display: none;
+}
+
+.batch-actions.show {
+    display: block;
+    animation: slideInUp 0.3s ease;
+}
+
+/* 响应式表格 */
+.table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 768px) {
+    .status-stats-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .table-header {
+        flex-direction: column;
+        gap: 16px;
+        align-items: flex-start;
+    }
+    
+    .action-bar {
+        flex-direction: column;
+    }
+    
+    .search-section {
+        width: 100%;
+    }
+}
+</style>
+{% endblock %}
 
 {% block content %}
 <div class="page-container">
@@ -215,18 +442,21 @@
         </div>
     </div>
 
-    <!-- 添加试听课按钮 -->
-    <div class="form-section">
-        <div class="add-trial-header">
-            <h3><i class="fas fa-plus"></i> 试听课管理</h3>
-            <div class="header-actions">
-                <button type="button" class="btn btn-info" onclick="exportTrialData()">
-                    <i class="fas fa-download"></i> 导出数据
-                </button>
-                <button type="button" class="btn btn-primary" id="addTrialBtn">
-                    <i class="fas fa-user-plus"></i> 录入新学员
-                </button>
-            </div>
+    <!-- 操作栏 -->
+    <div class="action-bar">
+        <div class="search-section">
+            <input type="text" class="search-input" placeholder="搜索学员姓名、电话..." id="searchInput">
+            <button class="btn btn-primary" onclick="searchTrials()">
+                <i class="fas fa-search"></i> 搜索
+            </button>
+        </div>
+        <div class="action-buttons">
+            <button type="button" class="btn btn-outline" onclick="exportTrialData()">
+                <i class="fas fa-download"></i> 导出数据
+            </button>
+            <button type="button" class="btn btn-warm" id="addTrialBtn">
+                <i class="fas fa-user-plus"></i> 录入新学员
+            </button>
         </div>
     </div>
 

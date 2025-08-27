@@ -1,7 +1,314 @@
 {% extends "base.html" %}
 
-{% block title %}正课管理 - 客户管理系统{% endblock %}
-{% block page_title %}正课管理{% endblock %}
+{% block title %}正课管理 - 教育培训管理系统{% endblock %}
+{% block page_title %}正课管理中心{% endblock %}
+
+{% block head %}
+<style>
+/* 正课管理页面专属样式 */
+.page-header-section {
+    text-align: center;
+    margin-bottom: 40px;
+    padding: 40px 20px;
+    background: var(--edu-gradient-light);
+    border-radius: var(--edu-radius-xl);
+}
+
+.page-icon {
+    width: 80px;
+    height: 80px;
+    margin: 0 auto 20px;
+    background: var(--edu-gradient-primary);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 36px;
+    color: white;
+    box-shadow: var(--edu-shadow-colored);
+}
+
+.page-title {
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--edu-gray-900);
+    margin-bottom: 8px;
+}
+
+.page-description {
+    font-size: 16px;
+    color: var(--edu-gray-600);
+}
+
+/* 课程网格布局 */
+.courses-grid-view {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+    gap: 24px;
+    margin-top: 32px;
+}
+
+.course-card {
+    background: white;
+    border-radius: var(--edu-radius-xl);
+    overflow: hidden;
+    box-shadow: var(--edu-shadow-md);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+}
+
+.course-card:hover {
+    transform: translateY(-8px);
+    box-shadow: var(--edu-shadow-xl);
+}
+
+.course-card-header {
+    padding: 24px;
+    background: var(--edu-gradient-primary);
+    color: white;
+    position: relative;
+}
+
+.course-subject {
+    display: inline-block;
+    padding: 6px 16px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: var(--edu-radius-full);
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 12px;
+}
+
+.course-student-name {
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: 4px;
+}
+
+.course-meta {
+    font-size: 14px;
+    opacity: 0.9;
+}
+
+.course-card-body {
+    padding: 24px;
+}
+
+.course-info-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--edu-gray-100);
+}
+
+.course-info-item:last-child {
+    border-bottom: none;
+}
+
+.course-info-label {
+    font-size: 14px;
+    color: var(--edu-gray-600);
+}
+
+.course-info-value {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--edu-gray-900);
+}
+
+/* 课程进度 */
+.course-progress {
+    margin-top: 20px;
+}
+
+.progress-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    font-size: 14px;
+}
+
+.progress-bar-container {
+    height: 8px;
+    background: var(--edu-gray-200);
+    border-radius: var(--edu-radius-full);
+    overflow: hidden;
+}
+
+.progress-bar-fill {
+    height: 100%;
+    background: var(--edu-gradient-success);
+    transition: width 0.6s ease;
+}
+
+/* 课程操作按钮 */
+.course-actions {
+    padding: 16px 24px;
+    background: var(--edu-gray-50);
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+}
+
+.course-action-btn {
+    padding: 8px 16px;
+    border-radius: var(--edu-radius-md);
+    font-size: 13px;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.course-action-btn.primary {
+    background: var(--edu-primary);
+    color: white;
+}
+
+.course-action-btn.primary:hover {
+    background: var(--edu-primary-dark);
+}
+
+.course-action-btn.outline {
+    background: transparent;
+    border: 1px solid var(--edu-gray-300);
+    color: var(--edu-gray-700);
+}
+
+.course-action-btn.outline:hover {
+    border-color: var(--edu-primary);
+    color: var(--edu-primary);
+}
+
+/* 筛选和搜索栏 */
+.filter-bar {
+    background: white;
+    border-radius: var(--edu-radius-lg);
+    padding: 24px;
+    box-shadow: var(--edu-shadow-sm);
+    margin-bottom: 32px;
+}
+
+.filter-row {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.filter-group {
+    flex: 1;
+    min-width: 200px;
+}
+
+.filter-label {
+    display: block;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--edu-gray-700);
+    margin-bottom: 8px;
+}
+
+.filter-select {
+    width: 100%;
+    padding: 10px 16px;
+    border: 2px solid var(--edu-gray-200);
+    border-radius: var(--edu-radius-md);
+    font-size: 14px;
+    transition: all 0.3s ease;
+}
+
+.filter-select:focus {
+    outline: none;
+    border-color: var(--edu-primary);
+    box-shadow: 0 0 0 4px rgba(var(--edu-primary-rgb), 0.1);
+}
+
+/* 切换视图按钮 */
+.view-toggle {
+    position: fixed;
+    bottom: 32px;
+    right: 32px;
+    display: flex;
+    gap: 8px;
+    background: white;
+    padding: 8px;
+    border-radius: var(--edu-radius-full);
+    box-shadow: var(--edu-shadow-lg);
+}
+
+.view-toggle-btn {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    border: none;
+    background: var(--edu-gray-100);
+    color: var(--edu-gray-600);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+}
+
+.view-toggle-btn.active {
+    background: var(--edu-gradient-primary);
+    color: white;
+}
+
+/* 状态标签 */
+.course-status {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    padding: 6px 12px;
+    border-radius: var(--edu-radius-full);
+    font-size: 12px;
+    font-weight: 600;
+    background: rgba(255, 255, 255, 0.9);
+}
+
+.course-status.active {
+    color: var(--edu-success);
+    border: 1px solid var(--edu-success);
+}
+
+.course-status.completed {
+    color: var(--edu-primary);
+    border: 1px solid var(--edu-primary);
+}
+
+.course-status.paused {
+    color: var(--edu-warning);
+    border: 1px solid var(--edu-warning);
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .courses-grid-view {
+        grid-template-columns: 1fr;
+    }
+    
+    .filter-row {
+        flex-direction: column;
+    }
+    
+    .filter-group {
+        width: 100%;
+    }
+    
+    .view-toggle {
+        bottom: 16px;
+        right: 16px;
+    }
+}
+</style>
+{% endblock %}
 
 {% block content %}
 <div class="page-container">

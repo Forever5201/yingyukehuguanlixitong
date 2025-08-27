@@ -1,7 +1,358 @@
 {% extends "base.html" %}
 
-{% block title %}员工业绩管理 - 客户管理系统{% endblock %}
-{% block page_title %}员工业绩管理{% endblock %}
+{% block title %}员工业绩管理 - 教育培训管理系统{% endblock %}
+{% block page_title %}员工业绩中心{% endblock %}
+
+{% block head %}
+<style>
+/* 员工业绩页面专属样式 */
+.performance-header {
+    text-align: center;
+    margin-bottom: 40px;
+}
+
+.performance-title {
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--edu-gray-900);
+    margin-bottom: 12px;
+}
+
+.performance-subtitle {
+    font-size: 16px;
+    color: var(--edu-gray-600);
+}
+
+/* 员工网格布局 */
+.employees-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 24px;
+    margin-top: 24px;
+}
+
+.employee-card {
+    background: white;
+    border-radius: var(--edu-radius-xl);
+    padding: 28px;
+    box-shadow: var(--edu-shadow-md);
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+}
+
+.employee-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: var(--edu-gradient-primary);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.3s ease;
+}
+
+.employee-card:hover::before {
+    transform: scaleX(1);
+}
+
+.employee-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--edu-shadow-lg);
+}
+
+.employee-avatar {
+    width: 72px;
+    height: 72px;
+    margin: 0 auto 20px;
+    background: var(--edu-gradient-primary);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 32px;
+    color: white;
+    box-shadow: var(--edu-shadow-colored);
+}
+
+.employee-info {
+    text-align: center;
+}
+
+.employee-info h4 {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--edu-gray-900);
+    margin-bottom: 16px;
+}
+
+.employee-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-top: 20px;
+}
+
+.stat-item {
+    padding: 12px;
+    background: var(--edu-gray-50);
+    border-radius: var(--edu-radius-md);
+    text-align: center;
+}
+
+.stat-label {
+    display: block;
+    font-size: 12px;
+    color: var(--edu-gray-600);
+    margin-bottom: 4px;
+}
+
+.stat-value {
+    display: block;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--edu-gray-900);
+}
+
+/* 业绩排行榜 */
+.ranking-section {
+    background: white;
+    border-radius: var(--edu-radius-xl);
+    padding: 32px;
+    box-shadow: var(--edu-shadow-md);
+    margin-top: 40px;
+}
+
+.ranking-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 24px;
+}
+
+.ranking-icon {
+    width: 48px;
+    height: 48px;
+    background: var(--edu-gradient-warm);
+    border-radius: var(--edu-radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    color: white;
+}
+
+.ranking-title {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--edu-gray-900);
+}
+
+.ranking-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.ranking-item {
+    display: flex;
+    align-items: center;
+    padding: 20px;
+    background: var(--edu-gray-50);
+    border-radius: var(--edu-radius-lg);
+    transition: all 0.3s ease;
+}
+
+.ranking-item:hover {
+    background: white;
+    box-shadow: var(--edu-shadow-md);
+    transform: translateX(8px);
+}
+
+/* 前三名特殊样式 */
+.ranking-item.rank-1 {
+    background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+    color: white;
+}
+
+.ranking-item.rank-2 {
+    background: linear-gradient(135deg, #C0C0C0 0%, #B8B8B8 100%);
+    color: white;
+}
+
+.ranking-item.rank-3 {
+    background: linear-gradient(135deg, #CD7F32 0%, #B87333 100%);
+    color: white;
+}
+
+.ranking-position {
+    width: 40px;
+    height: 40px;
+    background: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 18px;
+    margin-right: 16px;
+    color: var(--edu-gray-900);
+}
+
+.ranking-item.rank-1 .ranking-position,
+.ranking-item.rank-2 .ranking-position,
+.ranking-item.rank-3 .ranking-position {
+    background: rgba(255, 255, 255, 0.9);
+}
+
+.ranking-employee {
+    flex: 1;
+}
+
+.ranking-employee-name {
+    font-weight: 600;
+    font-size: 16px;
+    margin-bottom: 4px;
+}
+
+.ranking-employee-dept {
+    font-size: 14px;
+    opacity: 0.8;
+}
+
+.ranking-metric {
+    text-align: right;
+}
+
+.ranking-metric-value {
+    font-size: 20px;
+    font-weight: 700;
+}
+
+.ranking-metric-label {
+    font-size: 12px;
+    opacity: 0.8;
+}
+
+/* 业绩图表 */
+.performance-charts {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    margin-top: 32px;
+}
+
+.chart-card {
+    background: white;
+    border-radius: var(--edu-radius-xl);
+    padding: 24px;
+    box-shadow: var(--edu-shadow-md);
+}
+
+.chart-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.chart-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--edu-gray-900);
+}
+
+.chart-period {
+    display: flex;
+    gap: 8px;
+}
+
+.period-btn {
+    padding: 6px 12px;
+    border: 1px solid var(--edu-gray-300);
+    background: white;
+    border-radius: var(--edu-radius-sm);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.period-btn.active {
+    background: var(--edu-primary);
+    color: white;
+    border-color: var(--edu-primary);
+}
+
+/* 员工详情模态框 */
+.employee-detail-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    z-index: 1000;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+}
+
+.employee-detail-modal.show {
+    opacity: 1;
+    visibility: visible;
+}
+
+.employee-detail-content {
+    background: white;
+    border-radius: var(--edu-radius-xl);
+    max-width: 800px;
+    width: 100%;
+    max-height: 90vh;
+    overflow: hidden;
+    box-shadow: var(--edu-shadow-xl);
+    transform: scale(0.9);
+    transition: transform 0.3s ease;
+}
+
+.employee-detail-modal.show .employee-detail-content {
+    transform: scale(1);
+}
+
+/* 响应式设计 */
+@media (max-width: 1024px) {
+    .performance-charts {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .employees-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .employee-stats {
+        grid-template-columns: 1fr 1fr;
+    }
+    
+    .ranking-item {
+        padding: 16px;
+    }
+    
+    .ranking-position {
+        width: 32px;
+        height: 32px;
+        font-size: 16px;
+    }
+}
+</style>
+{% endblock %}
 
 {% block content %}
 <div class="page-container">
