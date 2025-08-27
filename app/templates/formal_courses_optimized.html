@@ -1,0 +1,300 @@
+{% extends "base.html" %}
+
+{% block title %}正课管理 - 教育培训管理系统{% endblock %}
+{% block page_title %}正课管理{% endblock %}
+
+{% block head %}
+<!-- 引入现代设计系统 -->
+<link rel="stylesheet" href="{{ url_for('static', filename='css/modern-design-system.css') }}">
+<style>
+/* 页面特定样式 */
+.course-filters {
+    display: flex;
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-lg);
+    flex-wrap: wrap;
+}
+
+.filter-group {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.quick-stats {
+    display: flex;
+    gap: var(--spacing-lg);
+    align-items: center;
+    font-size: 14px;
+    color: var(--neutral-600);
+}
+
+.quick-stats-item {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+}
+
+.quick-stats-value {
+    font-weight: 600;
+    color: var(--neutral-800);
+}
+
+/* 迷你图表容器 */
+.stat-mini-chart {
+    width: 100%;
+    height: 60px;
+    margin-top: var(--spacing-md);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="modern-page-container">
+    <!-- 页面头部 -->
+    <div class="modern-page-header">
+        <h1 class="modern-page-title">
+            <i class="fas fa-graduation-cap"></i>
+            正课管理中心
+        </h1>
+        <p class="modern-page-description">
+            管理所有正式课程信息，跟踪学员学习进度和付款状态
+        </p>
+    </div>
+
+    <!-- 统计卡片 - 使用品牌色系 -->
+    <div class="modern-stats-grid">
+        <!-- 总收入卡片 - 主色调 -->
+        <div class="modern-stat-card primary">
+            <div class="modern-stat-icon">
+                <i class="fas fa-dollar-sign"></i>
+            </div>
+            <div class="modern-stat-value">¥{{ "%.2f"|format(stats.total_revenue) }}</div>
+            <div class="modern-stat-label">总收入</div>
+            <div class="modern-stat-trend up">
+                <i class="fas fa-arrow-up"></i>
+                <span>12.5%</span>
+            </div>
+            <canvas id="revenueSparkline" class="stat-mini-chart"></canvas>
+        </div>
+
+        <!-- 总成本卡片 -->
+        <div class="modern-stat-card">
+            <div class="modern-stat-icon">
+                <i class="fas fa-coins"></i>
+            </div>
+            <div class="modern-stat-value">¥{{ "%.2f"|format(stats.total_cost) }}</div>
+            <div class="modern-stat-label">总成本</div>
+            <div class="modern-stat-trend down">
+                <i class="fas fa-arrow-down"></i>
+                <span>3.2%</span>
+            </div>
+        </div>
+
+        <!-- 总利润卡片 -->
+        <div class="modern-stat-card">
+            <div class="modern-stat-icon">
+                <i class="fas fa-chart-line"></i>
+            </div>
+            <div class="modern-stat-value">¥{{ "%.2f"|format(stats.total_profit) }}</div>
+            <div class="modern-stat-label">总利润</div>
+            <div class="modern-stat-trend up">
+                <i class="fas fa-arrow-up"></i>
+                <span>18.3%</span>
+            </div>
+        </div>
+
+        <!-- 总手续费卡片 -->
+        <div class="modern-stat-card">
+            <div class="modern-stat-icon">
+                <i class="fas fa-percentage"></i>
+            </div>
+            <div class="modern-stat-value">¥{{ "%.2f"|format(stats.total_fees) }}</div>
+            <div class="modern-stat-label">总手续费</div>
+        </div>
+    </div>
+
+    <!-- 提示信息 - 弱化处理 -->
+    <div class="modern-alert modern-alert-info">
+        <i class="fas fa-info-circle"></i>
+        <div>
+            <strong>正课管理说明：</strong>
+            正课记录只能通过试听课转化生成，不支持直接添加。请前往
+            <a href="{{ url_for('main.manage_trial_courses') }}" class="text-primary">试听课管理</a>
+            页面进行转化操作。
+        </div>
+    </div>
+
+    <!-- 数据表格卡片 -->
+    <div class="modern-card">
+        <div class="modern-card-header">
+            <div>
+                <h3 class="modern-card-title">正课列表</h3>
+                <div class="quick-stats">
+                    <div class="quick-stats-item">
+                        <span>总计</span>
+                        <span class="quick-stats-value">{{ courses|length }}</span>
+                        <span>条记录</span>
+                    </div>
+                    <div class="quick-stats-item">
+                        <span class="modern-badge modern-badge-success">已支付 {{ paid_count }}</span>
+                    </div>
+                    <div class="quick-stats-item">
+                        <span class="modern-badge modern-badge-warning">未支付 {{ unpaid_count }}</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modern-card-actions">
+                <div class="course-filters">
+                    <div class="filter-group">
+                        <label for="dateRange" class="text-muted">时间范围</label>
+                        <select id="dateRange" class="modern-form-input" style="width: 150px;">
+                            <option>最近7天</option>
+                            <option>最近30天</option>
+                            <option>最近90天</option>
+                            <option>全部</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="statusFilter" class="text-muted">支付状态</label>
+                        <select id="statusFilter" class="modern-form-input" style="width: 120px;">
+                            <option>全部</option>
+                            <option>已支付</option>
+                            <option>未支付</option>
+                        </select>
+                    </div>
+                </div>
+                <button class="modern-btn modern-btn-primary">
+                    <i class="fas fa-download"></i>
+                    生成报表
+                </button>
+            </div>
+        </div>
+        <div class="modern-card-body" style="padding: 0;">
+            <table class="modern-table">
+                <thead>
+                    <tr>
+                        <th>学员信息</th>
+                        <th>课程详情</th>
+                        <th>课程费用</th>
+                        <th>支付状态</th>
+                        <th>负责员工</th>
+                        <th>创建时间</th>
+                        <th width="100">操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for course in courses %}
+                    <tr>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <div class="user-avatar" style="background: var(--brand-primary-bg); color: var(--brand-primary); width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 12px;">
+                                    <i class="fas fa-user"></i>
+                                </div>
+                                <div>
+                                    <div style="font-weight: 500;">{{ course.student.name if course.student else '未知' }}</div>
+                                    <div style="font-size: 13px; color: var(--neutral-600);">
+                                        {{ course.student.phone if course.student else '-' }}
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <div>
+                                <span class="modern-badge modern-badge-info">{{ course.subject }}</span>
+                                <div style="font-size: 13px; color: var(--neutral-600); margin-top: 4px;">
+                                    {{ course.period }}节 / {{ course.unit_price }}元
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <div style="font-weight: 600; color: var(--brand-primary);">
+                                ¥{{ "%.2f"|format(course.total_price) }}
+                            </div>
+                        </td>
+                        <td>
+                            {% if course.payment_status == '已支付' %}
+                                <span class="modern-badge modern-badge-success">
+                                    <i class="fas fa-check-circle"></i> 已支付
+                                </span>
+                            {% else %}
+                                <span class="modern-badge modern-badge-warning">
+                                    <i class="fas fa-clock"></i> 未支付
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-user-tie" style="color: var(--neutral-500); margin-right: 8px;"></i>
+                                {{ course.employee.name if course.employee else '未分配' }}
+                            </div>
+                        </td>
+                        <td>
+                            <div style="font-size: 13px; color: var(--neutral-600);">
+                                {{ course.created_at.strftime('%Y-%m-%d') if course.created_at else '-' }}
+                            </div>
+                        </td>
+                        <td>
+                            <div class="table-actions">
+                                <button class="action-btn" title="查看详情">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                                <button class="action-btn" title="续课">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                                <button class="action-btn danger" title="删除">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+// 初始化迷你图表
+document.addEventListener('DOMContentLoaded', function() {
+    // 收入趋势迷你图
+    const ctx = document.getElementById('revenueSparkline').getContext('2d');
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: ['', '', '', '', '', '', ''],
+            datasets: [{
+                data: [65, 59, 80, 81, 56, 55, 70],
+                borderColor: 'rgba(255, 255, 255, 0.8)',
+                backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                borderWidth: 2,
+                tension: 0.4,
+                pointRadius: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: { enabled: false }
+            },
+            scales: {
+                x: { display: false },
+                y: { display: false }
+            }
+        }
+    });
+    
+    // 表格行点击效果
+    document.querySelectorAll('.modern-table tbody tr').forEach(row => {
+        row.addEventListener('click', function(e) {
+            if (!e.target.closest('.table-actions')) {
+                // 行点击逻辑
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,548 @@
+/**
+ * 现代设计系统 - 教育培训管理系统
+ * 基于品牌蓝的统一视觉体系
+ */
+
+/* ========== 1. 色彩系统 ========== */
+:root {
+  /* 品牌主色系 - 基于导航栏蓝色 */
+  --brand-primary: #2E68F7;
+  --brand-primary-light: #5584F9;
+  --brand-primary-lighter: #7FA3FB;
+  --brand-primary-dark: #1E4FD8;
+  --brand-primary-darker: #1640B0;
+  --brand-primary-bg: #F0F4FF;
+  --brand-primary-bg-light: #F8FAFF;
+  
+  /* 中性色系 - 优雅灰度 */
+  --neutral-50: #FAFBFC;
+  --neutral-100: #F5F7FA;
+  --neutral-200: #ECEEF2;
+  --neutral-300: #DFE3E8;
+  --neutral-400: #C4CDD5;
+  --neutral-500: #919EAB;
+  --neutral-600: #637381;
+  --neutral-700: #454F5B;
+  --neutral-800: #212B36;
+  --neutral-900: #161C24;
+  
+  /* 功能色 - 克制使用 */
+  --success: #54C88A;
+  --success-light: #7AD3A4;
+  --success-bg: #E8F5F1;
+  --warning: #FFB74D;
+  --warning-light: #FFCC80;
+  --warning-bg: #FFF3E0;
+  --danger: #FF5252;
+  --danger-light: #FF8A80;
+  --danger-bg: #FFEBEE;
+  --info: #40C4FF;
+  --info-light: #80D8FF;
+  --info-bg: #E0F7FF;
+  
+  /* 统一间距 */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+  --spacing-2xl: 48px;
+  
+  /* 统一圆角 */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-full: 9999px;
+  
+  /* 统一阴影 */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-base: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  
+  /* 彩色阴影 */
+  --shadow-primary: 0 4px 14px 0 rgba(46, 104, 247, 0.3);
+  --shadow-success: 0 4px 14px 0 rgba(84, 200, 138, 0.3);
+  
+  /* 动画时长 */
+  --duration-fast: 150ms;
+  --duration-base: 200ms;
+  --duration-slow: 300ms;
+  
+  /* 动画曲线 */
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+}
+
+/* ========== 2. 全局样式重置 ========== */
+* {
+  transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform;
+  transition-timing-function: var(--ease-in-out);
+  transition-duration: var(--duration-base);
+}
+
+/* ========== 3. 页面布局 ========== */
+.modern-page-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: var(--spacing-lg);
+}
+
+.modern-page-header {
+  margin-bottom: var(--spacing-xl);
+}
+
+.modern-page-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--neutral-900);
+  margin-bottom: var(--spacing-sm);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.modern-page-description {
+  font-size: 16px;
+  color: var(--neutral-600);
+  line-height: 1.6;
+}
+
+/* ========== 4. 统计卡片 ========== */
+.modern-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--spacing-lg);
+  margin-bottom: var(--spacing-xl);
+}
+
+.modern-stat-card {
+  background: white;
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-lg);
+  box-shadow: var(--shadow-base);
+  border: 1px solid var(--neutral-200);
+  position: relative;
+  overflow: hidden;
+  transition: all var(--duration-slow) var(--ease-in-out);
+}
+
+.modern-stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--brand-primary-light);
+}
+
+/* 品牌色卡片 */
+.modern-stat-card.primary {
+  background: linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-primary-dark) 100%);
+  color: white;
+  border: none;
+}
+
+.modern-stat-card.primary:hover {
+  box-shadow: var(--shadow-primary);
+}
+
+.modern-stat-icon {
+  width: 48px;
+  height: 48px;
+  background: var(--brand-primary-bg);
+  color: var(--brand-primary);
+  border-radius: var(--radius-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  margin-bottom: var(--spacing-md);
+}
+
+.modern-stat-card.primary .modern-stat-icon {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+}
+
+.modern-stat-value {
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 1.2;
+  margin-bottom: var(--spacing-xs);
+}
+
+.modern-stat-label {
+  font-size: 14px;
+  color: var(--neutral-600);
+  font-weight: 500;
+}
+
+.modern-stat-card.primary .modern-stat-label {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.modern-stat-trend {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  font-size: 13px;
+  margin-top: var(--spacing-sm);
+  padding: 4px 12px;
+  border-radius: var(--radius-md);
+}
+
+.modern-stat-trend.up {
+  background: var(--success-bg);
+  color: var(--success);
+}
+
+.modern-stat-trend.down {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+/* ========== 5. 内容卡片 ========== */
+.modern-card {
+  background: white;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-base);
+  overflow: hidden;
+  margin-bottom: var(--spacing-lg);
+  border: 1px solid var(--neutral-100);
+}
+
+.modern-card-header {
+  padding: var(--spacing-lg);
+  border-bottom: 1px solid var(--neutral-200);
+  background: var(--neutral-50);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modern-card-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--neutral-900);
+  margin: 0;
+}
+
+.modern-card-actions {
+  display: flex;
+  gap: var(--spacing-sm);
+}
+
+.modern-card-body {
+  padding: var(--spacing-lg);
+}
+
+/* ========== 6. 表格样式 ========== */
+.modern-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.modern-table thead th {
+  background: var(--neutral-50);
+  color: var(--neutral-700);
+  font-weight: 600;
+  font-size: 14px;
+  padding: var(--spacing-md);
+  text-align: left;
+  border-bottom: 2px solid var(--neutral-200);
+  white-space: nowrap;
+}
+
+.modern-table tbody tr {
+  transition: all var(--duration-base) var(--ease-in-out);
+}
+
+/* 斑马纹 */
+.modern-table tbody tr:nth-child(even) {
+  background: var(--neutral-50);
+}
+
+.modern-table tbody tr:hover {
+  background: var(--brand-primary-bg);
+}
+
+.modern-table tbody td {
+  padding: var(--spacing-md);
+  font-size: 14px;
+  color: var(--neutral-800);
+  border-bottom: 1px solid var(--neutral-100);
+  height: 56px;
+  vertical-align: middle;
+}
+
+/* 操作列 */
+.table-actions {
+  display: flex;
+  gap: var(--spacing-sm);
+  opacity: 0;
+  transition: opacity var(--duration-base) var(--ease-in-out);
+}
+
+.modern-table tbody tr:hover .table-actions {
+  opacity: 1;
+}
+
+.action-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-md);
+  border: none;
+  background: var(--neutral-100);
+  color: var(--neutral-600);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+}
+
+.action-btn:hover {
+  background: var(--brand-primary);
+  color: white;
+}
+
+.action-btn.danger:hover {
+  background: var(--danger);
+}
+
+/* ========== 7. 按钮系统 ========== */
+.modern-btn {
+  padding: 10px 20px;
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  font-weight: 500;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  line-height: 1.5;
+  transition: all var(--duration-base) var(--ease-in-out);
+  position: relative;
+  overflow: hidden;
+}
+
+/* 主按钮 */
+.modern-btn-primary {
+  background: var(--brand-primary);
+  color: white;
+}
+
+.modern-btn-primary:hover {
+  background: var(--brand-primary-dark);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-primary);
+}
+
+.modern-btn-primary:active {
+  transform: translateY(0);
+}
+
+/* 次要按钮 */
+.modern-btn-secondary {
+  background: var(--neutral-100);
+  color: var(--neutral-700);
+  border: 1px solid var(--neutral-300);
+}
+
+.modern-btn-secondary:hover {
+  background: var(--neutral-200);
+  border-color: var(--neutral-400);
+}
+
+/* 成功按钮 */
+.modern-btn-success {
+  background: var(--success);
+  color: white;
+}
+
+.modern-btn-success:hover {
+  background: #42B574;
+  box-shadow: var(--shadow-success);
+}
+
+/* 按钮尺寸 */
+.modern-btn-sm {
+  padding: 6px 12px;
+  font-size: 13px;
+}
+
+.modern-btn-lg {
+  padding: 14px 28px;
+  font-size: 16px;
+}
+
+/* 按钮组 */
+.modern-btn-group {
+  display: flex;
+  gap: var(--spacing-sm);
+}
+
+/* ========== 8. 标签系统 ========== */
+.modern-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border-radius: var(--radius-md);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.modern-badge-success {
+  background: var(--success-bg);
+  color: var(--success);
+}
+
+.modern-badge-warning {
+  background: var(--warning-bg);
+  color: #E65100;
+}
+
+.modern-badge-danger {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+.modern-badge-info {
+  background: var(--info-bg);
+  color: #0277BD;
+}
+
+.modern-badge-default {
+  background: var(--neutral-100);
+  color: var(--neutral-700);
+}
+
+/* ========== 9. 表单元素 ========== */
+.modern-form-group {
+  margin-bottom: var(--spacing-lg);
+}
+
+.modern-form-label {
+  display: block;
+  margin-bottom: var(--spacing-sm);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--neutral-700);
+}
+
+.modern-form-input {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid var(--neutral-300);
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  color: var(--neutral-900);
+  background: white;
+  transition: all var(--duration-base) var(--ease-in-out);
+}
+
+.modern-form-input:focus {
+  outline: none;
+  border-color: var(--brand-primary);
+  box-shadow: 0 0 0 3px rgba(46, 104, 247, 0.1);
+}
+
+.modern-form-input::placeholder {
+  color: var(--neutral-500);
+}
+
+/* ========== 10. 提示框 ========== */
+.modern-alert {
+  padding: var(--spacing-md);
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-lg);
+}
+
+.modern-alert-info {
+  background: var(--info-bg);
+  color: #01579B;
+  border: 1px solid #B3E5FC;
+}
+
+.modern-alert-success {
+  background: var(--success-bg);
+  color: #1B5E20;
+  border: 1px solid #A5D6A7;
+}
+
+.modern-alert-warning {
+  background: var(--warning-bg);
+  color: #E65100;
+  border: 1px solid #FFCC80;
+}
+
+.modern-alert-danger {
+  background: var(--danger-bg);
+  color: #B71C1C;
+  border: 1px solid #EF9A9A;
+}
+
+/* ========== 11. 加载动画 ========== */
+@keyframes modern-pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.modern-skeleton {
+  animation: modern-pulse 2s var(--ease-in-out) infinite;
+  background: var(--neutral-200);
+  border-radius: var(--radius-sm);
+}
+
+/* ========== 12. 工具类 ========== */
+.text-primary { color: var(--brand-primary); }
+.text-success { color: var(--success); }
+.text-warning { color: var(--warning); }
+.text-danger { color: var(--danger); }
+.text-muted { color: var(--neutral-600); }
+
+.bg-primary { background-color: var(--brand-primary); }
+.bg-success { background-color: var(--success); }
+.bg-warning { background-color: var(--warning); }
+.bg-danger { background-color: var(--danger); }
+
+.mb-0 { margin-bottom: 0; }
+.mb-1 { margin-bottom: var(--spacing-xs); }
+.mb-2 { margin-bottom: var(--spacing-sm); }
+.mb-3 { margin-bottom: var(--spacing-md); }
+.mb-4 { margin-bottom: var(--spacing-lg); }
+.mb-5 { margin-bottom: var(--spacing-xl); }
+
+/* ========== 13. 响应式 ========== */
+@media (max-width: 768px) {
+  .modern-stats-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .modern-card-header {
+    flex-direction: column;
+    gap: var(--spacing-md);
+    align-items: flex-start;
+  }
+  
+  .modern-table {
+    font-size: 13px;
+  }
+  
+  .modern-table thead th,
+  .modern-table tbody td {
+    padding: var(--spacing-sm);
+  }
+}

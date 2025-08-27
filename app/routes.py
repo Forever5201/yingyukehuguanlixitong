@@ -3733,3 +3733,32 @@ def charts_demo():
 def mock_data_generator():
     """模拟数据生成器页面"""
     return send_from_directory('static/json', 'generate_mock_data.html')
+
+@main_bp.route('/formal-courses-optimized')
+def formal_courses_optimized():
+    """优化后的正课管理页面"""
+    # 获取所有正课
+    courses = Course.query.filter(Course.course_type == 'formal').order_by(Course.created_at.desc()).all()
+    
+    # 计算统计数据
+    total_revenue = sum(course.total_price for course in courses)
+    total_cost = sum(course.snapshot_course_cost * course.period for course in courses if course.snapshot_course_cost)
+    total_fees = sum(course.total_price * (course.snapshot_fee_rate / 100) for course in courses if course.snapshot_fee_rate)
+    total_profit = total_revenue - total_cost - total_fees
+    
+    # 计算支付状态统计
+    paid_count = sum(1 for course in courses if course.payment_status == '已支付')
+    unpaid_count = len(courses) - paid_count
+    
+    stats = {
+        'total_revenue': total_revenue,
+        'total_cost': total_cost,
+        'total_profit': total_profit,
+        'total_fees': total_fees
+    }
+    
+    return render_template('formal_courses_optimized.html', 
+                         courses=courses, 
+                         stats=stats,
+                         paid_count=paid_count,
+                         unpaid_count=unpaid_count)
