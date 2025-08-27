@@ -3665,3 +3665,61 @@ def get_operational_cost_options():
             'success': False,
             'message': f'获取选项失败: {str(e)}'
         }), 500
+
+# ========== 组件示例页面 ==========
+@main_bp.route('/example-dashboard')
+def example_dashboard():
+    """组件示例页面"""
+    import random
+    from datetime import datetime, timedelta
+    
+    # 生成模拟数据
+    today = datetime.now().strftime('%Y-%m-%d')
+    
+    # 生成最近30天的日期和收入数据
+    dates = []
+    revenues = []
+    orders = []
+    
+    for i in range(30):
+        date = (datetime.now() - timedelta(days=29-i))
+        dates.append(date.strftime('%Y-%m-%d'))
+        revenues.append(random.randint(10000, 50000))
+        orders.append(random.randint(50, 200))
+    
+    # 渠道数据
+    channel_names = ['淘宝', '微信', '抖音', '小红书', '其他']
+    channel_values = [35, 25, 20, 15, 5]
+    
+    return render_template('example_dashboard.html',
+        today=today,
+        revenue_dates=dates,
+        revenue_values=revenues,
+        order_values=orders,
+        channel_names=channel_names,
+        channel_values=channel_values
+    )
+
+@main_bp.route('/api/mock-customers')
+def api_mock_customers():
+    """返回模拟客户数据用于虚拟滚动演示"""
+    import random
+    
+    # 生成5000条模拟数据
+    customers = []
+    statuses = ['active', 'pending', 'completed', 'cancelled']
+    sources = ['淘宝', '微信', '抖音', '小红书', '官网']
+    
+    for i in range(5000):
+        customers.append({
+            'id': i + 1,
+            'name': f'客户{i+1}',
+            'phone': f'1{random.randint(3,9)}{random.randint(100000000, 999999999)}',
+            'email': f'customer{i+1}@example.com',
+            'status': random.choice(statuses),
+            'source': random.choice(sources),
+            'amount': random.randint(1000, 50000),
+            'created_at': (datetime.now() - timedelta(days=random.randint(0, 365))).isoformat()
+        })
+    
+    return jsonify(customers)

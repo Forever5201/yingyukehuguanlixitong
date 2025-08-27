@@ -324,6 +324,9 @@
             <div class="chart-container">
                 <div class="chart-header">
                     <h3 class="chart-title">收入构成分析</h3>
+                    <button class="btn btn-sm export-chart-btn" data-chart-id="revenueChart">
+                        <i class="fas fa-download"></i> 导出
+                    </button>
                 </div>
                 <canvas id="revenueCompositionChart"></canvas>
             </div>
@@ -331,6 +334,9 @@
             <div class="chart-container">
                 <div class="chart-header">
                     <h3 class="chart-title">成本结构分析</h3>
+                    <button class="btn btn-sm export-chart-btn" data-chart-id="costChart">
+                        <i class="fas fa-download"></i> 导出
+                    </button>
                 </div>
                 <canvas id="costStructureChart"></canvas>
             </div>
@@ -832,77 +838,72 @@ let revenueChart = null;
 let costChart = null;
 
 function initCharts(data) {
+    // 使用新的统一图表组件
+    
     // 收入构成图表
     if (revenueChart) {
-        revenueChart.destroy();
+        ChartManager.destroyChart(revenueChart);
     }
     
-    const revenueCtx = document.getElementById('revenueCompositionChart').getContext('2d');
-    revenueChart = new Chart(revenueCtx, {
-        type: 'pie',
-        data: {
-            labels: ['试听课收入', '新课收入', '续课收入'],
-            datasets: [{
-                data: [
-                    data.revenue.trial_revenue,
-                    data.revenue.new_course_revenue,
-                    data.revenue.renewal_revenue
-                ],
-                backgroundColor: [
-                    '#667eea',
-                    '#764ba2',
-                    '#f093fb'
-                ],
-                borderWidth: 0
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'bottom',
-                    labels: {
-                        padding: 15,
-                        usePointStyle: true,
-                        font: {
-                            size: 12
-                        }
-                    }
-                },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            const label = context.label || '';
-                            const value = formatCurrency(context.parsed);
-                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                            const percentage = ((context.parsed / total) * 100).toFixed(1);
-                            return `${label}: ${value} (${percentage}%)`;
-                        }
-                    }
-                }
+    revenueChart = initPieChart('revenueCompositionChart', {
+        labels: ['试听课收入', '新课收入', '续课收入'],
+        datasets: [{
+            data: [
+                data.revenue.trial_revenue,
+                data.revenue.new_course_revenue,
+                data.revenue.renewal_revenue
+            ],
+            isCurrency: true
+        }]
+    }, {
+        plugins: {
+            title: {
+                display: true,
+                text: '收入构成分析'
             }
         }
     });
     
     // 成本结构图表
     if (costChart) {
-        costChart.destroy();
+        ChartManager.destroyChart(costChart);
     }
     
-    const costCtx = document.getElementById('costStructureChart').getContext('2d');
-    costChart = new Chart(costCtx, {
+    costChart = initPieChart('costStructureChart', {
+        labels: ['课程成本', '总手续费', '刷单佣金', '员工工资', '员工提成'],
+        datasets: [{
+            data: [
+                data.cost.course_cost,
+                data.cost.total_fee,
+                data.cost.taobao_commission,
+                data.cost.employee_salary,
+                data.cost.employee_commission
+            ],
+            isCurrency: true
+        }]
+    }, {
         type: 'doughnut',
-        data: {
-            labels: ['课程成本', '总手续费', '刷单佣金', '员工工资', '员工提成'],
-            datasets: [{
-                data: [
-                    data.cost.course_cost,
-                    data.cost.total_fee,
-                    data.cost.taobao_commission,
-                    data.cost.employee_salary,
-                    data.cost.employee_commission
-                ],
+        plugins: {
+            title: {
+                display: true,
+                text: '成本结构分析'
+            }
+        }
+    });
+    
+    // 添加导出按钮功能
+    document.querySelectorAll('.export-chart-btn').forEach(btn => {
+        btn.onclick = function() {
+            const chartId = this.dataset.chartId;
+            const chart = chartId === 'revenueChart' ? revenueChart : costChart;
+            if (chart) {
+                exportChartDataAsCSV(chart, chartId + '_' + new Date().toISOString().split('T')[0]);
+            }
+        };
+    });
+    
+    // 原有的图表代码（注释掉）
+    /*
                 backgroundColor: [
                     '#ef4444',
                     '#f59e0b',
@@ -970,6 +971,7 @@ function initCharts(data) {
             }
         }
     });
+    */
 }
 
 // 导出报表

@@ -5,7 +5,18 @@
 
 {% block content %}
 <div class="dashboard animate-in">
-    <div class="stats-grid">
+    <!-- 使用新的 KPI 卡片组件 -->
+    {% from 'components/kpi_card.html' import kpi_card %}
+    
+    <div class="kpi-grid">
+        {{ kpi_card(total_customers, '总客户数', (new_customers / total_customers * 100) if total_customers > 0 else 0, 'fa-users') }}
+        {{ kpi_card(new_customers, '本月新增', 15.8, 'fa-user-plus', 'success') }}
+        {{ kpi_card('¥' ~ trial_cost, '试听课成本', None, 'fa-dollar-sign') }}
+        {{ kpi_card(taobao_fee_rate ~ '%', '淘宝手续费率', None, 'fa-percentage', 'warning') }}
+    </div>
+    
+    <!-- 原有的统计卡片（保留样式兼容） -->
+    <div class="stats-grid" style="display: none;">
         <div class="stat-card">
             <div class="stat-icon">
                 <i class="fas fa-users"></i>

@@ -1,0 +1,309 @@
+{% extends "base.html" %}
+
+{% block title %}客户管理{% endblock %}
+{% block page_title %}客户管理{% endblock %}
+
+{% block content %}
+<div class="customers-page">
+    <!-- 集成筛选面板 -->
+    {% with show_status=true, show_source=true %}
+        {% include 'components/filter_panel.html' %}
+    {% endwith %}
+    
+    <div class="page-actions" style="margin-bottom: var(--space-lg);">
+        <button class="btn btn-primary" onclick="showAddModal()">
+            <i class="fas fa-plus"></i> 添加客户
+        </button>
+    </div>
+
+    <!-- 使用新的数据表格组件 -->
+    {% from 'components/data_table.html' import data_table %}
+    
+    {% if customers|length > 2000 %}
+        <!-- 大数据集使用虚拟滚动 -->
+        {{ data_table(
+            columns=[
+                {'key': 'name', 'label': '姓名', 'width': '150px'},
+                {'key': 'gender', 'label': '性别', 'width': '80px'},
+                {'key': 'grade', 'label': '年级', 'width': '100px'},
+                {'key': 'region', 'label': '地区', 'width': '120px'},
+                {'key': 'phone', 'label': '电话', 'width': '150px'},
+                {'key': 'source', 'label': '来源', 'width': '100px'},
+                {'key': 'created_at', 'label': '添加时间', 'type': 'date', 'width': '150px'},
+                {'key': 'actions', 'label': '操作', 'width': '100px'}
+            ],
+            mode='virtual',
+            data_url='/api/customers/all',
+            table_id='customerTable',
+            enable_selection=true,
+            enable_export=true
+        ) }}
+    {% else %}
+        <!-- 小数据集使用服务端分页 -->
+        {% set customer_data = [] %}
+        {% for customer in customers %}
+            {% set _ = customer_data.append({
+                'id': customer.id,
+                'name': customer.name,
+                'gender': customer.gender or '未设置',
+                'grade': customer.grade or '未设置',
+                'region': customer.region or '未设置',
+                'phone': customer.phone,
+                'source': customer.source or '未设置',
+                'created_at': customer.created_at.strftime('%Y-%m-%d %H:%M') if customer.created_at else '',
+                'actions': '<button class="btn btn-sm" onclick="editCustomer(' ~ customer.id ~ ')"><i class="fas fa-edit"></i></button>'
+            }) %}
+        {% endfor %}
+        
+        {{ data_table(
+            columns=[
+                {'key': 'name', 'label': '姓名', 'sortable': true},
+                {'key': 'gender', 'label': '性别'},
+                {'key': 'grade', 'label': '年级'},
+                {'key': 'region', 'label': '地区'},
+                {'key': 'phone', 'label': '电话'},
+                {'key': 'source', 'label': '来源', 'sortable': true},
+                {'key': 'created_at', 'label': '添加时间', 'type': 'date', 'sortable': true},
+                {'key': 'actions', 'label': '操作'}
+            ],
+            rows=customer_data,
+            mode='server',
+            page=current_page|default(1),
+            total_count=total_customers|default(customers|length),
+            per_page=50,
+            table_id='customerTable',
+            enable_selection=true
+        ) }}
+    {% endif %}
+</div>
+
+<!-- 添加/编辑客户模态框 -->
+<div id="customerModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="modalTitle">添加客户</h2>
+            <span class="close" onclick="closeModal()">&times;</span>
+        </div>
+        <form id="customerForm" onsubmit="saveCustomer(event)">
+            <input type="hidden" id="customerId">
+            <div class="form-group">
+                <label>姓名 <span class="required">*</span></label>
+                <input type="text" name="name" required>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>性别</label>
+                    <select name="gender">
+                        <option value="">请选择</option>
+                        <option value="男">男</option>
+                        <option value="女">女</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>年级</label>
+                    <input type="text" name="grade" placeholder="如：高一">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>地区</label>
+                <input type="text" name="region" placeholder="如：北京市海淀区">
+            </div>
+            <div class="form-group">
+                <label>电话 <span class="required">*</span></label>
+                <input type="tel" name="phone" required pattern="[0-9]{11}" placeholder="11位手机号">
+            </div>
+            <div class="form-group">
+                <label>来源渠道</label>
+                <select name="source">
+                    <option value="">请选择</option>
+                    <option value="taobao">淘宝</option>
+                    <option value="wechat">微信</option>
+                    <option value="douyin">抖音</option>
+                    <option value="xiaohongshu">小红书</option>
+                    <option value="other">其他</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>是否参加过英语课外辅导</label>
+                <select name="has_tutoring_experience">
+                    <option value="">请选择</option>
+                    <option value="是">是</option>
+                    <option value="否">否</option>
+                </select>
+            </div>
+            <div class="form-actions">
+                <button type="button" class="btn btn-secondary" onclick="closeModal()">取消</button>
+                <button type="submit" class="btn btn-primary">保存</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+// 监听表格行点击事件
+document.getElementById('customerTable-wrapper').addEventListener('rowClick', function(e) {
+    const customerId = e.detail.id;
+    editCustomer(customerId);
+});
+
+function showAddModal() {
+    document.getElementById('modalTitle').textContent = '添加客户';
+    document.getElementById('customerForm').reset();
+    document.getElementById('customerId').value = '';
+    document.getElementById('customerModal').style.display = 'block';
+}
+
+function closeModal() {
+    document.getElementById('customerModal').style.display = 'none';
+}
+
+function editCustomer(id) {
+    fetch(`/api/customers/${id}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                alert('加载客户信息失败');
+                return;
+            }
+            document.getElementById('modalTitle').textContent = '编辑客户';
+            document.getElementById('customerId').value = data.id;
+            document.getElementById('customerForm').name.value = data.name;
+            document.getElementById('customerForm').gender.value = data.gender || '';
+            document.getElementById('customerForm').grade.value = data.grade || '';
+            document.getElementById('customerForm').region.value = data.region || '';
+            document.getElementById('customerForm').phone.value = data.phone;
+            document.getElementById('customerForm').source.value = data.source || '';
+            document.getElementById('customerForm').has_tutoring_experience.value = data.has_tutoring_experience || '';
+            document.getElementById('customerModal').style.display = 'block';
+        });
+}
+
+function saveCustomer(event) {
+    event.preventDefault();
+    const form = event.target;
+    const customerId = document.getElementById('customerId').value;
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData);
+    
+    const url = customerId ? `/api/customers/${customerId}` : '/api/customers';
+    const method = customerId ? 'PUT' : 'POST';
+    
+    fetch(url, {
+        method: method,
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.error) {
+            alert('保存失败: ' + result.error);
+        } else {
+            alert('保存成功');
+            closeModal();
+            location.reload();
+        }
+    });
+}
+
+// 点击模态框外部关闭
+window.onclick = function(event) {
+    const modal = document.getElementById('customerModal');
+    if (event.target == modal) {
+        closeModal();
+    }
+}
+</script>
+
+<style>
+/* 模态框样式 */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5);
+}
+
+.modal-content {
+    background-color: var(--color-card-bg);
+    margin: 5% auto;
+    padding: 0;
+    border-radius: var(--radius-lg);
+    width: 90%;
+    max-width: 600px;
+    box-shadow: var(--shadow-xl);
+}
+
+.modal-header {
+    padding: var(--space-lg);
+    border-bottom: 1px solid var(--color-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-header h2 {
+    margin: 0;
+    color: var(--color-text);
+}
+
+.close {
+    font-size: 28px;
+    font-weight: bold;
+    color: var(--color-muted);
+    cursor: pointer;
+}
+
+.close:hover {
+    color: var(--color-text);
+}
+
+#customerForm {
+    padding: var(--space-lg);
+}
+
+.form-group {
+    margin-bottom: var(--space-md);
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: var(--space-xs);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-text);
+}
+
+.form-group input,
+.form-group select {
+    width: 100%;
+    padding: var(--space-sm) var(--space-md);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-base);
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-md);
+}
+
+.form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-sm);
+    margin-top: var(--space-lg);
+    padding-top: var(--space-lg);
+    border-top: 1px solid var(--color-border);
+}
+
+.required {
+    color: var(--color-danger);
+}
+</style>
+{% endblock %}
