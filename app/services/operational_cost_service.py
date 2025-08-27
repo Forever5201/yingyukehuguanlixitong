@@ -66,6 +66,7 @@ class OperationalCostService:
                 description=cost_data.get('description', ''),
                 invoice_number=cost_data.get('invoice_number', ''),
                 supplier=cost_data.get('supplier', ''),
+                payment_recipient=cost_data.get('payment_recipient', ''),
                 status=cost_data.get('status', 'active')
             )
             
@@ -117,6 +118,8 @@ class OperationalCostService:
                 cost.invoice_number = cost_data['invoice_number']
             if 'supplier' in cost_data:
                 cost.supplier = cost_data['supplier']
+            if 'payment_recipient' in cost_data:
+                cost.payment_recipient = cost_data['payment_recipient']
             if 'status' in cost_data:
                 cost.status = cost_data['status']
             

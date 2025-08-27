@@ -3502,6 +3502,7 @@ def create_operational_cost():
                 'description': request.form.get('description', ''),
                 'invoice_number': request.form.get('invoice_number', ''),
                 'supplier': request.form.get('supplier', ''),
+                'payment_recipient': request.form.get('payment_recipient', ''),
                 'status': request.form.get('status', 'active')
             }
         
@@ -3524,6 +3525,7 @@ def create_operational_cost():
                     'description': cost.description,
                     'invoice_number': cost.invoice_number,
                     'supplier': cost.supplier,
+                    'payment_recipient': cost.payment_recipient,
                     'status': cost.status
                 }
             }), 201
@@ -3568,6 +3570,7 @@ def update_operational_cost(cost_id):
                         'description': updated_cost.description,
                         'invoice_number': updated_cost.invoice_number,
                         'supplier': updated_cost.supplier,
+                        'payment_recipient': updated_cost.payment_recipient,
                         'status': updated_cost.status
                     }
                 })

@@ -911,6 +911,16 @@ function updateTableData(rows) {
                            onchange="calculateRefundAmount()">
                     <small class="form-text">请输入要退费的节数</small>
                 </div>
+
+                <div class="form-group">
+                    <label for="refund_date">退费时间 *</label>
+                    <input type="date" 
+                           id="refund_date" 
+                           name="refund_date" 
+                           required
+                           value="{{ today_date }}">
+                    <small class="form-text">请选择退费日期</small>
+                </div>
                 
                 <div class="form-group">
                     <label for="refund_reason">退费原因 *</label>
@@ -1112,7 +1122,8 @@ function submitRefund() {
         refund_reason: formData.get('refund_reason'),
         refund_channel: formData.get('refund_channel'),
         refund_fee: parseFloat(formData.get('refund_fee')) || 0,
-        remark: formData.get('remark')
+        remark: formData.get('remark'),
+        refund_date: formData.get('refund_date')  // 退课时间
     };
     
     const courseId = formData.get('course_id');

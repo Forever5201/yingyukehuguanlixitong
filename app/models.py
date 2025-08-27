@@ -120,3 +120,36 @@ class CourseRefund(db.Model):
     
     # 关系
     course = db.relationship('Course', backref='refunds', lazy=True)
+
+class OperationalCost(db.Model):
+    """运营成本记录表"""
+    id = db.Column(db.Integer, primary_key=True)
+    
+    # 成本类型
+    cost_type = db.Column(db.String(50), nullable=False)  # 房租、水电、设备、营销等
+    cost_name = db.Column(db.String(100), nullable=False)  # 具体成本名称
+    amount = db.Column(db.Float, nullable=False)  # 成本金额
+    
+    # 时间信息
+    cost_date = db.Column(db.Date, nullable=False)  # 成本发生日期
+    billing_period = db.Column(db.String(20))  # 计费周期（月/季/年）
+    
+    # 成本分配
+    allocation_method = db.Column(db.String(20), default='proportional')  # 分配方式：proportional/equal
+    allocated_to_courses = db.Column(db.Boolean, default=True)  # 是否分配到课程
+    
+    # 备注信息
+    description = db.Column(db.Text)  # 详细描述
+    invoice_number = db.Column(db.String(50))  # 发票号
+    supplier = db.Column(db.String(100))  # 供应商
+    payment_recipient = db.Column(db.String(100))  # 支付对象（钱支付给谁）
+    
+    # 状态
+    status = db.Column(db.String(20), default='active')  # 状态：active/archived
+    
+    # 时间戳
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    
+    def __repr__(self):
+        return f'<OperationalCost {self.cost_type}:{self.cost_name} - ¥{self.amount}>'

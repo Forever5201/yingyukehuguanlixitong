@@ -42,10 +42,10 @@ def fix_database():
             if config_count == 0:
                 print("\n创建默认配置...")
                 configs = [
-                    Config(key='new_course_shareholder_a', value='50'),
-                    Config(key='new_course_shareholder_b', value='50'),
-                    Config(key='renewal_shareholder_a', value='40'),
-                    Config(key='renewal_shareholder_b', value='60'),
+                    Config(key='shareholder_a_ratio', value='50'),
+                    Config(key='shareholder_b_ratio', value='50'),
+                    Config(key='shareholder_a_name', value='股东A'),
+                    Config(key='shareholder_b_name', value='股东B'),
                     Config(key='trial_cost', value='30'),
                     Config(key='course_cost', value='30'),
                     Config(key='taobao_fee_rate', value='0.6'),

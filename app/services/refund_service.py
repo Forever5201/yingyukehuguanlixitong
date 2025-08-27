@@ -162,6 +162,18 @@ class RefundService:
                     status='completed'
                 )
                 
+                # 设置退课时间
+                if refund_data.get('refund_date'):
+                    try:
+                        from datetime import datetime
+                        refund.refund_date = datetime.fromisoformat(refund_data['refund_date'].replace('T', ' '))
+                    except:
+                        # 如果日期格式错误，使用当前时间
+                        refund.refund_date = datetime.now()
+                else:
+                    # 如果没有提供退课时间，使用当前时间
+                    refund.refund_date = datetime.now()
+                
                 db.session.add(refund)
                 
                 # 如果需要，可以在这里更新课程状态或其他相关数据

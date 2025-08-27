@@ -39,6 +39,7 @@ def create_operational_cost_table(db_path):
                 description TEXT,
                 invoice_number VARCHAR(50),
                 supplier VARCHAR(100),
+                payment_recipient VARCHAR(100),
                 status VARCHAR(20) DEFAULT 'active',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -81,18 +82,18 @@ def insert_sample_data(cursor):
     """插入示例运营成本数据"""
     try:
         sample_data = [
-            ('房租', '12月房租', 5000.00, '2024-12-01', 'month', 'proportional', 1, '12月份房租费用', '', '房东', 'active'),
-            ('水电费', '12月水电费', 800.00, '2024-12-01', 'month', 'proportional', 1, '12月份水电费', '', '物业公司', 'active'),
-            ('网络费', '12月网络费', 300.00, '2024-12-01', 'month', 'proportional', 1, '12月份网络费', '', '电信公司', 'active'),
-            ('设备费', '教学设备维护', 500.00, '2024-12-15', 'one-time', 'proportional', 1, '教学设备维护费用', 'INV001', '设备供应商', 'active'),
-            ('营销费', '12月广告费', 1000.00, '2024-12-01', 'month', 'proportional', 1, '12月份广告投放费用', 'INV002', '广告公司', 'active')
+            ('房租', '12月房租', 5000.00, '2024-12-01', 'month', 'proportional', 1, '12月份房租费用', '', '房东', '房东', 'active'),
+            ('水电费', '12月水电费', 800.00, '2024-12-01', 'month', 'proportional', 1, '12月份水电费', '', '物业公司', '物业公司', 'active'),
+            ('网络费', '12月网络费', 300.00, '2024-12-01', 'month', 'proportional', 1, '12月份网络费', '', '电信公司', '电信公司', 'active'),
+            ('设备费', '教学设备维护', 500.00, '2024-12-15', 'one-time', 'proportional', 1, '教学设备维护费用', 'INV001', '设备供应商', '设备供应商', 'active'),
+            ('营销费', '12月广告费', 1000.00, '2024-12-01', 'month', 'proportional', 1, '12月份广告投放费用', 'INV002', '广告公司', '广告公司', 'active')
         ]
         
         cursor.executemany("""
             INSERT INTO operational_cost 
             (cost_type, cost_name, amount, cost_date, billing_period, allocation_method, 
-             allocated_to_courses, description, invoice_number, supplier, status)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             allocated_to_courses, description, invoice_number, supplier, payment_recipient, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, sample_data)
         
         print("✅ 示例数据插入成功")
@@ -113,7 +114,7 @@ def verify_migration(db_path):
         expected_columns = [
             'id', 'cost_type', 'cost_name', 'amount', 'cost_date', 
             'billing_period', 'allocation_method', 'allocated_to_courses',
-            'description', 'invoice_number', 'supplier', 'status',
+            'description', 'invoice_number', 'supplier', 'payment_recipient', 'status',
             'created_at', 'updated_at'
         ]
         

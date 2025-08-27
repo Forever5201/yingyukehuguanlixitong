@@ -240,6 +240,7 @@
                                         <th><i class="fas fa-calendar"></i> 发生日期</th>
                                         <th><i class="fas fa-clock"></i> 计费周期</th>
                                         <th><i class="fas fa-user"></i> 供应商</th>
+                                        <th><i class="fas fa-money-bill-wave"></i> 支付对象</th>
                                         <th><i class="fas fa-info-circle"></i> 状态</th>
                                         <th class="text-end"><i class="fas fa-cogs"></i> 操作</th>
                                     </tr>
@@ -622,6 +623,10 @@
                                         <label class="form-label">供应商</label>
                                         <input type="text" class="form-control" name="supplier" placeholder="如：房东、物业公司">
                                     </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">支付对象 <span class="text-danger">*</span></label>
+                                        <input type="text" class="form-control" name="payment_recipient" placeholder="钱支付给谁，如：房东、物业公司" required>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -756,6 +761,10 @@
                                     <div class="mb-3">
                                         <label class="form-label">供应商</label>
                                         <input type="text" class="form-control" name="supplier" id="edit_supplier">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">支付对象 <span class="text-danger">*</span></label>
+                                        <input type="text" class="form-control" name="payment_recipient" id="edit_payment_recipient" required>
                                     </div>
                                     <div class="mb-3">
                                         <label class="form-label">发票号</label>

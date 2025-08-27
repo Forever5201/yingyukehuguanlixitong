@@ -50,13 +50,19 @@ class ProfitService:
         """
         try:
             # 基础计算
-            sessions = cls.safe_int(course.sessions, 0)
-            price = cls.safe_float(course.price, 0)
-            original_revenue = sessions * price
+            if course.is_trial:
+                # 试听课使用trial_price
+                original_revenue = cls.safe_float(course.trial_price, 0)
+            else:
+                # 正课使用sessions * price
+                sessions = cls.safe_int(course.sessions, 0)
+                price = cls.safe_float(course.price, 0)
+                original_revenue = sessions * price
             
             # 计算手续费
             fee = 0
-            if course.payment_channel == '淘宝':
+            # 检查支付渠道或渠道来源是否为淘宝
+            if course.payment_channel == '淘宝' or course.source == '淘宝':
                 fee_rate = course.snapshot_fee_rate if course.snapshot_fee_rate else 0.006
                 fee = original_revenue * fee_rate
             
@@ -143,13 +149,12 @@ class ProfitService:
         }
     
     @classmethod
-    def calculate_shareholder_distribution(cls, profit: float, is_renewal: bool = False) -> Dict:
+    def calculate_shareholder_distribution(cls, profit: float) -> Dict:
         """
-        计算股东利润分配（统一分配比例，不区分课程类型）
+        计算股东利润分配（统一分配比例）
         
         Args:
             profit: 利润金额
-            is_renewal: 是否为续课（保留参数以兼容旧代码，但不再使用）
             
         Returns:
             股东分配信息
@@ -300,9 +305,9 @@ class ProfitService:
                 else:
                     new_course_profit += profit_info['profit']
             
-            # 计算股东分配
-            new_distribution = cls.calculate_shareholder_distribution(new_course_profit, False)
-            renewal_distribution = cls.calculate_shareholder_distribution(renewal_profit, True)
+            # 计算股东分配（统一分配比例）
+            new_distribution = cls.calculate_shareholder_distribution(new_course_profit)
+            renewal_distribution = cls.calculate_shareholder_distribution(renewal_profit)
             
             return {
                 'summary': {
