@@ -1,428 +1,652 @@
 /**
- * Unified Chart.js Configuration and Utilities
- * Provides consistent styling and functionality for all charts
+ * Charts.js - 统一的 Chart.js 配置和管理
+ * 
+ * 功能：
+ * - 提供默认配置选项
+ * - 统一的图表初始化函数
+ * - CSV 导出功能
+ * - 时区支持
  */
 
-// Import token colors from CSS
-const getTokenColor = (token) => {
-    const style = getComputedStyle(document.documentElement);
-    return style.getPropertyValue(token).trim();
-};
+(function(window) {
+    'use strict';
 
-// Chart color palette using design tokens
-const CHART_COLORS = {
-    primary: getTokenColor('--color-primary') || '#0056B3',
-    success: getTokenColor('--color-success') || '#155724',
-    warning: getTokenColor('--color-warning') || '#856404',
-    danger: getTokenColor('--color-danger') || '#721C24',
-    muted: getTokenColor('--color-muted') || '#6C757D',
-    series: [
-        '#0056B3', // Primary
-        '#155724', // Success
-        '#856404', // Warning
-        '#721C24', // Danger
-        '#6C757D', // Muted
-        '#17A2B8', // Info
-        '#6F42C1', // Purple
-        '#E83E8C'  // Pink
-    ]
-};
+    // 获取 CSS 变量值
+    const getCSSVariable = (variable) => {
+        return getComputedStyle(document.documentElement).getPropertyValue(variable).trim();
+    };
 
-// Default chart options
-const DEFAULT_OPTIONS = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-        legend: {
-            position: 'bottom',
-            labels: {
-                padding: 15,
-                font: {
-                    size: 12,
-                    family: getTokenColor('--font-family-base') || 'sans-serif'
-                }
-            }
-        },
-        tooltip: {
-            backgroundColor: 'rgba(0, 0, 0, 0.8)',
-            padding: 12,
-            cornerRadius: 6,
-            titleFont: {
-                size: 14,
-                weight: 600
-            },
-            bodyFont: {
-                size: 13
-            },
-            callbacks: {
-                label: function(context) {
-                    let label = context.dataset.label || '';
-                    if (label) {
-                        label += ': ';
-                    }
-                    
-                    // Format value based on dataset type
-                    const value = context.parsed.y !== undefined ? context.parsed.y : context.parsed;
-                    if (context.dataset.isCurrency) {
-                        label += formatCurrency(value);
-                    } else if (context.dataset.isPercentage) {
-                        label += value.toFixed(1) + '%';
-                    } else {
-                        label += value.toLocaleString();
-                    }
-                    
-                    return label;
-                }
-            }
+    // 默认颜色方案
+    const CHART_COLORS = {
+        primary: getCSSVariable('--color-primary') || '#0056B3',
+        success: getCSSVariable('--color-success') || '#155724',
+        warning: getCSSVariable('--color-warning') || '#856404',
+        danger: getCSSVariable('--color-danger') || '#721C24',
+        info: '#17A2B8',
+        secondary: getCSSVariable('--color-muted') || '#6C757D',
+        // 扩展颜色系列
+        series: [
+            '#0056B3', // Primary
+            '#155724', // Success
+            '#856404', // Warning
+            '#721C24', // Danger
+            '#17A2B8', // Info
+            '#6C757D', // Secondary
+            '#6F42C1', // Purple
+            '#E83E8C', // Pink
+            '#FD7E14', // Orange
+            '#20C997'  // Teal
+        ]
+    };
+
+    // 默认字体配置
+    const FONT_CONFIG = {
+        family: getCSSVariable('--font-family-base') || '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+        size: {
+            small: 11,
+            medium: 13,
+            large: 15
         }
-    },
-    scales: {
-        x: {
-            grid: {
-                display: false
-            },
-            ticks: {
-                font: {
-                    size: 11
-                }
-            }
+    };
+
+    // 时区配置
+    const TIMEZONE_CONFIG = {
+        default: 'Asia/Shanghai',
+        format: 'YYYY-MM-DD HH:mm:ss'
+    };
+
+    /**
+     * 默认图表配置
+     */
+    const defaultOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: {
+            mode: 'index',
+            intersect: false
         },
-        y: {
-            beginAtZero: true,
-            grid: {
-                color: 'rgba(0, 0, 0, 0.05)'
-            },
-            ticks: {
-                font: {
-                    size: 11
-                }
-            }
-        }
-    }
-};
-
-/**
- * Initialize a trend chart (line/area chart)
- * @param {string} canvasId - The ID of the canvas element
- * @param {Object} data - Chart data
- * @param {Object} options - Additional chart options
- * @returns {Chart} Chart instance
- */
-function initTrendChart(canvasId, data, options = {}) {
-    const canvas = document.getElementById(canvasId);
-    if (!canvas) {
-        console.error(`Canvas element ${canvasId} not found`);
-        return null;
-    }
-
-    const ctx = canvas.getContext('2d');
-    
-    // Merge default options with custom options
-    const chartOptions = deepMerge(DEFAULT_OPTIONS, {
         plugins: {
-            ...DEFAULT_OPTIONS.plugins,
-            tooltip: {
-                ...DEFAULT_OPTIONS.plugins.tooltip,
-                callbacks: {
-                    ...DEFAULT_OPTIONS.plugins.tooltip.callbacks,
-                    title: function(tooltipItems) {
-                        // Format date for tooltip title
-                        const date = tooltipItems[0].label;
-                        return formatDate(date);
+            title: {
+                display: false,
+                font: {
+                    size: FONT_CONFIG.size.large,
+                    family: FONT_CONFIG.family,
+                    weight: 600
+                }
+            },
+            legend: {
+                display: true,
+                position: 'bottom',
+                labels: {
+                    padding: 15,
+                    font: {
+                        size: FONT_CONFIG.size.medium,
+                        family: FONT_CONFIG.family
                     },
-                    afterLabel: function(context) {
-                        // Add additional info if available
-                        const dataPoint = context.dataset.data[context.dataIndex];
-                        if (dataPoint.metadata) {
-                            const lines = [];
-                            if (dataPoint.metadata.count) {
-                                lines.push(`数量: ${dataPoint.metadata.count}`);
+                    usePointStyle: true,
+                    boxWidth: 8
+                }
+            },
+            tooltip: {
+                enabled: true,
+                backgroundColor: 'rgba(0, 0, 0, 0.9)',
+                titleColor: '#fff',
+                bodyColor: '#fff',
+                borderColor: '#333',
+                borderWidth: 1,
+                padding: 12,
+                cornerRadius: 6,
+                displayColors: true,
+                titleFont: {
+                    size: FONT_CONFIG.size.medium,
+                    family: FONT_CONFIG.family,
+                    weight: 600
+                },
+                bodyFont: {
+                    size: FONT_CONFIG.size.small,
+                    family: FONT_CONFIG.family
+                },
+                callbacks: {
+                    title: function(tooltipItems) {
+                        // 格式化时间戳
+                        if (tooltipItems.length > 0) {
+                            const item = tooltipItems[0];
+                            const label = item.label;
+                            
+                            // 检查是否为时间戳
+                            if (isValidDate(label)) {
+                                return formatTimestamp(label, TIMEZONE_CONFIG.default);
                             }
-                            if (dataPoint.metadata.average) {
-                                lines.push(`平均: ${formatCurrency(dataPoint.metadata.average)}`);
-                            }
-                            return lines;
+                            return label;
                         }
-                        return null;
+                        return '';
+                    },
+                    label: function(context) {
+                        let label = context.dataset.label || '';
+                        
+                        if (label) {
+                            label += ': ';
+                        }
+                        
+                        // 获取值
+                        const value = context.parsed.y !== undefined ? context.parsed.y : context.parsed;
+                        
+                        // 根据数据集类型格式化值
+                        if (context.dataset.isCurrency || context.chart.options.scales?.y?.isCurrency) {
+                            label += formatCurrency(value);
+                        } else if (context.dataset.isPercentage) {
+                            label += formatPercentage(value);
+                        } else {
+                            label += formatNumber(value);
+                        }
+                        
+                        // 添加额外信息
+                        if (context.dataset.additionalData && context.dataset.additionalData[context.dataIndex]) {
+                            const additional = context.dataset.additionalData[context.dataIndex];
+                            Object.keys(additional).forEach(key => {
+                                label += `\n${key}: ${additional[key]}`;
+                            });
+                        }
+                        
+                        return label;
+                    },
+                    footer: function(tooltipItems) {
+                        // 可以添加汇总信息
+                        let sum = 0;
+                        tooltipItems.forEach(function(tooltipItem) {
+                            sum += tooltipItem.parsed.y || tooltipItem.parsed || 0;
+                        });
+                        
+                        if (tooltipItems.length > 1) {
+                            return '总计: ' + formatNumber(sum);
+                        }
+                        return '';
                     }
                 }
             }
         },
-        scales: {
-            ...DEFAULT_OPTIONS.scales,
-            x: {
-                ...DEFAULT_OPTIONS.scales.x,
-                type: 'time',
-                time: {
-                    unit: 'day',
-                    displayFormats: {
-                        day: 'MM-dd',
-                        week: 'MM-dd',
-                        month: 'yyyy-MM'
-                    }
-                }
-            },
-            y: {
-                ...DEFAULT_OPTIONS.scales.y,
-                ticks: {
-                    ...DEFAULT_OPTIONS.scales.y.ticks,
-                    callback: function(value) {
-                        // Format y-axis labels
-                        if (this.chart.data.datasets[0].isCurrency) {
-                            return formatCurrency(value);
+        animation: {
+            duration: 750,
+            easing: 'easeInOutQuart'
+        }
+    };
+
+    /**
+     * 初始化趋势图（折线图/面积图）
+     * @param {string} canvasId - Canvas 元素 ID
+     * @param {object} data - 图表数据
+     * @param {object} customOptions - 自定义配置
+     * @param {string} timezone - 时区（可选）
+     * @returns {Chart} Chart 实例
+     */
+    function initTrendChart(canvasId, data, customOptions = {}, timezone = TIMEZONE_CONFIG.default) {
+        const ctx = document.getElementById(canvasId);
+        if (!ctx) {
+            console.error(`Canvas element ${canvasId} not found`);
+            return null;
+        }
+
+        // 处理数据集
+        data.datasets = data.datasets.map((dataset, index) => ({
+            ...dataset,
+            borderColor: dataset.borderColor || CHART_COLORS.series[index % CHART_COLORS.series.length],
+            backgroundColor: dataset.backgroundColor || 
+                (dataset.fill ? hexToRgba(CHART_COLORS.series[index % CHART_COLORS.series.length], 0.1) : 'transparent'),
+            borderWidth: dataset.borderWidth || 2,
+            tension: dataset.tension !== undefined ? dataset.tension : 0.1,
+            pointRadius: dataset.pointRadius || 3,
+            pointHoverRadius: dataset.pointHoverRadius || 5,
+            pointBackgroundColor: dataset.pointBackgroundColor || '#fff',
+            pointBorderWidth: dataset.pointBorderWidth || 2
+        }));
+
+        // 合并配置
+        const config = {
+            type: customOptions.type || 'line',
+            data: data,
+            options: deepMerge(defaultOptions, {
+                scales: {
+                    x: {
+                        display: true,
+                        grid: {
+                            display: false,
+                            drawBorder: false
+                        },
+                        ticks: {
+                            font: {
+                                size: FONT_CONFIG.size.small,
+                                family: FONT_CONFIG.family
+                            },
+                            callback: function(value, index) {
+                                // 如果是时间轴，格式化显示
+                                const label = this.getLabelForValue(value);
+                                if (isValidDate(label)) {
+                                    const date = new Date(label);
+                                    return formatDateShort(date);
+                                }
+                                return label;
+                            }
                         }
-                        return value.toLocaleString();
+                    },
+                    y: {
+                        display: true,
+                        beginAtZero: true,
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.05)',
+                            drawBorder: false
+                        },
+                        ticks: {
+                            font: {
+                                size: FONT_CONFIG.size.small,
+                                family: FONT_CONFIG.family
+                            },
+                            callback: function(value) {
+                                if (this.chart.options.scales.y.isCurrency) {
+                                    return formatCurrency(value);
+                                } else if (this.chart.options.scales.y.isPercentage) {
+                                    return formatPercentage(value);
+                                }
+                                return formatNumber(value);
+                            }
+                        }
                     }
-                }
-            }
-        }
-    }, options);
+                },
+                ...customOptions
+            })
+        };
 
-    // Process data - ensure datasets have colors
-    data.datasets = data.datasets.map((dataset, index) => ({
-        ...dataset,
-        borderColor: dataset.borderColor || CHART_COLORS.series[index % CHART_COLORS.series.length],
-        backgroundColor: dataset.backgroundColor || (dataset.fill ? 
-            hexToRgba(CHART_COLORS.series[index % CHART_COLORS.series.length], 0.1) : 
-            'transparent'),
-        tension: dataset.tension !== undefined ? dataset.tension : 0.2,
-        borderWidth: dataset.borderWidth || 2,
-        pointRadius: dataset.pointRadius || 3,
-        pointHoverRadius: dataset.pointHoverRadius || 5
-    }));
+        // 存储时区信息
+        config.options.timezone = timezone;
 
-    return new Chart(ctx, {
-        type: 'line',
-        data: data,
-        options: chartOptions
-    });
-}
-
-/**
- * Initialize a pie or doughnut chart
- * @param {string} canvasId - The ID of the canvas element
- * @param {Object} data - Chart data
- * @param {Object} options - Additional chart options
- * @returns {Chart} Chart instance
- */
-function initPieChart(canvasId, data, options = {}) {
-    const canvas = document.getElementById(canvasId);
-    if (!canvas) {
-        console.error(`Canvas element ${canvasId} not found`);
-        return null;
+        return new Chart(ctx, config);
     }
 
-    const ctx = canvas.getContext('2d');
-    
-    // Merge options
-    const chartOptions = deepMerge(DEFAULT_OPTIONS, {
-        scales: {}, // Remove scales for pie charts
-        plugins: {
-            ...DEFAULT_OPTIONS.plugins,
-            tooltip: {
-                ...DEFAULT_OPTIONS.plugins.tooltip,
-                callbacks: {
-                    label: function(context) {
-                        const label = context.label || '';
-                        const value = context.parsed;
-                        const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                        const percentage = ((value / total) * 100).toFixed(1);
-                        
-                        return `${label}: ${formatCurrency(value)} (${percentage}%)`;
+    /**
+     * 初始化饼图/圆环图
+     * @param {string} canvasId - Canvas 元素 ID
+     * @param {object} data - 图表数据
+     * @param {object} customOptions - 自定义配置
+     * @returns {Chart} Chart 实例
+     */
+    function initPieChart(canvasId, data, customOptions = {}) {
+        const ctx = document.getElementById(canvasId);
+        if (!ctx) {
+            console.error(`Canvas element ${canvasId} not found`);
+            return null;
+        }
+
+        // 处理数据集
+        data.datasets = data.datasets.map(dataset => ({
+            ...dataset,
+            backgroundColor: dataset.backgroundColor || CHART_COLORS.series,
+            borderColor: dataset.borderColor || '#fff',
+            borderWidth: dataset.borderWidth || 2,
+            hoverOffset: dataset.hoverOffset || 4
+        }));
+
+        // 合并配置
+        const config = {
+            type: customOptions.type || 'doughnut',
+            data: data,
+            options: deepMerge(defaultOptions, {
+                scales: {}, // 饼图不需要坐标轴
+                plugins: {
+                    ...defaultOptions.plugins,
+                    tooltip: {
+                        ...defaultOptions.plugins.tooltip,
+                        callbacks: {
+                            title: function() {
+                                return ''; // 饼图不需要标题
+                            },
+                            label: function(context) {
+                                const label = context.label || '';
+                                const value = context.parsed;
+                                const dataset = context.dataset;
+                                const total = dataset.data.reduce((a, b) => a + b, 0);
+                                const percentage = ((value / total) * 100).toFixed(1);
+                                
+                                let result = label + ': ';
+                                
+                                if (dataset.isCurrency) {
+                                    result += formatCurrency(value);
+                                } else {
+                                    result += formatNumber(value);
+                                }
+                                
+                                result += ` (${percentage}%)`;
+                                
+                                return result;
+                            }
+                        }
                     }
-                }
-            }
+                },
+                ...customOptions
+            })
+        };
+
+        return new Chart(ctx, config);
+    }
+
+    /**
+     * 初始化柱状图
+     * @param {string} canvasId - Canvas 元素 ID
+     * @param {object} data - 图表数据
+     * @param {object} customOptions - 自定义配置
+     * @returns {Chart} Chart 实例
+     */
+    function initBarChart(canvasId, data, customOptions = {}) {
+        const ctx = document.getElementById(canvasId);
+        if (!ctx) {
+            console.error(`Canvas element ${canvasId} not found`);
+            return null;
         }
-    }, options);
 
-    // Assign colors to data
-    data.datasets = data.datasets.map(dataset => ({
-        ...dataset,
-        backgroundColor: dataset.backgroundColor || CHART_COLORS.series,
-        borderWidth: dataset.borderWidth || 2,
-        borderColor: dataset.borderColor || '#fff'
-    }));
+        // 处理数据集
+        data.datasets = data.datasets.map((dataset, index) => ({
+            ...dataset,
+            backgroundColor: dataset.backgroundColor || 
+                CHART_COLORS.series[index % CHART_COLORS.series.length],
+            borderColor: dataset.borderColor || 
+                CHART_COLORS.series[index % CHART_COLORS.series.length],
+            borderWidth: dataset.borderWidth || 1,
+            borderRadius: dataset.borderRadius || 4,
+            borderSkipped: dataset.borderSkipped || 'bottom'
+        }));
 
-    return new Chart(ctx, {
-        type: options.type || 'doughnut',
-        data: data,
-        options: chartOptions
-    });
-}
+        // 合并配置
+        const config = {
+            type: 'bar',
+            data: data,
+            options: deepMerge(defaultOptions, customOptions)
+        };
 
-/**
- * Initialize a bar chart
- * @param {string} canvasId - The ID of the canvas element
- * @param {Object} data - Chart data
- * @param {Object} options - Additional chart options
- * @returns {Chart} Chart instance
- */
-function initBarChart(canvasId, data, options = {}) {
-    const canvas = document.getElementById(canvasId);
-    if (!canvas) {
-        console.error(`Canvas element ${canvasId} not found`);
-        return null;
+        return new Chart(ctx, config);
     }
 
-    const ctx = canvas.getContext('2d');
-    
-    // Merge options
-    const chartOptions = deepMerge(DEFAULT_OPTIONS, options);
+    /**
+     * 导出图表数据为 CSV
+     * @param {Chart} chartInstance - Chart.js 实例
+     * @param {string} filename - 文件名（不含扩展名）
+     * @param {object} options - 导出选项
+     */
+    function exportChartDataAsCSV(chartInstance, filename = 'chart_data', options = {}) {
+        if (!chartInstance || !chartInstance.data) {
+            console.error('Invalid chart instance');
+            return;
+        }
 
-    // Assign colors to datasets
-    data.datasets = data.datasets.map((dataset, index) => ({
-        ...dataset,
-        backgroundColor: dataset.backgroundColor || CHART_COLORS.series[index % CHART_COLORS.series.length],
-        borderColor: dataset.borderColor || CHART_COLORS.series[index % CHART_COLORS.series.length],
-        borderWidth: dataset.borderWidth || 1
-    }));
+        const { 
+            includeTimestamp = true,
+            dateFormat = 'YYYY-MM-DD HH:mm:ss',
+            timezone = TIMEZONE_CONFIG.default
+        } = options;
 
-    return new Chart(ctx, {
-        type: 'bar',
-        data: data,
-        options: chartOptions
-    });
-}
+        const data = chartInstance.data;
+        const datasets = data.datasets || [];
+        const labels = data.labels || [];
 
-/**
- * Export chart data as CSV
- * @param {Chart} chartInstance - The Chart.js instance
- * @param {string} filename - The filename for the CSV export
- */
-function exportChartDataAsCSV(chartInstance, filename = 'chart_data') {
-    if (!chartInstance || !chartInstance.data) {
-        console.error('Invalid chart instance');
-        return;
-    }
+        if (labels.length === 0 || datasets.length === 0) {
+            alert('没有可导出的数据');
+            return;
+        }
 
-    const data = chartInstance.data;
-    const labels = data.labels || [];
-    const datasets = data.datasets || [];
-
-    if (labels.length === 0 || datasets.length === 0) {
-        alert('没有可导出的数据');
-        return;
-    }
-
-    // Build CSV header
-    const headers = ['时间/类别', ...datasets.map(d => d.label || 'Series ' + (datasets.indexOf(d) + 1))];
-    
-    // Build CSV rows
-    const rows = labels.map((label, index) => {
-        const row = [formatExportLabel(label)];
+        // 构建 CSV 表头
+        const headers = ['序号'];
+        
+        // 添加标签列（通常是时间或类别）
+        headers.push('标签');
+        
+        // 添加每个数据集的列
         datasets.forEach(dataset => {
-            const value = dataset.data[index];
-            if (typeof value === 'object' && value.y !== undefined) {
-                row.push(value.y);
-            } else {
-                row.push(value || 0);
-            }
+            headers.push(dataset.label || `数据集${datasets.indexOf(dataset) + 1}`);
         });
-        return row;
-    });
 
-    // Convert to CSV string
-    const csv = [
-        headers.join(','),
-        ...rows.map(row => row.join(','))
-    ].join('\n');
+        // 如果需要时间戳
+        if (includeTimestamp) {
+            headers.push('导出时间');
+        }
 
-    // Download CSV
-    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${filename}_${new Date().toISOString().split('T')[0]}.csv`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-}
+        // 构建数据行
+        const rows = [];
+        labels.forEach((label, index) => {
+            const row = [index + 1]; // 序号
+            
+            // 格式化标签（如果是日期）
+            if (isValidDate(label)) {
+                row.push(formatTimestamp(label, timezone, dateFormat));
+            } else {
+                row.push(label);
+            }
+            
+            // 添加每个数据集的值
+            datasets.forEach(dataset => {
+                const value = dataset.data[index];
+                if (typeof value === 'object' && value !== null) {
+                    // 处理对象类型的数据点（如 {x, y}）
+                    row.push(value.y !== undefined ? value.y : value.x || 0);
+                } else {
+                    row.push(value || 0);
+                }
+            });
+            
+            // 添加导出时间戳
+            if (includeTimestamp) {
+                row.push(formatTimestamp(new Date(), timezone, dateFormat));
+            }
+            
+            rows.push(row);
+        });
 
-/**
- * Update chart data dynamically
- * @param {Chart} chartInstance - The Chart.js instance
- * @param {Object} newData - New data to update the chart with
- */
-function updateChartData(chartInstance, newData) {
-    if (!chartInstance) return;
+        // 添加汇总行（可选）
+        if (options.includeSummary) {
+            const summaryRow = ['汇总', ''];
+            datasets.forEach(dataset => {
+                const sum = dataset.data.reduce((acc, val) => {
+                    const v = typeof val === 'object' ? (val.y || val.x || 0) : val;
+                    return acc + (parseFloat(v) || 0);
+                }, 0);
+                summaryRow.push(sum);
+            });
+            if (includeTimestamp) {
+                summaryRow.push('');
+            }
+            rows.push(summaryRow);
+        }
 
-    chartInstance.data = newData;
-    chartInstance.update();
-}
+        // 转换为 CSV 格式
+        const csvContent = [
+            headers.join(','),
+            ...rows.map(row => row.map(cell => {
+                // 处理包含逗号或引号的单元格
+                const cellStr = String(cell);
+                if (cellStr.includes(',') || cellStr.includes('"') || cellStr.includes('\n')) {
+                    return `"${cellStr.replace(/"/g, '""')}"`;
+                }
+                return cellStr;
+            }).join(','))
+        ].join('\n');
 
-/**
- * Destroy a chart instance
- * @param {Chart} chartInstance - The Chart.js instance to destroy
- */
-function destroyChart(chartInstance) {
-    if (chartInstance) {
-        chartInstance.destroy();
+        // 添加 BOM 以支持 Excel 正确显示中文
+        const BOM = '\uFEFF';
+        const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
+        
+        // 创建下载链接
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${filename}_${formatDateForFilename(new Date())}.csv`;
+        
+        // 触发下载
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        // 清理
+        setTimeout(() => URL.revokeObjectURL(url), 100);
     }
-}
 
-/**
- * Utility functions
- */
-function formatCurrency(value) {
-    return '¥' + Number(value).toLocaleString('zh-CN', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
-    });
-}
+    /**
+     * 更新图表数据
+     * @param {Chart} chartInstance - Chart.js 实例
+     * @param {object} newData - 新数据
+     * @param {boolean} animate - 是否动画
+     */
+    function updateChartData(chartInstance, newData, animate = true) {
+        if (!chartInstance) return;
 
-function formatDate(dateString) {
-    try {
+        // 更新数据
+        chartInstance.data = newData;
+        
+        // 更新图表
+        chartInstance.update(animate ? 'default' : 'none');
+    }
+
+    /**
+     * 销毁图表实例
+     * @param {Chart} chartInstance - Chart.js 实例
+     */
+    function destroyChart(chartInstance) {
+        if (chartInstance) {
+            chartInstance.destroy();
+        }
+    }
+
+    /**
+     * 设置默认时区
+     * @param {string} timezone - 时区
+     */
+    function setDefaultTimezone(timezone) {
+        TIMEZONE_CONFIG.default = timezone;
+    }
+
+    /**
+     * 工具函数
+     */
+    
+    // 检查是否为有效日期
+    function isValidDate(dateString) {
+        if (!dateString) return false;
         const date = new Date(dateString);
-        return date.toLocaleDateString('zh-CN', {
+        return date instanceof Date && !isNaN(date);
+    }
+
+    // 格式化时间戳
+    function formatTimestamp(date, timezone, format = TIMEZONE_CONFIG.format) {
+        if (typeof date === 'string') {
+            date = new Date(date);
+        }
+        
+        // 简单的时区处理（实际项目中可能需要使用 moment.js 或 date-fns）
+        const options = {
             year: 'numeric',
-            month: 'long',
-            day: 'numeric'
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false,
+            timeZone: timezone
+        };
+        
+        return date.toLocaleString('zh-CN', options);
+    }
+
+    // 格式化短日期
+    function formatDateShort(date) {
+        const month = (date.getMonth() + 1).toString().padStart(2, '0');
+        const day = date.getDate().toString().padStart(2, '0');
+        return `${month}-${day}`;
+    }
+
+    // 格式化文件名日期
+    function formatDateForFilename(date) {
+        const year = date.getFullYear();
+        const month = (date.getMonth() + 1).toString().padStart(2, '0');
+        const day = date.getDate().toString().padStart(2, '0');
+        const hour = date.getHours().toString().padStart(2, '0');
+        const minute = date.getMinutes().toString().padStart(2, '0');
+        return `${year}${month}${day}_${hour}${minute}`;
+    }
+
+    // 格式化货币
+    function formatCurrency(value) {
+        return '¥' + parseFloat(value).toLocaleString('zh-CN', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
         });
-    } catch (e) {
-        return dateString;
     }
-}
 
-function formatExportLabel(label) {
-    if (label instanceof Date) {
-        return label.toISOString().split('T')[0];
+    // 格式化百分比
+    function formatPercentage(value) {
+        return value.toFixed(1) + '%';
     }
-    return String(label);
-}
 
-function hexToRgba(hex, alpha) {
-    const r = parseInt(hex.slice(1, 3), 16);
-    const g = parseInt(hex.slice(3, 5), 16);
-    const b = parseInt(hex.slice(5, 7), 16);
-    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-}
+    // 格式化数字
+    function formatNumber(value) {
+        return parseFloat(value).toLocaleString('zh-CN');
+    }
 
-function deepMerge(target, source) {
-    const output = Object.assign({}, target);
-    if (isObject(target) && isObject(source)) {
-        Object.keys(source).forEach(key => {
-            if (isObject(source[key])) {
-                if (!(key in target))
+    // 十六进制颜色转 RGBA
+    function hexToRgba(hex, alpha) {
+        const r = parseInt(hex.slice(1, 3), 16);
+        const g = parseInt(hex.slice(3, 5), 16);
+        const b = parseInt(hex.slice(5, 7), 16);
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    }
+
+    // 深度合并对象
+    function deepMerge(target, source) {
+        const output = Object.assign({}, target);
+        if (isObject(target) && isObject(source)) {
+            Object.keys(source).forEach(key => {
+                if (isObject(source[key])) {
+                    if (!(key in target))
+                        Object.assign(output, { [key]: source[key] });
+                    else
+                        output[key] = deepMerge(target[key], source[key]);
+                } else {
                     Object.assign(output, { [key]: source[key] });
-                else
-                    output[key] = deepMerge(target[key], source[key]);
-            } else {
-                Object.assign(output, { [key]: source[key] });
-            }
-        });
+                }
+            });
+        }
+        return output;
     }
-    return output;
-}
 
-function isObject(item) {
-    return item && typeof item === 'object' && !Array.isArray(item);
-}
+    // 检查是否为对象
+    function isObject(item) {
+        return item && typeof item === 'object' && !Array.isArray(item);
+    }
 
-// Export functions for global use
-window.initTrendChart = initTrendChart;
-window.initPieChart = initPieChart;
-window.initBarChart = initBarChart;
-window.exportChartDataAsCSV = exportChartDataAsCSV;
-window.updateChartData = updateChartData;
-window.destroyChart = destroyChart;
+    // 暴露 API
+    window.ChartManager = {
+        // 配置
+        defaultOptions,
+        colors: CHART_COLORS,
+        
+        // 初始化函数
+        initTrendChart,
+        initPieChart,
+        initBarChart,
+        
+        // 工具函数
+        exportChartDataAsCSV,
+        updateChartData,
+        destroyChart,
+        setDefaultTimezone,
+        
+        // 格式化函数（供外部使用）
+        formatters: {
+            currency: formatCurrency,
+            percentage: formatPercentage,
+            number: formatNumber,
+            timestamp: formatTimestamp
+        }
+    };
+
+    // 兼容旧版本调用
+    window.initTrendChart = initTrendChart;
+    window.initPieChart = initPieChart;
+    window.initBarChart = initBarChart;
+    window.exportChartDataAsCSV = exportChartDataAsCSV;
+
+})(window);
