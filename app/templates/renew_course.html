@@ -116,6 +116,30 @@
                 </div>
             </div>
 
+            <!-- 退课时间设置 -->
+            <div class="form-section">
+                <h4><i class="fas fa-calendar-times"></i> 退课时间设置（可选）</h4>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="refund_date">退课时间</label>
+                        <input type="date" name="refund_date" id="refund_date" placeholder="选择退课时间">
+                        <small class="form-text">如果续课后需要退课，可以预设退课时间</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="refund_reason">退课原因</label>
+                        <select name="refund_reason" id="refund_reason">
+                            <option value="">请选择退课原因</option>
+                            <option value="个人原因">个人原因</option>
+                            <option value="时间冲突">时间冲突</option>
+                            <option value="教学质量">教学质量问题</option>
+                            <option value="搬家">搬家/地址变更</option>
+                            <option value="经济原因">经济原因</option>
+                            <option value="其他">其他原因</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
             <!-- 利润预览 -->
             <div class="profit-preview">
                 <h4><i class="fas fa-calculator"></i> 利润预览</h4>
@@ -140,6 +164,8 @@
 // 配置值
 let courseCostPerSession = 0;
 let taobaoFeeRate = 0.006; // 默认0.6%
+let shareholderARatio = 50; // 默认股东A比例
+let shareholderBRatio = 50; // 默认股东B比例
 
 // 页面加载时获取配置
 window.onload = function() {
@@ -163,6 +189,20 @@ window.onload = function() {
         })
         .catch(error => {
             console.error('Error fetching taobao fee rate:', error);
+        });
+    
+    // 获取利润分配比例配置
+    fetch('/api/profit-distribution-ratios')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                shareholderARatio = data.ratios.shareholder_a_ratio;
+                shareholderBRatio = data.ratios.shareholder_b_ratio;
+                updateProfitPreview();
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching profit distribution ratios:', error);
         });
 };
 
@@ -213,10 +253,6 @@ function updateProfitPreview() {
                 <div class="profit-section ${netProfit >= 0 ? 'profit-positive' : 'profit-negative'}">
                     <div><strong>净利润：¥${netProfit.toFixed(2)}</strong></div>
                     <small>净利润 = 总收入 - 总成本</small>
-                    <div class="renewal-notice">
-                        <i class="fas fa-info-circle"></i> 
-                        <small>续课利润分配比例：股东A 40%，股东B 60%</small>
-                    </div>
                 </div>
             </div>
         `;

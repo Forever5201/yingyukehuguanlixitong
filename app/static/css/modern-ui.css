@@ -1,0 +1,500 @@
+/* Modern UI Enhancement Styles */
+/* 现代化UI增强样式 - 与原有样式兼容 */
+
+/* ========== 增强的CSS变量 ========== */
+:root {
+    /* 渐变色主题 */
+    --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --success-gradient: linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%);
+    --danger-gradient: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+    --warning-gradient: linear-gradient(135deg, #f59e0b 0%, #eab308 100%);
+    --info-gradient: linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%);
+    
+    /* 增强的阴影效果 */
+    --shadow-colored: 0 20px 25px -5px rgba(102, 126, 234, 0.1), 0 10px 10px -5px rgba(102, 126, 234, 0.04);
+    --shadow-hover: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    --shadow-xl: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    
+    /* 玻璃态效果 */
+    --glass-bg: rgba(255, 255, 255, 0.7);
+    --glass-border: rgba(255, 255, 255, 0.18);
+    --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+    
+    /* 动画时长 */
+    --transition-fast: 150ms;
+    --transition-normal: 300ms;
+    --transition-slow: 500ms;
+}
+
+/* ========== 通用动画类 ========== */
+.animate-in {
+    animation: fadeInUp 0.5s ease-out;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes pulse {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.05);
+    }
+}
+
+/* ========== 增强的卡片样式 ========== */
+.stat-card {
+    background: var(--glass-bg);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid var(--glass-border);
+    border-radius: 16px;
+    padding: 24px;
+    transition: all var(--transition-normal) cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+}
+
+.stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: var(--primary-gradient);
+    transform: scaleX(0);
+    transition: transform var(--transition-normal) ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--shadow-hover);
+}
+
+.stat-card:hover::before {
+    transform: scaleX(1);
+}
+
+.stat-card .stat-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--primary-gradient);
+    color: white;
+    font-size: 24px;
+    margin-bottom: 16px;
+    transition: all var(--transition-normal) ease;
+}
+
+.stat-card:hover .stat-icon {
+    transform: scale(1.1) rotate(5deg);
+}
+
+.stat-card .stat-number {
+    font-size: 32px;
+    font-weight: 700;
+    background: var(--primary-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin: 8px 0;
+}
+
+/* ========== 现代化表格样式 ========== */
+.modern-table {
+    width: 100%;
+    background: white;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.05);
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.modern-table thead {
+    background: var(--primary-gradient);
+    color: white;
+}
+
+.modern-table th {
+    padding: 16px;
+    font-weight: 600;
+    text-align: left;
+    position: relative;
+    white-space: nowrap;
+}
+
+.modern-table th.sortable {
+    cursor: pointer;
+    user-select: none;
+}
+
+.modern-table th.sortable:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.modern-table tbody tr {
+    border-bottom: 1px solid #f0f0f0;
+    transition: all var(--transition-fast) ease;
+}
+
+.modern-table tbody tr:hover {
+    background-color: #f8f9ff;
+    transform: scale(1.01);
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.05);
+}
+
+.modern-table td {
+    padding: 16px;
+}
+
+/* ========== 状态标签美化 ========== */
+.badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+    transition: all var(--transition-fast) ease;
+}
+
+.badge-success {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.badge-pending {
+    background: #fed7aa;
+    color: #92400e;
+}
+
+.badge-danger {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.badge-info {
+    background: #dbeafe;
+    color: #1e3a8a;
+}
+
+/* ========== 增强的按钮样式 ========== */
+.btn {
+    position: relative;
+    overflow: hidden;
+    transition: all var(--transition-normal) ease;
+    border: none;
+    cursor: pointer;
+    font-weight: 500;
+}
+
+.btn::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.5);
+    transform: translate(-50%, -50%);
+    transition: width 0.6s, height 0.6s;
+}
+
+.btn:active::after {
+    width: 300px;
+    height: 300px;
+}
+
+.btn-primary {
+    background: var(--primary-gradient);
+    color: white;
+    box-shadow: 0 4px 15px 0 rgba(102, 126, 234, 0.4);
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 7px 20px 0 rgba(102, 126, 234, 0.5);
+}
+
+/* ========== 加载动画 ========== */
+.skeleton-loader {
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: loading 1.5s infinite;
+    border-radius: 4px;
+}
+
+@keyframes loading {
+    0% {
+        background-position: 200% 0;
+    }
+    100% {
+        background-position: -200% 0;
+    }
+}
+
+.spinner {
+    width: 50px;
+    height: 50px;
+    border: 3px solid #f3f3f3;
+    border-top: 3px solid var(--primary-color);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 20px auto;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* ========== 通知系统样式 ========== */
+.notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    min-width: 300px;
+    max-width: 500px;
+    padding: 16px 20px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: var(--shadow-lg);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    z-index: 9999;
+    animation: slideInRight 0.3s ease-out;
+}
+
+.notification.success {
+    border-left: 4px solid var(--success-color);
+}
+
+.notification.error {
+    border-left: 4px solid var(--danger-color);
+}
+
+.notification.warning {
+    border-left: 4px solid var(--warning-color);
+}
+
+.notification.info {
+    border-left: 4px solid var(--info-color);
+}
+
+.notification .close-btn {
+    margin-left: auto;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #999;
+    transition: color var(--transition-fast) ease;
+}
+
+.notification .close-btn:hover {
+    color: #333;
+}
+
+/* ========== 输入框美化 ========== */
+.form-control {
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 10px 16px;
+    transition: all var(--transition-fast) ease;
+    font-size: 14px;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+/* ========== 数据可视化容器 ========== */
+.chart-container {
+    position: relative;
+    height: 300px;
+    margin: 20px 0;
+    padding: 20px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.chart-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.chart-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+/* ========== 响应式优化 ========== */
+@media (max-width: 768px) {
+    .stat-card {
+        padding: 16px;
+    }
+    
+    .stat-card .stat-number {
+        font-size: 24px;
+    }
+    
+    .modern-table {
+        font-size: 14px;
+    }
+    
+    .modern-table th,
+    .modern-table td {
+        padding: 12px;
+    }
+    
+    .notification {
+        right: 10px;
+        left: 10px;
+        min-width: auto;
+    }
+    
+    .chart-container {
+        height: 250px;
+        padding: 16px;
+    }
+}
+
+/* ========== 暗色模式支持 ========== */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --glass-bg: rgba(30, 30, 30, 0.7);
+        --glass-border: rgba(255, 255, 255, 0.1);
+    }
+    
+    .modern-table {
+        background: #1a1a1a;
+        color: #ffffff;
+    }
+    
+    .modern-table tbody tr:hover {
+        background-color: #2a2a2a;
+    }
+    
+    .notification {
+        background: #2a2a2a;
+        color: #ffffff;
+    }
+}
+
+/* ========== 页面过渡效果 ========== */
+.page-content {
+    animation: fadeInUp 0.5s ease-out;
+}
+
+.slide-in-left {
+    animation: slideInLeft 0.3s ease-out;
+}
+
+@keyframes slideInLeft {
+    from {
+        transform: translateX(-100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* ========== 增强的模态框 ========== */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+}
+
+.modal-content {
+    background-color: white;
+    margin: 5% auto;
+    padding: 0;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 600px;
+    box-shadow: var(--shadow-xl);
+    animation: modalShow 0.3s ease-out;
+}
+
+@keyframes modalShow {
+    from {
+        transform: scale(0.8);
+        opacity: 0;
+    }
+    to {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+.modal-header {
+    padding: 20px;
+    border-bottom: 1px solid #e2e8f0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-body {
+    padding: 20px;
+}
+
+.modal-footer {
+    padding: 20px;
+    border-top: 1px solid #e2e8f0;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}

@@ -227,6 +227,43 @@
                         </div>
                     </div>
 
+                    <!-- 续课信息模块 -->
+                    <div id="renewalInfoSection" class="section-card" style="display: none; border-left: 4px solid #28a745;">
+                        <h6 class="section-title" style="color: #28a745;">
+                            <i class="fas fa-plus-circle"></i> 续课信息
+                        </h6>
+                        
+                        <!-- 续课统计信息 -->
+                        <div class="form-row">
+                            <div class="form-group col-md-3">
+                                <label>续课总数</label>
+                                <input type="text" class="form-control" id="renewal_count" readonly style="background-color: #f8f9fa;">
+                            </div>
+                            <div class="form-group col-md-3">
+                                <label>总续课节数</label>
+                                <input type="text" class="form-control" id="total_renewal_sessions" readonly style="background-color: #f8f9fa;">
+                            </div>
+                            <div class="form-group col-md-3">
+                                <label>总续课收入</label>
+                                <input type="text" class="form-control" id="total_renewal_revenue" readonly style="background-color: #f8f9fa;">
+                            </div>
+                            <div class="form-group col-md-3">
+                                <label>最新续课时间</label>
+                                <input type="text" class="form-control" id="latest_renewal_date" readonly style="background-color: #f8f9fa;">
+                            </div>
+                        </div>
+                        
+                        <!-- 续课记录列表 -->
+                        <div id="renewalHistorySection" style="display: none;">
+                            <h6 class="section-title" style="margin-top: 20px; margin-bottom: 15px; color: #6c757d;">
+                                <i class="fas fa-list"></i> 续课记录明细
+                            </h6>
+                            <div id="renewalHistoryList">
+                                <!-- 续课记录将在这里动态显示 -->
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- 利润预览（如果是正课） -->
                     <div id="profitPreviewSection" class="section-card" style="display: none;">
                         <h6 class="section-title">
@@ -343,6 +380,7 @@ function showCustomerDetail(customerId, courseId = null, courseType = null) {
     document.getElementById('profitPreviewSection').style.display = 'none';
     document.getElementById('refundSection').style.display = 'none';
     document.getElementById('refundInfoSection').style.display = 'none'; // 隐藏退课信息模块
+    document.getElementById('renewalInfoSection').style.display = 'none'; // 隐藏续课信息模块
     
     // 加载数据
     if (courseType === 'trial' && courseId) {
@@ -454,6 +492,12 @@ function loadFormalCourseDetail(courseId) {
                 // 获取退费信息 - 在退费信息加载完成后再更新利润预览
                 loadRefundInfo(data.id);
                 document.getElementById('refundInfoSection').style.display = 'block'; // 显示退课信息模块
+                
+                // 处理续课信息
+                if (data.renewal_courses && data.renewal_courses.length > 0) {
+                    loadRenewalInfo(data.renewal_courses);
+                    document.getElementById('renewalInfoSection').style.display = 'block'; // 显示续课信息模块
+                }
             }
         });
 }
@@ -755,42 +799,143 @@ function saveCustomerDetail() {
     fetch(apiUrl, {
         method: method,
         headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
+            'Content-Type': 'application/json',
         },
-        body: new URLSearchParams(data)
+        body: JSON.stringify(data)
     })
     .then(response => response.json())
     .then(result => {
         if (result.success) {
-            showAlert('保存成功', 'success');
-            const modal = document.getElementById('customerDetailModal');
-            if (modal) {
-                modal.style.display = 'none';
-            }
-            // 刷新页面或更新表格
-            setTimeout(() => location.reload(), 500);
+            showAlert('保存成功！', 'success');
+            // 关闭模态框
+            closeCustomerDetailModal();
         } else {
             showAlert(result.message || '保存失败', 'danger');
         }
     })
     .catch(error => {
-        console.error('Error:', error);
-        showAlert('保存失败：' + error.message, 'danger');
+        console.error('保存失败:', error);
+        showAlert('保存失败，请稍后重试', 'danger');
     });
 }
 
-// 显示提示信息
-function showAlert(message, type) {
-    const alertDiv = document.createElement('div');
-    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
-    alertDiv.innerHTML = `
-        ${message}
-        <button type="button" class="close" data-dismiss="alert">
-            <span>&times;</span>
-        </button>
-    `;
-    document.querySelector('.modal-body').insertBefore(alertDiv, document.querySelector('.modal-body').firstChild);
+// 加载续课信息
+function loadRenewalInfo(renewalCourses) {
+    if (!renewalCourses || renewalCourses.length === 0) {
+        document.getElementById('renewalInfoSection').style.display = 'none';
+        return;
+    }
     
+    // 计算续课统计信息
+    const totalSessions = renewalCourses.reduce((sum, course) => sum + (course.sessions || 0), 0);
+    const totalRevenue = renewalCourses.reduce((sum, course) => sum + ((course.sessions || 0) * (course.price || 0)), 0);
+    const latestDate = renewalCourses.reduce((latest, course) => {
+        const courseDate = new Date(course.created_at);
+        return latest > courseDate ? latest : courseDate;
+    }, new Date(0));
+    
+    // 更新统计信息显示
+    document.getElementById('renewal_count').value = renewalCourses.length + ' 次';
+    document.getElementById('total_renewal_sessions').value = totalSessions + ' 节';
+    document.getElementById('total_renewal_revenue').value = '¥' + totalRevenue.toFixed(2);
+    document.getElementById('latest_renewal_date').value = latestDate > new Date(0) ? 
+        latestDate.toLocaleDateString('zh-CN') : '无';
+    
+    // 显示续课记录列表
+    if (renewalCourses.length > 0) {
+        const renewalHistoryList = document.getElementById('renewalHistoryList');
+        renewalHistoryList.innerHTML = renewalCourses.map((renewal, index) => `
+            <div class="section-card" style="margin-bottom: 15px; background: #fff; border: 1px solid #dee2e6; border-left: 3px solid #28a745;">
+                <div class="form-row">
+                    <div class="form-group col-md-12">
+                        <h6 style="color: #28a745; margin-bottom: 15px; font-size: 0.9rem;">
+                            <i class="fas fa-plus-circle"></i> 续课记录 #${index + 1}
+                        </h6>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group col-md-3">
+                        <label style="font-size: 0.85rem; color: #6c757d;">续课时间</label>
+                        <input type="text" class="form-control form-control-sm" value="${renewal.created_at ? new Date(renewal.created_at).toLocaleDateString('zh-CN') : '未记录'}" readonly style="background-color: #f8f9fa;">
+                    </div>
+                    <div class="form-group col-md-3">
+                        <label style="font-size: 0.85rem; color: #6c757d;">课程类型</label>
+                        <input type="text" class="form-control form-control-sm" value="${renewal.course_type || '未记录'}" readonly style="background-color: #f8f9fa;">
+                    </div>
+                    <div class="form-group col-md-3">
+                        <label style="font-size: 0.85rem; color: #6c757d;">续课节数</label>
+                        <input type="text" class="form-control form-control-sm" value="${renewal.sessions || 0} 节" readonly style="background-color: #f8f9fa;">
+                    </div>
+                    <div class="form-group col-md-3">
+                        <label style="font-size: 0.85rem; color: #6c757d;">单节价格</label>
+                        <input type="text" class="form-control form-control-sm" value="¥${(renewal.price || 0).toFixed(2)}" readonly style="background-color: #f8f9fa;">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group col-md-3">
+                        <label style="font-size: 0.85rem; color: #6c757d;">赠课节数</label>
+                        <input type="text" class="form-control form-control-sm" value="${renewal.gift_sessions || 0} 节" readonly style="background-color: #f8f9fa;">
+                    </div>
+                    <div class="form-group col-md-3">
+                        <label style="font-size: 0.85rem; color: #6c757d;">支付渠道</label>
+                        <input type="text" class="form-control form-control-sm" value="${renewal.payment_channel || '未记录'}" readonly style="background-color: #f8f9fa;">
+                    </div>
+                    <div class="form-group col-md-3">
+                        <label style="font-size: 0.85rem; color: #6c757d;">其他成本</label>
+                        <input type="text" class="form-control form-control-sm" value="¥${(renewal.other_cost || 0).toFixed(2)}" readonly style="background-color: #f8f9fa;">
+                    </div>
+                    <div class="form-group col-md-3">
+                        <label style="font-size: 0.85rem; color: #6c757d;">负责员工</label>
+                        <input type="text" class="form-control form-control-sm" value="${renewal.assigned_employee_name || '未分配'}" readonly style="background-color: #f8f9fa;">
+                    </div>
+                </div>
+                ${renewal.renewal_reason || renewal.discount_amount > 0 || renewal.refund_date || renewal.refund_reason ? `
+                <div class="form-row">
+                    ${renewal.renewal_reason ? `
+                    <div class="form-group col-md-6">
+                        <label style="font-size: 0.85rem; color: #6c757d;">续课原因</label>
+                        <input type="text" class="form-control form-control-sm" value="${renewal.renewal_reason}" readonly style="background-color: #f8f9fa;">
+                    </div>
+                    ` : ''}
+                    ${renewal.discount_amount > 0 ? `
+                    <div class="form-group col-md-6">
+                        <label style="font-size: 0.85rem; color: #6c757d;">优惠金额</label>
+                        <input type="text" class="form-control form-control-sm" value="¥${renewal.discount_amount.toFixed(2)}" readonly style="background-color: #f8f9fa;">
+                    </div>
+                    ` : ''}
+                </div>
+                ${renewal.refund_date || renewal.refund_reason ? `
+                <div class="form-row">
+                    ${renewal.refund_date ? `
+                    <div class="form-group col-md-6">
+                        <label style="font-size: 0.85rem; color: #6c757d;">退课时间</label>
+                        <input type="text" class="form-control form-control-sm" value="${renewal.refund_date}" readonly style="background-color: #f8f9fa;">
+                    </div>
+                    ` : ''}
+                    ${renewal.refund_reason ? `
+                    <div class="form-group col-md-6">
+                        <label style="font-size: 0.85rem; color: #6c757d;">退课原因</label>
+                        <input type="text" class="form-control form-control-sm" value="${renewal.refund_reason}" readonly style="background-color: #f8f9fa;">
+                    </div>
+                    ` : ''}
+                </div>
+                ` : ''}
+                ` : ''}
+            </div>
+        `).join('');
+        document.getElementById('renewalHistorySection').style.display = 'block';
+    } else {
+        document.getElementById('renewalHistorySection').style.display = 'none';
+    }
+}
+
+// 显示提示信息
+function showAlert(message, type = 'info') {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type}`;
+    alertDiv.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 9999; padding: 10px 20px; border-radius: 5px;';
+    alertDiv.textContent = message;
+    document.body.appendChild(alertDiv);
     setTimeout(() => alertDiv.remove(), 3000);
 }
 

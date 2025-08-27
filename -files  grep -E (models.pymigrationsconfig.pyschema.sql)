@@ -1,0 +1,55 @@
+[33mcommit 2f3cd7ecb87f04b5b30107be06fd2a79e27535ca[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mcursor/ask-model-to-identify-itself-truthfully-eb26[m[33m, [m[1;31morigin/cursor/ask-model-to-identify-itself-truthfully-eb26[m[33m)[m
+Author: Developer <developer@example.com>
+Date:   Wed Aug 27 12:44:07 2025 +0800
+
+    feat: 完善运营成本分配功能和利润计算系统
+    
+    主要更新：
+    1. 完善运营成本管理服务，支持按比例分配到课程
+    2. 优化利润分配页面，独立显示运营成本项目
+    3. 修复续课利润分配计算逻辑
+    4. 添加运营成本分配机制详细分析报告
+    5. 完善数据库迁移和初始化脚本
+    6. 优化前端模板和组件
+    7. 添加多个测试脚本验证系统功能
+    
+    技术改进：
+    - 运营成本服务支持时间段筛选和分配计算
+    - 利润计算服务集成运营成本影响
+    - 前端页面清晰显示成本明细结构
+    - 数据库模型支持运营成本管理
+
+FINAL_TEST_REPORT.md
+OPERATIONAL_COST_ALLOCATION_DETAILED_ANALYSIS.md
+OPERATIONAL_COST_ALLOCATION_REPORT.md
+RENEWAL_PROFIT_DISTRIBUTION_CLEANUP_SUMMARY.md
+add_payment_recipient_field.py
+analyze_renewal_cost_logic.py
+app/models.py
+app/routes.py
+app/services/operational_cost_service.py
+app/services/profit_service.py
+app/services/refund_service.py
+app/templates/components/customer_detail_modal.html
+app/templates/config.html
+app/templates/formal_courses.html
+app/templates/renew_course.html
+auto_migrate.py
+cleanup_test_data.py
+debug_api_error.py
+debug_renewal_cost.py
+detailed_operational_cost_analysis.py
+fix_database_now.py
+init_database.py
+migrate_operational_cost.py
+quick_test_operational_cost.py
+renewal_profit_distribution_analysis.md
+test_frontend_functionality.py
+test_operational_cost_allocation.py
+test_operational_cost_api.py
+test_operational_cost_ui.py
+test_payment_recipient.py
+test_renewal_cost_calculation.py
+test_renewal_details.py
+test_renewal_fix.py
+verify_operational_cost_calculation.py
