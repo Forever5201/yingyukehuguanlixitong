@@ -12,8 +12,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/education-ui.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/fontawesome/all.min.css') }}">
     
-    <!-- jQuery -->
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <!-- 移除外部 jQuery 依赖，改用原生 JS -->
     
     <style>
         body {
@@ -240,7 +239,7 @@
     </div>
     
     <script>
-        // 显示服务器时间
+        // 显示服务器时间（原生 JS）
         function updateTime() {
             const now = new Date();
             const timeString = now.toLocaleString('zh-CN', {
@@ -251,44 +250,60 @@
                 minute: '2-digit',
                 second: '2-digit'
             });
-            document.getElementById('server-time').textContent = timeString;
+            const serverTimeEl = document.getElementById('server-time');
+            if (serverTimeEl) {
+                serverTimeEl.textContent = timeString;
+            }
         }
         
-        // 每秒更新时间
-        updateTime();
-        setInterval(updateTime, 1000);
-        
-        // 表单提交处理
-        $(document).ready(function() {
-            $('.login-form').on('submit', function() {
-                const username = $('#username').val().trim();
-                const password = $('#password').val();
-                
-                if (!username) {
-                    alert('请输入用户名');
-                    $('#username').focus();
-                    return false;
-                }
-                
-                if (!password) {
-                    alert('请输入密码');
-                    $('#password').focus();
-                    return false;
-                }
-                
-                // 显示加载状态
-                $('.login-btn').html('<i class="fas fa-spinner fa-spin"></i> 登录中...');
-                $('.login-btn').prop('disabled', true);
-                
-                return true;
-            });
-            
+        // 等待 DOM 就绪后绑定事件
+        document.addEventListener('DOMContentLoaded', function() {
+            // 每秒更新时间
+            updateTime();
+            setInterval(updateTime, 1000);
+
+            const form = document.querySelector('.login-form');
+            const usernameInput = document.getElementById('username');
+            const passwordInput = document.getElementById('password');
+            const loginBtn = document.querySelector('.login-btn');
+
+            if (form) {
+                form.addEventListener('submit', function(e) {
+                    const username = (usernameInput && usernameInput.value || '').trim();
+                    const password = passwordInput ? passwordInput.value : '';
+
+                    if (!username) {
+                        alert('请输入用户名');
+                        if (usernameInput) usernameInput.focus();
+                        e.preventDefault();
+                        return false;
+                    }
+
+                    if (!password) {
+                        alert('请输入密码');
+                        if (passwordInput) passwordInput.focus();
+                        e.preventDefault();
+                        return false;
+                    }
+
+                    // 显示加载状态
+                    if (loginBtn) {
+                        loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 登录中...';
+                        loginBtn.disabled = true;
+                    }
+
+                    return true;
+                });
+            }
+
             // 回车键提交
-            $('#password').on('keypress', function(e) {
-                if (e.which === 13) {
-                    $('.login-form').submit();
-                }
-            });
+            if (passwordInput && form) {
+                passwordInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter' || e.keyCode === 13) {
+                        form.submit();
+                    }
+                });
+            }
         });
     </script>
 </body>
