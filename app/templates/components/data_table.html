@@ -1,0 +1,521 @@
+{# Data Table Component - Jinja2 Macro with Dual Mode Support #}
+{# 
+参数说明：
+- columns: 列定义数组 [{'key': 'name', 'label': '姓名', 'sortable': true, 'width': '150px'}]
+- rows: 数据行（服务端模式使用）
+- mode: 'server' 或 'virtual' (默认 'server')
+- page: 当前页码（服务端模式）
+- total_count: 总记录数（服务端模式）
+- per_page: 每页显示数量（服务端模式，默认50）
+- table_id: 表格唯一ID
+- virtual_threshold: 虚拟滚动阈值（默认2000）
+- data_url: 虚拟模式数据源URL
+- row_height: 行高（虚拟模式，默认48px）
+#}
+
+{% macro data_table(
+    columns,
+    rows=None,
+    mode='server',
+    page=1,
+    total_count=0,
+    per_page=50,
+    table_id='dataTable',
+    virtual_threshold=2000,
+    data_url=None,
+    row_height=48,
+    enable_export=true,
+    enable_selection=false
+) -%}
+
+<div class="data-table-wrapper" id="{{ table_id }}-wrapper" data-mode="{{ mode }}" data-threshold="{{ virtual_threshold }}">
+    <!-- 表格工具栏 -->
+    <div class="data-table-toolbar">
+        <div class="data-table-info">
+            {% if mode == 'server' %}
+                <span class="record-info">
+                    显示 {{ ((page - 1) * per_page) + 1 }} - {{ min(page * per_page, total_count) }} 条，
+                    共 {{ total_count }} 条记录
+                </span>
+            {% else %}
+                <span class="record-info">
+                    共 <span id="{{ table_id }}-total">0</span> 条记录
+                    <span id="{{ table_id }}-virtual-info" style="display:none;">
+                        (虚拟滚动模式)
+                    </span>
+                </span>
+            {% endif %}
+        </div>
+        
+        <div class="data-table-actions">
+            {% if enable_selection %}
+            <button class="btn btn-sm" id="{{ table_id }}-select-all">
+                <i class="fas fa-check-square"></i> 全选
+            </button>
+            {% endif %}
+            
+            {% if enable_export %}
+            <button class="btn btn-sm" onclick="DataTableManager.exportTable('{{ table_id }}')">
+                <i class="fas fa-download"></i> 导出
+            </button>
+            {% endif %}
+            
+            <button class="btn btn-sm" onclick="DataTableManager.refreshTable('{{ table_id }}')">
+                <i class="fas fa-sync"></i> 刷新
+            </button>
+        </div>
+    </div>
+    
+    <!-- 服务端分页模式 -->
+    {% if mode == 'server' %}
+    <div class="data-table-container">
+        <table class="data-table" id="{{ table_id }}">
+            <thead>
+                <tr>
+                    {% if enable_selection %}
+                    <th class="checkbox-column">
+                        <input type="checkbox" id="{{ table_id }}-check-all">
+                    </th>
+                    {% endif %}
+                    {% for column in columns %}
+                    <th class="{% if column.sortable %}sortable{% endif %} {% if column.className %}{{ column.className }}{% endif %}"
+                        {% if column.width %}style="width: {{ column.width }}"{% endif %}
+                        {% if column.sortable %}data-sort="{{ column.key }}"{% endif %}>
+                        {{ column.label }}
+                        {% if column.sortable %}
+                        <span class="sort-icon">
+                            <i class="fas fa-sort"></i>
+                        </span>
+                        {% endif %}
+                    </th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% if rows %}
+                    {% for row in rows %}
+                    <tr data-id="{{ row.id if row.id else loop.index }}">
+                        {% if enable_selection %}
+                        <td class="checkbox-column">
+                            <input type="checkbox" class="row-checkbox" value="{{ row.id if row.id else loop.index }}">
+                        </td>
+                        {% endif %}
+                        {% for column in columns %}
+                        <td class="{{ column.className if column.className else '' }}">
+                            {% if column.render %}
+                                {# 自定义渲染函数将在JavaScript中处理 #}
+                                <span class="cell-render" 
+                                      data-column="{{ column.key }}" 
+                                      data-value="{{ row[column.key] }}">
+                                    {{ row[column.key] }}
+                                </span>
+                            {% else %}
+                                {{ row[column.key] if row[column.key] is not none else '' }}
+                            {% endif %}
+                        </td>
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="{{ columns|length + (1 if enable_selection else 0) }}" class="empty-message">
+                            暂无数据
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+        
+        <!-- 分页组件 -->
+        {% if total_count > per_page %}
+        {% set total_pages = (total_count / per_page) | round(0, 'ceil') | int %}
+        <div class="data-table-pagination">
+            <div class="pagination-info">
+                每页
+                <select id="{{ table_id }}-per-page" onchange="DataTableManager.changePerPage('{{ table_id }}', this.value)">
+                    <option value="20" {% if per_page == 20 %}selected{% endif %}>20</option>
+                    <option value="50" {% if per_page == 50 %}selected{% endif %}>50</option>
+                    <option value="100" {% if per_page == 100 %}selected{% endif %}>100</option>
+                    <option value="200" {% if per_page == 200 %}selected{% endif %}>200</option>
+                </select>
+                条
+            </div>
+            
+            <div class="pagination-controls">
+                <button class="pagination-btn" 
+                        {% if page <= 1 %}disabled{% endif %}
+                        onclick="DataTableManager.goToPage('{{ table_id }}', 1)">
+                    <i class="fas fa-angle-double-left"></i>
+                </button>
+                
+                <button class="pagination-btn" 
+                        {% if page <= 1 %}disabled{% endif %}
+                        onclick="DataTableManager.goToPage('{{ table_id }}', {{ page - 1 }})">
+                    <i class="fas fa-angle-left"></i>
+                </button>
+                
+                <div class="pagination-pages">
+                    {% for p in range(1, total_pages + 1) %}
+                        {% if p == 1 or p == total_pages or (p >= page - 2 and p <= page + 2) %}
+                            <button class="pagination-page {% if p == page %}active{% endif %}"
+                                    onclick="DataTableManager.goToPage('{{ table_id }}', {{ p }})">
+                                {{ p }}
+                            </button>
+                        {% elif p == page - 3 or p == page + 3 %}
+                            <span class="pagination-ellipsis">...</span>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+                
+                <button class="pagination-btn" 
+                        {% if page >= total_pages %}disabled{% endif %}
+                        onclick="DataTableManager.goToPage('{{ table_id }}', {{ page + 1 }})">
+                    <i class="fas fa-angle-right"></i>
+                </button>
+                
+                <button class="pagination-btn" 
+                        {% if page >= total_pages %}disabled{% endif %}
+                        onclick="DataTableManager.goToPage('{{ table_id }}', {{ total_pages }})">
+                    <i class="fas fa-angle-double-right"></i>
+                </button>
+            </div>
+            
+            <div class="pagination-jump">
+                跳转到
+                <input type="number" 
+                       id="{{ table_id }}-jump-page" 
+                       min="1" 
+                       max="{{ total_pages }}"
+                       onkeypress="if(event.key === 'Enter') DataTableManager.jumpToPage('{{ table_id }}', this.value)">
+                页
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    
+    <!-- 虚拟滚动模式 -->
+    {% else %}
+    <div class="data-table-container virtual-mode" 
+         id="{{ table_id }}-container"
+         {% if data_url %}data-url="{{ data_url }}"{% endif %}
+         data-row-height="{{ row_height }}">
+        
+        <!-- 加载指示器 -->
+        <div class="loading-indicator" id="{{ table_id }}-loading">
+            <i class="fas fa-spinner fa-spin"></i> 加载数据中...
+        </div>
+        
+        <!-- Clusterize 滚动容器 -->
+        <div id="{{ table_id }}-scrollArea" class="clusterize-scroll" style="display:none;">
+            <table class="data-table" id="{{ table_id }}">
+                <thead>
+                    <tr>
+                        {% if enable_selection %}
+                        <th class="checkbox-column">
+                            <input type="checkbox" id="{{ table_id }}-check-all">
+                        </th>
+                        {% endif %}
+                        {% for column in columns %}
+                        <th {% if column.width %}style="width: {{ column.width }}"{% endif %}>
+                            {{ column.label }}
+                        </th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+            </table>
+            <div id="{{ table_id }}-contentArea" class="clusterize-content">
+                <table class="data-table">
+                    <tbody id="{{ table_id }}-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- 表格配置 -->
+    <script>
+    (function() {
+        const config = {
+            id: '{{ table_id }}',
+            mode: '{{ mode }}',
+            columns: {{ columns | tojson }},
+            {% if mode == 'virtual' %}
+            {% if data_url %}dataUrl: '{{ data_url }}',{% endif %}
+            virtualThreshold: {{ virtual_threshold }},
+            rowHeight: {{ row_height }},
+            {% else %}
+            currentPage: {{ page }},
+            perPage: {{ per_page }},
+            totalCount: {{ total_count }},
+            {% endif %}
+            enableSelection: {{ enable_selection | tojson }},
+            enableExport: {{ enable_export | tojson }}
+        };
+        
+        // 注册表格配置
+        if (window.DataTableManager) {
+            window.DataTableManager.register(config);
+        } else {
+            // 如果管理器还未加载，存储配置
+            window._pendingDataTables = window._pendingDataTables || [];
+            window._pendingDataTables.push(config);
+        }
+    })();
+    </script>
+</div>
+
+<!-- 内联样式 -->
+<style>
+.data-table-wrapper {
+    background-color: var(--color-card-bg);
+    border: 1px solid var(--color-border-light);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+}
+
+.data-table-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-md) var(--space-lg);
+    background-color: var(--color-bg-secondary);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.data-table-info {
+    font-size: var(--font-size-sm);
+    color: var(--color-muted);
+}
+
+.data-table-actions {
+    display: flex;
+    gap: var(--space-sm);
+}
+
+.data-table-container {
+    overflow-x: auto;
+}
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.data-table th {
+    padding: var(--space-md);
+    text-align: left;
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text);
+    background-color: var(--color-bg-secondary);
+    border-bottom: 2px solid var(--color-border);
+    white-space: nowrap;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.data-table th.sortable {
+    cursor: pointer;
+    user-select: none;
+}
+
+.data-table th.sortable:hover {
+    background-color: var(--color-border-light);
+}
+
+.sort-icon {
+    margin-left: var(--space-xs);
+    color: var(--color-muted);
+    font-size: var(--font-size-xs);
+}
+
+.data-table td {
+    padding: var(--space-md);
+    border-bottom: 1px solid var(--color-border-light);
+}
+
+.data-table tbody tr:hover {
+    background-color: var(--color-bg-secondary);
+}
+
+.checkbox-column {
+    width: 40px;
+    text-align: center;
+}
+
+.empty-message {
+    text-align: center;
+    color: var(--color-muted);
+    padding: var(--space-2xl) !important;
+}
+
+/* 虚拟滚动样式 */
+.virtual-mode {
+    position: relative;
+}
+
+.clusterize-scroll {
+    max-height: 600px;
+    overflow: auto;
+}
+
+.clusterize-content {
+    outline: 0;
+}
+
+.loading-indicator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-2xl);
+    color: var(--color-primary);
+}
+
+/* 分页样式 */
+.data-table-pagination {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-md) var(--space-lg);
+    background-color: var(--color-bg-secondary);
+    border-top: 1px solid var(--color-border);
+    flex-wrap: wrap;
+    gap: var(--space-md);
+}
+
+.pagination-controls {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+}
+
+.pagination-btn, .pagination-page {
+    min-width: 2.5rem;
+    height: 2.5rem;
+    padding: var(--space-xs) var(--space-sm);
+    background-color: var(--color-bg);
+    color: var(--color-text);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all var(--transition-base);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.pagination-btn:hover:not(:disabled),
+.pagination-page:hover {
+    background-color: var(--color-primary-light);
+    color: var(--color-primary);
+    border-color: var(--color-primary);
+}
+
+.pagination-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.pagination-page.active {
+    background-color: var(--color-primary);
+    color: white;
+    border-color: var(--color-primary);
+}
+
+.pagination-pages {
+    display: flex;
+    gap: var(--space-xs);
+    align-items: center;
+}
+
+.pagination-ellipsis {
+    padding: 0 var(--space-xs);
+    color: var(--color-muted);
+}
+
+.pagination-info select,
+.pagination-jump input {
+    padding: var(--space-xs) var(--space-sm);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    background-color: var(--color-bg);
+    color: var(--color-text);
+}
+
+.pagination-jump input {
+    width: 60px;
+    margin: 0 var(--space-xs);
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+    .data-table-toolbar {
+        flex-direction: column;
+        gap: var(--space-sm);
+        align-items: stretch;
+    }
+    
+    .data-table-actions {
+        justify-content: flex-end;
+    }
+    
+    .data-table {
+        font-size: var(--font-size-sm);
+    }
+    
+    .data-table th,
+    .data-table td {
+        padding: var(--space-sm);
+    }
+    
+    .data-table-pagination {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .pagination-controls {
+        justify-content: center;
+    }
+}
+</style>
+{%- endmacro %}
+
+{# 使用示例 #}
+{% if false %}
+<!-- 服务端分页模式 -->
+{% from 'components/data_table.html' import data_table %}
+
+{{ data_table(
+    columns=[
+        {'key': 'name', 'label': '姓名', 'sortable': True},
+        {'key': 'phone', 'label': '电话', 'width': '150px'},
+        {'key': 'status', 'label': '状态', 'width': '100px'},
+        {'key': 'created_at', 'label': '创建时间', 'sortable': True}
+    ],
+    rows=customers,
+    mode='server',
+    page=current_page,
+    total_count=total_customers,
+    per_page=50,
+    table_id='customerTable',
+    enable_selection=True
+) }}
+
+<!-- 虚拟滚动模式 -->
+{{ data_table(
+    columns=[
+        {'key': 'id', 'label': 'ID', 'width': '80px'},
+        {'key': 'name', 'label': '姓名'},
+        {'key': 'email', 'label': '邮箱'},
+        {'key': 'phone', 'label': '电话'},
+        {'key': 'status', 'label': '状态'},
+        {'key': 'created_at', 'label': '创建时间'}
+    ],
+    mode='virtual',
+    data_url='/api/customers/all',
+    virtual_threshold=2000,
+    table_id='virtualTable',
+    row_height=48
+) }}
+{% endif %}

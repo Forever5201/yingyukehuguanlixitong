@@ -1,0 +1,515 @@
+{% extends "base.html" %}
+
+{% block title %}图表统一配置演示{% endblock %}
+{% block page_title %}图表统一配置演示{% endblock %}
+
+{% block head %}
+<style>
+    .charts-demo {
+        padding: var(--space-lg);
+    }
+    
+    .chart-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+        gap: var(--space-lg);
+        margin-bottom: var(--space-2xl);
+    }
+    
+    .chart-card {
+        background: var(--color-card-bg);
+        border: 1px solid var(--color-border-light);
+        border-radius: var(--radius-lg);
+        padding: var(--space-lg);
+        box-shadow: var(--shadow-sm);
+    }
+    
+    .chart-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: var(--space-md);
+    }
+    
+    .chart-title {
+        font-size: var(--font-size-lg);
+        font-weight: var(--font-weight-semibold);
+        color: var(--color-text);
+    }
+    
+    .chart-actions {
+        display: flex;
+        gap: var(--space-sm);
+    }
+    
+    .chart-container {
+        position: relative;
+        height: 300px;
+    }
+    
+    .demo-controls {
+        background: var(--color-bg-secondary);
+        padding: var(--space-lg);
+        border-radius: var(--radius-lg);
+        margin-bottom: var(--space-lg);
+    }
+    
+    .control-group {
+        display: flex;
+        gap: var(--space-md);
+        align-items: center;
+        margin-bottom: var(--space-md);
+    }
+    
+    .control-group label {
+        min-width: 100px;
+        font-weight: var(--font-weight-medium);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="charts-demo">
+    <!-- 演示控制面板 -->
+    <div class="demo-controls">
+        <h3>图表控制面板</h3>
+        <div class="control-group">
+            <label>时区设置：</label>
+            <select id="timezoneSelect" onchange="changeTimezone(this.value)">
+                <option value="Asia/Shanghai">亚洲/上海</option>
+                <option value="Asia/Tokyo">亚洲/东京</option>
+                <option value="Europe/London">欧洲/伦敦</option>
+                <option value="America/New_York">美洲/纽约</option>
+            </select>
+        </div>
+        <div class="control-group">
+            <label>数据点数：</label>
+            <input type="range" id="dataPoints" min="7" max="365" value="30" 
+                   oninput="document.getElementById('dataPointsValue').textContent = this.value">
+            <span id="dataPointsValue">30</span>
+            <button class="btn btn-sm" onclick="regenerateData()">重新生成数据</button>
+        </div>
+    </div>
+
+    <!-- 图表网格 -->
+    <div class="chart-grid">
+        <!-- 收入趋势图 -->
+        <div class="chart-card">
+            <div class="chart-header">
+                <h3 class="chart-title">收入趋势（多数据集）</h3>
+                <div class="chart-actions">
+                    <button class="btn btn-sm" onclick="updateRevenueChart()">
+                        <i class="fas fa-sync"></i> 更新
+                    </button>
+                    <button class="btn btn-sm" onclick="exportChartDataAsCSV(charts.revenue, 'revenue_trend')">
+                        <i class="fas fa-download"></i> 导出
+                    </button>
+                </div>
+            </div>
+            <div class="chart-container">
+                <canvas id="revenueChart"></canvas>
+            </div>
+        </div>
+
+        <!-- 渠道分布饼图 -->
+        <div class="chart-card">
+            <div class="chart-header">
+                <h3 class="chart-title">渠道分布</h3>
+                <div class="chart-actions">
+                    <button class="btn btn-sm" onclick="toggleChartType()">
+                        <i class="fas fa-exchange-alt"></i> 切换类型
+                    </button>
+                    <button class="btn btn-sm" onclick="exportChartDataAsCSV(charts.channel, 'channel_distribution')">
+                        <i class="fas fa-download"></i> 导出
+                    </button>
+                </div>
+            </div>
+            <div class="chart-container">
+                <canvas id="channelChart"></canvas>
+            </div>
+        </div>
+
+        <!-- 员工业绩柱状图 -->
+        <div class="chart-card">
+            <div class="chart-header">
+                <h3 class="chart-title">员工业绩对比</h3>
+                <div class="chart-actions">
+                    <button class="btn btn-sm" onclick="addEmployee()">
+                        <i class="fas fa-plus"></i> 添加
+                    </button>
+                    <button class="btn btn-sm" onclick="exportChartDataAsCSV(charts.performance, 'employee_performance', {includeSummary: true})">
+                        <i class="fas fa-download"></i> 导出
+                    </button>
+                </div>
+            </div>
+            <div class="chart-container">
+                <canvas id="performanceChart"></canvas>
+            </div>
+        </div>
+
+        <!-- 转化率趋势（双Y轴） -->
+        <div class="chart-card">
+            <div class="chart-header">
+                <h3 class="chart-title">销售与转化率（双Y轴）</h3>
+                <div class="chart-actions">
+                    <button class="btn btn-sm" onclick="exportChartDataAsCSV(charts.conversion, 'conversion_analysis')">
+                        <i class="fas fa-download"></i> 导出
+                    </button>
+                </div>
+            </div>
+            <div class="chart-container">
+                <canvas id="conversionChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- CSV 导出预览 -->
+    <div class="chart-card">
+        <h3>CSV 导出预览</h3>
+        <pre id="csvPreview" style="background: var(--color-bg-secondary); padding: var(--space-md); border-radius: var(--radius-md); overflow-x: auto;">
+点击任意图表的"导出"按钮查看CSV预览
+        </pre>
+    </div>
+</div>
+
+<script>
+// 存储图表实例
+const charts = {
+    revenue: null,
+    channel: null,
+    performance: null,
+    conversion: null
+};
+
+// 生成模拟数据
+function generateMockData(days = 30) {
+    const data = {
+        dates: [],
+        revenue: [],
+        orders: [],
+        visitors: [],
+        conversionRate: []
+    };
+    
+    const now = new Date();
+    for (let i = days - 1; i >= 0; i--) {
+        const date = new Date(now);
+        date.setDate(date.getDate() - i);
+        
+        data.dates.push(date.toISOString());
+        data.revenue.push(Math.floor(Math.random() * 50000) + 10000);
+        data.orders.push(Math.floor(Math.random() * 200) + 50);
+        data.visitors.push(Math.floor(Math.random() * 5000) + 1000);
+        data.conversionRate.push(Math.random() * 10 + 2);
+    }
+    
+    return data;
+}
+
+// 生成渠道数据
+function generateChannelData() {
+    return {
+        labels: ['淘宝', '微信', '抖音', '小红书', '官网', '其他'],
+        values: [
+            Math.floor(Math.random() * 30) + 20,
+            Math.floor(Math.random() * 20) + 15,
+            Math.floor(Math.random() * 20) + 10,
+            Math.floor(Math.random() * 15) + 5,
+            Math.floor(Math.random() * 10) + 5,
+            Math.floor(Math.random() * 10) + 5
+        ]
+    };
+}
+
+// 生成员工数据
+function generateEmployeeData() {
+    const employees = ['张三', '李四', '王五', '赵六', '钱七', '孙八'];
+    return {
+        labels: employees.slice(0, 4),
+        currentMonth: employees.slice(0, 4).map(() => Math.floor(Math.random() * 50000) + 30000),
+        lastMonth: employees.slice(0, 4).map(() => Math.floor(Math.random() * 50000) + 25000),
+        target: employees.slice(0, 4).map(() => 45000)
+    };
+}
+
+// 初始化数据
+let mockData = generateMockData(30);
+let channelData = generateChannelData();
+let employeeData = generateEmployeeData();
+
+// 初始化图表
+document.addEventListener('DOMContentLoaded', function() {
+    // 1. 收入趋势图（多数据集）
+    charts.revenue = initTrendChart('revenueChart', {
+        labels: mockData.dates,
+        datasets: [{
+            label: '收入（元）',
+            data: mockData.revenue,
+            isCurrency: true,
+            fill: true,
+            yAxisID: 'y'
+        }, {
+            label: '订单数',
+            data: mockData.orders,
+            fill: false,
+            yAxisID: 'y1',
+            borderColor: ChartManager.colors.success,
+            additionalData: mockData.orders.map((_, i) => ({
+                '访客数': mockData.visitors[i],
+                '转化率': mockData.conversionRate[i].toFixed(2) + '%'
+            }))
+        }]
+    }, {
+        scales: {
+            y: {
+                type: 'linear',
+                display: true,
+                position: 'left',
+                isCurrency: true,
+                title: {
+                    display: true,
+                    text: '收入（元）'
+                }
+            },
+            y1: {
+                type: 'linear',
+                display: true,
+                position: 'right',
+                title: {
+                    display: true,
+                    text: '订单数'
+                },
+                grid: {
+                    drawOnChartArea: false
+                }
+            }
+        }
+    });
+
+    // 2. 渠道分布图
+    charts.channel = initPieChart('channelChart', {
+        labels: channelData.labels,
+        datasets: [{
+            data: channelData.values,
+            isCurrency: false
+        }]
+    }, {
+        plugins: {
+            title: {
+                display: true,
+                text: '各渠道订单占比'
+            }
+        }
+    });
+
+    // 3. 员工业绩柱状图
+    charts.performance = initBarChart('performanceChart', {
+        labels: employeeData.labels,
+        datasets: [{
+            label: '本月业绩',
+            data: employeeData.currentMonth,
+            isCurrency: true
+        }, {
+            label: '上月业绩',
+            data: employeeData.lastMonth,
+            isCurrency: true
+        }, {
+            label: '目标',
+            data: employeeData.target,
+            isCurrency: true,
+            type: 'line',
+            borderColor: ChartManager.colors.danger,
+            backgroundColor: 'transparent',
+            borderWidth: 2,
+            borderDash: [5, 5]
+        }]
+    }, {
+        scales: {
+            y: {
+                isCurrency: true
+            }
+        }
+    });
+
+    // 4. 转化率趋势（双Y轴）
+    charts.conversion = initTrendChart('conversionChart', {
+        labels: mockData.dates,
+        datasets: [{
+            label: '销售额',
+            data: mockData.revenue,
+            isCurrency: true,
+            yAxisID: 'y',
+            borderColor: ChartManager.colors.primary,
+            backgroundColor: ChartManager.colors.primary + '20'
+        }, {
+            label: '转化率（%）',
+            data: mockData.conversionRate,
+            isPercentage: true,
+            yAxisID: 'y1',
+            borderColor: ChartManager.colors.success,
+            fill: false
+        }]
+    }, {
+        scales: {
+            y: {
+                type: 'linear',
+                display: true,
+                position: 'left',
+                isCurrency: true,
+                title: {
+                    display: true,
+                    text: '销售额（元）'
+                }
+            },
+            y1: {
+                type: 'linear',
+                display: true,
+                position: 'right',
+                isPercentage: true,
+                title: {
+                    display: true,
+                    text: '转化率（%）'
+                },
+                grid: {
+                    drawOnChartArea: false
+                },
+                min: 0,
+                max: 15
+            }
+        }
+    });
+});
+
+// 功能函数
+function changeTimezone(timezone) {
+    ChartManager.setDefaultTimezone(timezone);
+    // 重新初始化所有图表以应用新时区
+    regenerateData();
+}
+
+function regenerateData() {
+    const days = parseInt(document.getElementById('dataPoints').value);
+    mockData = generateMockData(days);
+    
+    // 更新收入图表
+    ChartManager.updateChartData(charts.revenue, {
+        labels: mockData.dates,
+        datasets: charts.revenue.data.datasets.map((dataset, index) => ({
+            ...dataset,
+            data: index === 0 ? mockData.revenue : mockData.orders
+        }))
+    });
+    
+    // 更新转化率图表
+    ChartManager.updateChartData(charts.conversion, {
+        labels: mockData.dates,
+        datasets: charts.conversion.data.datasets.map((dataset, index) => ({
+            ...dataset,
+            data: index === 0 ? mockData.revenue : mockData.conversionRate
+        }))
+    });
+}
+
+function updateRevenueChart() {
+    // 生成新数据
+    const newData = generateMockData(30);
+    ChartManager.updateChartData(charts.revenue, {
+        labels: newData.dates,
+        datasets: charts.revenue.data.datasets.map((dataset, index) => ({
+            ...dataset,
+            data: index === 0 ? newData.revenue : newData.orders
+        }))
+    });
+}
+
+let isPie = false;
+function toggleChartType() {
+    // 销毁当前图表
+    ChartManager.destroyChart(charts.channel);
+    
+    // 切换类型并重新创建
+    isPie = !isPie;
+    const newData = generateChannelData();
+    
+    charts.channel = initPieChart('channelChart', {
+        labels: newData.labels,
+        datasets: [{
+            data: newData.values,
+            isCurrency: false
+        }]
+    }, {
+        type: isPie ? 'pie' : 'doughnut',
+        plugins: {
+            title: {
+                display: true,
+                text: '各渠道订单占比'
+            }
+        }
+    });
+}
+
+function addEmployee() {
+    const newName = prompt('输入员工姓名：');
+    if (!newName) return;
+    
+    // 添加新员工数据
+    employeeData.labels.push(newName);
+    employeeData.currentMonth.push(Math.floor(Math.random() * 50000) + 30000);
+    employeeData.lastMonth.push(Math.floor(Math.random() * 50000) + 25000);
+    employeeData.target.push(45000);
+    
+    // 更新图表
+    ChartManager.updateChartData(charts.performance, {
+        labels: employeeData.labels,
+        datasets: charts.performance.data.datasets.map((dataset, index) => ({
+            ...dataset,
+            data: index === 0 ? employeeData.currentMonth : 
+                  index === 1 ? employeeData.lastMonth : employeeData.target
+        }))
+    });
+}
+
+// 重写导出函数以显示预览
+const originalExport = window.exportChartDataAsCSV;
+window.exportChartDataAsCSV = function(chart, filename, options) {
+    // 调用原始导出函数
+    originalExport(chart, filename, options);
+    
+    // 生成预览
+    const data = chart.data;
+    const labels = data.labels || [];
+    const datasets = data.datasets || [];
+    
+    let preview = 'CSV 预览（前10行）:\n\n';
+    
+    // 表头
+    const headers = ['序号', '标签'];
+    datasets.forEach(ds => headers.push(ds.label || '数据集'));
+    preview += headers.join(',') + '\n';
+    
+    // 数据行（最多10行）
+    const maxRows = Math.min(labels.length, 10);
+    for (let i = 0; i < maxRows; i++) {
+        const row = [i + 1, labels[i]];
+        datasets.forEach(ds => {
+            const value = ds.data[i];
+            row.push(typeof value === 'object' ? value.y || value.x : value);
+        });
+        preview += row.join(',') + '\n';
+    }
+    
+    if (labels.length > 10) {
+        preview += `\n... 还有 ${labels.length - 10} 行数据 ...\n`;
+    }
+    
+    document.getElementById('csvPreview').textContent = preview;
+};
+
+// 页面卸载时清理
+window.addEventListener('beforeunload', function() {
+    Object.values(charts).forEach(chart => {
+        if (chart) ChartManager.destroyChart(chart);
+    });
+});
+</script>
+{% endblock %}

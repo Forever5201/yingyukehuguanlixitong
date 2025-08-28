@@ -1,0 +1,3453 @@
+{% extends "base.html" %}
+
+{% block title %}试听课管理 - 教育培训管理系统{% endblock %}
+{% block page_title %}试听课管理中心{% endblock %}
+
+{% block head %}
+<style>
+/* 试听课页面专属样式 */
+.page-header-section {
+    margin-bottom: 30px;
+}
+
+.page-main-title {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--edu-gray-900);
+    margin-bottom: 8px;
+}
+
+.page-subtitle {
+    font-size: 16px;
+    color: var(--edu-gray-600);
+}
+
+/* 状态进度条 */
+.stat-progress {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: var(--edu-gray-200);
+    border-radius: 0 0 var(--edu-radius-lg) var(--edu-radius-lg);
+    overflow: hidden;
+}
+
+.stat-progress .progress-bar {
+    height: 100%;
+    background: var(--edu-gradient-success);
+    transition: width 0.6s ease;
+}
+
+/* 状态统计卡片美化 */
+.status-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+    margin-top: 24px;
+}
+
+.status-stat-card {
+    background: white;
+    border-radius: var(--edu-radius-md);
+    padding: 20px;
+    box-shadow: var(--edu-shadow-sm);
+    transition: all 0.3s ease;
+}
+
+.status-stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--edu-shadow-md);
+}
+
+.status-stat-card.registered {
+    border-left: 4px solid var(--edu-primary);
+}
+
+.status-stat-card.not-registered {
+    border-left: 4px solid var(--edu-warm);
+}
+
+.status-stat-card.completed {
+    border-left: 4px solid var(--edu-success);
+}
+
+.status-stat-card.converted {
+    border-left: 4px solid var(--edu-purple);
+}
+
+.status-stat-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+    font-weight: 600;
+    color: var(--edu-gray-800);
+}
+
+.status-stat-content .stat-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--edu-gray-100);
+    font-size: 14px;
+}
+
+.status-stat-content .stat-row:last-child {
+    border-bottom: none;
+}
+
+.status-stat-content .stat-row.profit {
+    font-weight: 600;
+    padding-top: 12px;
+}
+
+.profit-positive {
+    color: var(--edu-success);
+}
+
+.profit-negative {
+    color: var(--edu-danger);
+}
+
+/* 表格视图切换 */
+.view-options {
+    display: flex;
+    gap: 4px;
+    background: var(--edu-gray-100);
+    padding: 4px;
+    border-radius: var(--edu-radius-sm);
+}
+
+.view-btn {
+    padding: 6px 12px;
+    background: transparent;
+    border: none;
+    color: var(--edu-gray-600);
+    cursor: pointer;
+    border-radius: var(--edu-radius-sm);
+    transition: all 0.2s ease;
+}
+
+.view-btn.active {
+    background: white;
+    color: var(--edu-primary);
+    box-shadow: var(--edu-shadow-sm);
+}
+
+/* 表格头部 */
+.table-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    border-bottom: 1px solid var(--edu-gray-200);
+}
+
+.table-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--edu-gray-900);
+    margin: 0;
+}
+
+.table-info {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.record-count {
+    font-size: 14px;
+    color: var(--edu-gray-600);
+}
+
+/* 年级标签 */
+.grade-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    background: var(--edu-gradient-primary);
+    color: white;
+    border-radius: var(--edu-radius-full);
+    font-size: 13px;
+    font-weight: 500;
+}
+
+/* 位置信息 */
+.location-info {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--edu-gray-600);
+    font-size: 14px;
+}
+
+.location-info i {
+    color: var(--edu-primary);
+}
+
+/* 批量操作栏 */
+.batch-actions {
+    background: var(--edu-gradient-light);
+    border: 1px solid var(--edu-primary-light);
+    border-radius: var(--edu-radius-md);
+    padding: 12px 16px;
+    margin-bottom: 20px;
+    display: none;
+}
+
+.batch-actions.show {
+    display: block;
+    animation: slideInUp 0.3s ease;
+}
+
+/* 响应式表格 */
+.table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 768px) {
+    .status-stats-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .table-header {
+        flex-direction: column;
+        gap: 16px;
+        align-items: flex-start;
+    }
+    
+    .action-bar {
+        flex-direction: column;
+    }
+    
+    .search-section {
+        width: 100%;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-container">
+    <!-- 统计卡片 -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-play-circle"></i>
+            </div>
+            <div class="stat-content">
+                <h3>{{ stats.total_trials }}</h3>
+                <p>试听课总数</p>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-money-bill-wave"></i>
+            </div>
+            <div class="stat-content">
+                <h3>¥{{ "%.2f"|format(stats.total_revenue) }}</h3>
+                <p>总收入</p>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-coins"></i>
+            </div>
+            <div class="stat-content">
+                <h3>¥{{ "%.2f"|format(stats.total_cost) }}</h3>
+                <p>总成本</p>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-chart-line"></i>
+            </div>
+            <div class="stat-content">
+                <h3>¥{{ "%.2f"|format(stats.total_profit) }}</h3>
+                <p>总利润</p>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-percentage"></i>
+            </div>
+            <div class="stat-content">
+                <h3>¥{{ "%.2f"|format(stats.total_fees) }}</h3>
+                <p>总手续费</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 状态统计详情 -->
+    <div class="status-stats-section">
+        <h3><i class="fas fa-chart-pie"></i> 状态统计详情</h3>
+        <div class="status-stats-grid">
+            <div class="status-stat-card registered">
+                <div class="status-stat-header">
+                    <i class="fas fa-user-check"></i>
+                    <span>已报名试听课</span>
+                </div>
+                <div class="status-stat-content">
+                    <div class="stat-row">
+                        <span>数量：</span>
+                        <span>{{ status_stats.registered.count }}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span>收入：</span>
+                        <span>¥{{ "%.2f"|format(status_stats.registered.revenue) }}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span>成本：</span>
+                        <span>¥{{ "%.2f"|format(status_stats.registered.cost) }}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span>手续费：</span>
+                        <span>¥{{ "%.2f"|format(status_stats.registered.fees) }}</span>
+                    </div>
+                    <div class="stat-row profit">
+                        <span>利润：</span>
+                        <span class="{% if status_stats.registered.profit >= 0 %}profit-positive{% else %}profit-negative{% endif %}">
+                            ¥{{ "%.2f"|format(status_stats.registered.profit) }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="status-stat-card not-registered">
+                <div class="status-stat-header">
+                    <i class="fas fa-user-times"></i>
+                    <span>未报名试听课</span>
+                </div>
+                <div class="status-stat-content">
+                    <div class="stat-row">
+                        <span>数量：</span>
+                        <span>{{ status_stats.not_registered.count }}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span>收入：</span>
+                        <span>¥{{ "%.2f"|format(status_stats.not_registered.revenue) }}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span>成本：</span>
+                        <span>¥{{ "%.2f"|format(status_stats.not_registered.cost) }}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span>手续费：</span>
+                        <span>¥{{ "%.2f"|format(status_stats.not_registered.fees) }}</span>
+                    </div>
+                    <div class="stat-row profit">
+                        <span>利润：</span>
+                        <span class="{% if status_stats.not_registered.profit >= 0 %}profit-positive{% else %}profit-negative{% endif %}">
+                            ¥{{ "%.2f"|format(status_stats.not_registered.profit) }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="status-stat-card refunded">
+                <div class="status-stat-header">
+                    <i class="fas fa-undo"></i>
+                    <span>试听后退费</span>
+                </div>
+                <div class="status-stat-content">
+                    <div class="stat-row">
+                        <span>数量：</span>
+                        <span>{{ status_stats.refunded.count }}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span>收入：</span>
+                        <span>¥{{ "%.2f"|format(status_stats.refunded.revenue) }}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span>成本：</span>
+                        <span>¥{{ "%.2f"|format(status_stats.refunded.cost) }}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span>手续费：</span>
+                        <span>¥{{ "%.2f"|format(status_stats.refunded.fees) }}</span>
+                    </div>
+                    <div class="stat-row profit">
+                        <span>利润：</span>
+                        <span class="{% if status_stats.refunded.profit >= 0 %}profit-positive{% else %}profit-negative{% endif %}">
+                            ¥{{ "%.2f"|format(status_stats.refunded.profit) }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="status-stat-card converted">
+                <div class="status-stat-header">
+                    <i class="fas fa-arrow-right"></i>
+                    <span>试听后转正课</span>
+                </div>
+                <div class="status-stat-content">
+                    <div class="stat-row">
+                        <span>数量：</span>
+                        <span>{{ status_stats.converted.count }}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span>收入：</span>
+                        <span>¥{{ "%.2f"|format(status_stats.converted.revenue) }}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span>成本：</span>
+                        <span>¥{{ "%.2f"|format(status_stats.converted.cost) }}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span>手续费：</span>
+                        <span>¥{{ "%.2f"|format(status_stats.converted.fees) }}</span>
+                    </div>
+                    <div class="stat-row profit">
+                        <span>利润：</span>
+                        <span class="{% if status_stats.converted.profit >= 0 %}profit-positive{% else %}profit-negative{% endif %}">
+                            ¥{{ "%.2f"|format(status_stats.converted.profit) }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="status-stat-card no-action">
+                <div class="status-stat-header">
+                    <i class="fas fa-clock"></i>
+                    <span>试听后无操作</span>
+                </div>
+                <div class="status-stat-content">
+                    <div class="stat-row">
+                        <span>数量：</span>
+                        <span>{{ status_stats.no_action.count }}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span>收入：</span>
+                        <span>¥{{ "%.2f"|format(status_stats.no_action.revenue) }}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span>成本：</span>
+                        <span>¥{{ "%.2f"|format(status_stats.no_action.cost) }}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span>手续费：</span>
+                        <span>¥{{ "%.2f"|format(status_stats.no_action.fees) }}</span>
+                    </div>
+                    <div class="stat-row profit">
+                        <span>利润：</span>
+                        <span class="{% if status_stats.no_action.profit >= 0 %}profit-positive{% else %}profit-negative{% endif %}">
+                            ¥{{ "%.2f"|format(status_stats.no_action.profit) }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 操作栏 -->
+    <div class="action-bar">
+        <div class="search-section">
+            <input type="text" class="search-input" placeholder="搜索学员姓名、电话..." id="searchInput">
+            <button class="btn btn-primary" onclick="searchTrials()">
+                <i class="fas fa-search"></i> 搜索
+            </button>
+        </div>
+        <div class="action-buttons">
+            <button type="button" class="btn btn-outline" onclick="exportTrialData()">
+                <i class="fas fa-download"></i> 导出数据
+            </button>
+            <button type="button" class="btn btn-warm" id="addTrialBtn">
+                <i class="fas fa-user-plus"></i> 录入新学员
+            </button>
+        </div>
+    </div>
+
+    <!-- 录入新学员模态框 -->
+    <div id="addTrialModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4><i class="fas fa-user-plus"></i> 录入新学员试听课</h4>
+                <span class="close">&times;</span>
+            </div>
+            <form method="POST" class="modal-form" id="trialForm">
+                <div class="modal-body">
+                    <!-- 智能识别区域 -->
+                    <div class="form-section-modal">
+                        <h5><i class="fas fa-magic"></i> 智能识别 <small style="color: #6c757d;">(可选)</small></h5>
+                        <div class="smart-input-container">
+                            <textarea id="smartInput" placeholder="智能识别学员信息，系统将自动识别并填入表单...&#10;&#10;支持格式：&#10;1. 完整信息：张三 男 初中 成都 13812345678&#10;2. 单独输入：手机号、姓名、地区、年级、性别等任意信息&#10;3. 组合输入：张三 13812345678、成都 初中、李四 女等&#10;4. 年级支持：小学、初中、高中、大学&#10;5. 地区支持：全国主要城市自动识别&#10;&#10;注：只有联系方式是必填项，其他信息可选" rows="6"></textarea>
+                            <button type="button" id="parseBtn" class="btn btn-info">
+                                <i class="fas fa-wand-magic-sparkles"></i> 智能解析
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- 学员信息 -->
+                    <div class="form-section-modal">
+                        <h5><i class="fas fa-user"></i> 学员信息</h5>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="new_customer_name">学员姓名</label>
+                                <input type="text" name="new_customer_name" id="new_customer_name" placeholder="请输入学员姓名">
+                            </div>
+                            <div class="form-group">
+                                <label for="new_customer_phone">联系电话 *</label>
+                                <input type="tel" name="new_customer_phone" id="new_customer_phone" placeholder="请输入联系电话" required>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="new_customer_gender">性别</label>
+                                <select name="new_customer_gender" id="new_customer_gender">
+                                    <option value="">请选择</option>
+                                    <option value="男">男</option>
+                                    <option value="女">女</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="new_customer_grade">年级</label>
+                                <select name="new_customer_grade" id="new_customer_grade">
+                                    <option value="">请选择</option>
+                                    <option value="小学">小学</option>
+                                    <option value="初中">初中</option>
+                                    <option value="高中">高中</option>
+                                    <option value="大学">大学</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="new_customer_region">地区</label>
+                                <input type="text" name="new_customer_region" id="new_customer_region" placeholder="请输入地区">
+                            </div>
+                        </div>
+                        
+                        <!-- 英语成绩信息 -->
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="english_full_score">英语试卷满分</label>
+                                <input type="number" name="english_full_score" id="english_full_score" placeholder="如：120" min="0">
+                            </div>
+                            <div class="form-group">
+                                <label for="english_current_score">英语当前分数</label>
+                                <input type="number" name="english_current_score" id="english_current_score" placeholder="如：100" min="0">
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="has_tutoring_experience">是否参加过英语课外辅导</label>
+                                <select name="has_tutoring_experience" id="has_tutoring_experience">
+                                    <option value="">请选择</option>
+                                    <option value="是">是</option>
+                                    <option value="否">否</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 试听课信息 -->
+                    <div class="form-section-modal">
+                        <h5><i class="fas fa-book"></i> 试听课信息</h5>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="trial_price">试听课售价 *</label>
+                                <input type="number" name="trial_price" id="trial_price" step="0.01" min="0" placeholder="请输入售价" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="source">渠道来源 *</label>
+                                <select name="source" id="source" required>
+                                    <option value="">请选择渠道</option>
+                                    <option value="淘宝">淘宝</option>
+                                    <option value="视频号">视频号</option>
+                                    <option value="抖音">抖音</option>
+                                    <option value="小红书">小红书</option>
+                                    <option value="其他">其他</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="assigned_employee_id">分配给员工</label>
+                                <select name="assigned_employee_id" id="assigned_employee_id">
+                                    <option value="">暂不分配（可稍后分配）</option>
+                                    {% for employee in employees %}
+                                    <option value="{{ employee.id }}">{{ employee.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" id="cancelBtn">取消</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> 保存试听课记录
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 编辑试听课模态框 -->
+    <div id="editTrialModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4><i class="fas fa-edit"></i> 编辑试听课信息</h4>
+                <span class="close-edit">&times;</span>
+            </div>
+            <form method="POST" class="modal-form" id="editTrialForm">
+                <input type="hidden" id="edit_trial_course_id" name="course_id">
+                <div class="modal-body">
+                    <!-- 学员信息 -->
+                    <div class="form-section-modal">
+                        <h5><i class="fas fa-user"></i> 学员信息</h5>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="edit_trial_customer_name">学员姓名 *</label>
+                                <input type="text" name="customer_name" id="edit_trial_customer_name" placeholder="请输入学员姓名" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="edit_trial_customer_phone">联系电话 *</label>
+                                <input type="tel" name="customer_phone" id="edit_trial_customer_phone" placeholder="请输入联系电话" required>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="edit_trial_customer_gender">性别</label>
+                                <select name="customer_gender" id="edit_trial_customer_gender">
+                                    <option value="">请选择</option>
+                                    <option value="男">男</option>
+                                    <option value="女">女</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="edit_trial_customer_grade">年级</label>
+                                <select name="customer_grade" id="edit_trial_customer_grade">
+                                    <option value="">请选择</option>
+                                    <option value="小学">小学</option>
+                                    <option value="初中">初中</option>
+                                    <option value="高中">高中</option>
+                                    <option value="大学">大学</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="edit_trial_customer_region">地区</label>
+                                <input type="text" name="customer_region" id="edit_trial_customer_region" placeholder="请输入地区">
+                            </div>
+                            <div class="form-group">
+                                <label for="edit_trial_has_tutoring_experience">是否参加过英语课外辅导</label>
+                                <select name="has_tutoring_experience" id="edit_trial_has_tutoring_experience">
+                                    <option value="">请选择</option>
+                                    <option value="是">是</option>
+                                    <option value="否">否</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 试听课信息 -->
+                    <div class="form-section-modal">
+                        <h5><i class="fas fa-book"></i> 试听课信息</h5>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="edit_trial_price">试听课售价 *</label>
+                                <input type="number" name="trial_price" id="edit_trial_price" step="0.01" min="0" placeholder="请输入售价" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="edit_trial_source">渠道来源 *</label>
+                                <select name="source" id="edit_trial_source" required>
+                                    <option value="">请选择渠道</option>
+                                    <option value="淘宝">淘宝</option>
+                                    <option value="视频号">视频号</option>
+                                    <option value="抖音">抖音</option>
+                                    <option value="小红书">小红书</option>
+                                    <option value="其他">其他</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" id="editCancelBtn">取消</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> 保存修改
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 退费信息模态框 -->
+    <div id="refundModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4><i class="fas fa-money-bill-wave"></i> 退费信息</h4>
+                <span class="close" onclick="closeRefundModal()">&times;</span>
+            </div>
+            <form id="refundForm" class="modal-form">
+                <input type="hidden" id="refund_course_id">
+                <div class="modal-body">
+                    <div class="form-section-modal">
+                        <h5><i class="fas fa-calculator"></i> 退费详情</h5>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="refund_amount">退费金额 *</label>
+                                <input type="number" id="refund_amount" step="0.01" min="0" placeholder="请输入退费金额" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="refund_fee">退费手续费 *</label>
+                                <input type="number" id="refund_fee" step="0.01" min="0" placeholder="请输入退费手续费" required>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group full-width">
+                                <label for="refund_note">退费说明</label>
+                                <textarea id="refund_note" rows="3" placeholder="请输入退费原因或说明（可选）"></textarea>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="refund_channel">退款渠道 *</label>
+                                <select id="refund_channel" required>
+                                    <option value="">请选择渠道</option>
+                                    <option value="微信">微信</option>
+                                    <option value="淘宝">淘宝</option>
+                                    <option value="支付宝">支付宝</option>
+                                    <option value="视频号">视频号</option>
+                                    <option value="抖音">抖音</option>
+                                    <option value="小红书">小红书</option>
+                                    <option value="其他">其他</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeRefundModal()">取消</button>
+                    <button type="button" class="btn btn-warning" onclick="submitRefund()">
+                        <i class="fas fa-check"></i> 确认退费
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 数据统计图表 -->
+    <div class="charts-section">
+        <div class="charts-grid">
+            <div class="chart-card">
+                <h4><i class="fas fa-chart-pie"></i> 渠道来源分布</h4>
+                <canvas id="sourceChart" width="300" height="200"></canvas>
+            </div>
+            <div class="chart-card">
+                <h4><i class="fas fa-chart-bar"></i> 转化率统计</h4>
+                <canvas id="conversionChart" width="300" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- 试听课列表 -->
+    <div class="table-section">
+        <div class="table-header">
+            <h3><i class="fas fa-list"></i> 试听课记录</h3>
+            
+            <!-- 搜索和筛选 -->
+            <div class="search-filter-section">
+                <div class="search-box">
+                    <input type="text" id="searchInput" placeholder="搜索学员姓名或电话..." class="search-input">
+                    <i class="fas fa-search search-icon"></i>
+                </div>
+                
+                <div class="filter-controls">
+                    <select id="sourceFilter" class="filter-select">
+                        <option value="">全部渠道</option>
+                        <option value="淘宝">淘宝</option>
+                        <option value="视频号">视频号</option>
+                        <option value="抖音">抖音</option>
+                        <option value="小红书">小红书</option>
+                        <option value="其他">其他</option>
+                    </select>
+                    
+                    <select id="statusFilter" class="filter-select">
+                        <option value="">全部状态</option>
+                        <option value="registered">已报名试听课</option>
+                        <option value="not_registered">未报名试听课</option>
+                        <option value="refunded">试听后退费</option>
+                        <option value="converted">试听后转正课</option>
+                        <option value="no_action">试听后无操作</option>
+                    </select>
+                    
+                    <button id="exportBtn" class="btn btn-outline-primary">
+                        <i class="fas fa-download"></i> 导出数据
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 批量操作工具栏 -->
+        <div class="batch-operations mb-3" id="batchOperations" style="display: none;">
+            <div class="alert alert-info d-flex align-items-center" style="margin-bottom: 10px;">
+                <span style="margin-right: auto;">已选择 <strong id="selectedCount">0</strong> 个试听课</span>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn-primary" onclick="batchAssignEmployee()" style="padding: 5px 15px; border-radius: 4px; border: none;">
+                        <i class="fas fa-user-tag"></i> 批量分配员工
+                    </button>
+                    <button class="btn-warning" onclick="batchUnassign()" style="padding: 5px 15px; border-radius: 4px; border: none;">
+                        <i class="fas fa-user-slash"></i> 批量取消分配
+                    </button>
+                    <button class="btn-secondary" onclick="clearSelection()" style="padding: 5px 15px; border-radius: 4px; border: none;">
+                        <i class="fas fa-times"></i> 取消选择
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th width="40">
+                            <input type="checkbox" id="selectAll" onchange="toggleSelectAll()">
+                        </th>
+                        <th>学员姓名</th>
+                        <th>性别</th>
+                        <th>年级</th>
+                        <th>地区</th>
+                        <th>联系方式</th>
+                        <th>体验情况</th>
+                        <th>试听课售价</th>
+                        <th>渠道来源</th>
+                        <th>手续费</th>
+                        <th>报名时间</th>
+                        <th>试听课状态</th>
+                        <th>负责员工</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for course, customer in trial_courses %}
+                    <tr data-course-id="{{ course.id }}">
+                        <td>
+                            <input type="checkbox" class="course-checkbox" value="{{ course.id }}" onchange="updateSelection()">
+                        </td>
+                        <td>{{ customer.name }}</td>
+                        <td>{{ customer.gender or '-' }}</td>
+                        <td>{{ customer.grade or '-' }}</td>
+                        <td>{{ customer.region or '-' }}</td>
+                        <td>{{ customer.phone }}</td>
+                        <td>
+                            {% if customer.has_tutoring_experience == '是' %}
+                                <span class="status-badge status-experience">有体验</span>
+                            {% elif customer.has_tutoring_experience == '否' %}
+                                <span class="status-badge status-no-experience">无体验</span>
+                            {% else %}
+                                <span class="text-muted">未知</span>
+                            {% endif %}
+                        </td>
+                        <td>¥{{ "%.2f"|format(course.trial_price) }}</td>
+                        <td>{{ course.source or '-' }}</td>
+                        <td>
+                            {% if course.trial_status == 'refunded' %}
+                                {% if (course.refund_channel or '') == '淘宝' %}
+                                    ¥0.00
+                                {% else %}
+                                    {% set recorded_fee = (course.refund_fee or 0) %}
+                                    {% if recorded_fee > 0 %}
+                                        ¥{{ "%.2f"|format(recorded_fee) }}
+                                    {% else %}
+                                        {% set fee_amount = (course.trial_price or 0) * (taobao_fee_rate or 0.006) %}
+                                        ¥{{ "%.2f"|format(fee_amount) }}
+                                    {% endif %}
+                                {% endif %}
+                            {% elif course.source == '淘宝' %}
+                                {% set fee_amount = course.trial_price * (taobao_fee_rate or 0.006) %}
+                                ¥{{ "%.2f"|format(fee_amount) }}
+                            {% else %}
+                                ¥0.00
+                            {% endif %}
+                        </td>
+
+                        <td>{{ course.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                        <td>
+                            <div class="status-management">
+                                {% set current_status = course.trial_status or 'registered' %}
+                                <select class="status-select" data-course-id="{{ course.id }}" data-trial-price="{{ "%.2f"|format(course.trial_price or 0) }}" onchange="updateTrialStatus('{{ course.id }}', this.value)">
+                                    <option value="registered" {% if current_status == 'registered' %}selected{% endif %}>已报名试听课</option>
+                                    <option value="not_registered" {% if current_status == 'not_registered' %}selected{% endif %}>未报名试听课</option>
+                                    <option value="refunded" {% if current_status == 'refunded' %}selected{% endif %}>试听后退费</option>
+                                    <option value="converted" {% if current_status == 'converted' %}selected{% endif %}>试听后转正课</option>
+                                    <option value="no_action" {% if current_status == 'no_action' %}selected{% endif %}>试听后无操作</option>
+                                </select>
+                                {% if current_status == 'refunded' %}
+                                <div class="refund-info">
+                                    <small>退费：¥{{ "%.2f"|format(course.refund_amount or 0) }}</small>
+                                    <small>手续费：¥{{ "%.2f"|format(course.refund_fee or 0) }}</small>
+                                    <small>退款渠道：{{ course.refund_channel or '-' }}</small>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td>
+                            <div class="employee-assign">
+                                <select class="form-control form-control-sm employee-select {% if not course.assigned_employee_id %}text-muted{% endif %}" 
+                                        data-course-id="{{ course.id }}" 
+                                        data-original-value="{% if course.assigned_employee %}{{ course.assigned_employee.name }}{% else %}未分配{% endif %}"
+                                        onchange="assignEmployee('{{ course.id }}', this.value)">
+                                    <option value="" {% if not course.assigned_employee_id %}selected{% endif %}>
+                                        🚫 未分配
+                                    </option>
+                                    {% for employee in employees %}
+                                    <option value="{{ employee.id }}" 
+                                            {% if course.assigned_employee_id == employee.id %}selected{% endif %}>
+                                        ✅ {{ employee.name }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="action-buttons">
+                                <!-- 查看详情按钮 -->
+                                <button onclick="showCustomerDetail('{{ customer.id }}', '{{ course.id }}', 'trial')" 
+                                        class="btn btn-sm btn-outline-info action-btn" title="查看详情">
+                                    <i class="fas fa-eye"></i>
+                                    <span class="btn-text">查看</span>
+                                </button>
+                                
+                                <!-- 快速编辑按钮 -->
+                                <button onclick="editTrialCourse('{{ course.id }}')" 
+                                        class="btn btn-sm btn-outline-primary action-btn" title="快速编辑">
+                                    <i class="fas fa-edit"></i>
+                                    <span class="btn-text">编辑</span>
+                                </button>
+                                
+                                <!-- 转正课按钮 -->
+                                {% if not course.converted_to_course %}
+                                <a href="{{ url_for('main.convert_trial_to_course', trial_id=course.id) }}" 
+                                   class="btn btn-sm btn-outline-success action-btn" title="转正课">
+                                    <i class="fas fa-arrow-right"></i>
+                                    <span class="btn-text">转正</span>
+                                </a>
+                                {% else %}
+                                <span class="btn btn-sm btn-outline-secondary action-btn disabled" title="已转正">
+                                    <i class="fas fa-check"></i>
+                                    <span class="btn-text">已转正</span>
+                                </span>
+                                {% endif %}
+                                
+                                <!-- 删除按钮 -->
+                                <button onclick="deleteTrialCourse('{{ course.id }}', '试听课用户')" 
+                                        class="btn btn-sm btn-outline-danger action-btn" title="删除">
+                                    <i class="fas fa-trash"></i>
+                                    <span class="btn-text">删除</span>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="11" class="text-center">暂无试听课记录</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- 消息提示 -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        <div id="flash-messages">
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }}">{{ message }}</div>
+            {% endfor %}
+        </div>
+    {% endif %}
+{% endwith %}
+
+<script>
+// 删除试听课记录
+function deleteTrialCourse(courseId, userType = '试听课用户') {
+    // 使用公共模块进行删除
+    CourseManager.deleteTrialCourse(courseId, userType);
+}
+
+// 更新试听课状态
+function updateTrialStatus(courseId, newStatus) {
+    // 如果是退费状态，需要弹出退费信息输入框
+    if (newStatus === 'refunded') {
+        showRefundModal(courseId);
+        return;
+    }
+    
+    // 其他状态直接更新
+    updateStatusAPI(courseId, newStatus);
+}
+
+// 显示退费信息模态框
+function showRefundModal(courseId) {
+    document.getElementById('refund_course_id').value = courseId;
+
+    // 从当前行的状态下拉读取试听售价，自动填入退费金额；手续费固定为0
+    const selectEl = document.querySelector(`select.status-select[data-course-id="${courseId}"]`);
+    const amountInput = document.getElementById('refund_amount');
+    const feeInput = document.getElementById('refund_fee');
+    let trialPrice = 0;
+    if (selectEl && selectEl.dataset.trialPrice) {
+        const p = parseFloat(selectEl.dataset.trialPrice);
+        trialPrice = isNaN(p) ? 0 : p;
+    }
+    if (amountInput) {
+        amountInput.value = trialPrice.toFixed(2);
+        amountInput.readOnly = true;
+    }
+    if (feeInput) {
+        feeInput.value = '0.00';
+        feeInput.readOnly = true;
+    }
+
+    document.getElementById('refundModal').style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+}
+
+// 关闭退费信息模态框
+function closeRefundModal() {
+    document.getElementById('refundModal').style.display = 'none';
+    document.body.style.overflow = 'auto';
+    document.getElementById('refundForm').reset();
+}
+
+// 提交退费信息
+function submitRefund() {
+    const courseId = document.getElementById('refund_course_id').value;
+    const refundAmount = document.getElementById('refund_amount').value;
+    const refundFee = document.getElementById('refund_fee').value;
+    const refundChannel = document.getElementById('refund_channel').value;
+    
+    if (!refundAmount || refundAmount <= 0) {
+        alert('请输入有效的退费金额');
+        return;
+    }
+    
+    if (!refundFee || refundFee < 0) {
+        alert('请输入有效的退费手续费');
+        return;
+    }
+    
+    if (!refundChannel) {
+        alert('请选择退款渠道');
+        return;
+    }
+    
+    updateStatusAPI(courseId, 'refunded', {
+        refund_amount: parseFloat(refundAmount),
+        refund_fee: parseFloat(refundFee),
+        refund_channel: refundChannel
+    });
+}
+
+// 调用API更新状态
+function updateStatusAPI(courseId, status, extraData = {}) {
+    const requestData = {
+        status: status,
+        ...extraData
+    };
+    
+    fetch(`/api/trial-courses/${courseId}/status`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            if (status === 'refunded') {
+                closeRefundModal();
+            }
+            location.reload();
+        } else {
+            alert(data.message || '状态更新失败');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('状态更新失败');
+    });
+}
+
+// 编辑试听课记录 - 参考刷单管理的简化实现
+function editTrialCourse(courseId) {
+    console.log('=== 试听课编辑函数被调用 ===');
+    console.log('courseId:', courseId);
+    
+    // 直接通过API获取最新数据，而不是使用传递的参数
+    fetch(`/api/trial-courses/${encodeURIComponent(courseId)}`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('获取到的试听课数据:', data);
+            
+            if (data.success && data.course) {
+                const course = data.course;
+                const customer = data.customer || {};
+                
+                // 显示编辑模态框标题
+                const modalTitle = document.querySelector('#editTrialModal .modal-header h4');
+                if (modalTitle) {
+                    modalTitle.textContent = '编辑试听课记录';
+                }
+                
+                // 设置隐藏的课程ID
+                const courseIdField = document.getElementById('edit_trial_course_id');
+                if (courseIdField) {
+                    courseIdField.value = course.id;
+                }
+                
+                // 填充表单字段
+                const fields = {
+                    'edit_trial_customer_name': customer.name || '',
+                    'edit_trial_customer_phone': customer.phone || '',
+                    'edit_trial_customer_gender': customer.gender || '',
+                    'edit_trial_customer_grade': customer.grade || '',
+                    'edit_trial_customer_region': customer.region || '',
+                    'edit_trial_price': course.trial_price || course.price || '',
+                    'edit_trial_source': course.source || '',
+                    'edit_trial_has_tutoring_experience': customer.has_tutoring_experience || ''
+                };
+                
+                // 逐个填充字段
+                for (const [fieldId, value] of Object.entries(fields)) {
+                    const field = document.getElementById(fieldId);
+                    if (field) {
+                        field.value = value;
+                        console.log(`填充字段 ${fieldId}:`, value);
+                    } else {
+                        console.warn(`字段 ${fieldId} 未找到`);
+                    }
+                }
+                
+                // 显示模态框
+                const modal = document.getElementById('editTrialModal');
+                if (modal) {
+                    modal.style.display = 'flex';
+                    document.body.style.overflow = 'hidden';
+                    console.log('编辑模态框已显示');
+                } else {
+                    console.error('编辑模态框未找到');
+                }
+            } else {
+                console.error('API返回失败:', data);
+                alert('获取课程信息失败: ' + (data.message || '未知错误'));
+            }
+        })
+        .catch(error => {
+            console.error('获取试听课数据失败:', error);
+            alert('获取课程信息失败: ' + error.message);
+        });
+}
+
+// 页面加载完成后执行
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('试听课管理页面加载完成');
+    
+    // 模态框控制
+     const addTrialBtn = document.getElementById('addTrialBtn');
+     const trialModal = document.getElementById('addTrialModal');
+     const closeModal = document.querySelector('.close');
+     const cancelBtn = document.getElementById('cancelBtn');
+     const trialForm = document.getElementById('trialForm');
+     
+     // 打开模态框
+     if (addTrialBtn) {
+         addTrialBtn.addEventListener('click', function() {
+             trialModal.style.display = 'block';
+             document.body.style.overflow = 'hidden'; // 防止背景滚动
+         });
+     }
+     
+     // 关闭模态框
+     function closeTrialModal() {
+         trialModal.style.display = 'none';
+         document.body.style.overflow = 'auto';
+         trialForm.reset(); // 重置表单
+     }
+     
+     if (closeModal) closeModal.addEventListener('click', closeTrialModal);
+     if (cancelBtn) cancelBtn.addEventListener('click', closeTrialModal);
+     
+     // 点击模态框外部关闭
+     window.addEventListener('click', function(event) {
+         if (event.target === trialModal) {
+             closeTrialModal();
+         }
+     });
+     
+     // 初始化公共模态框事件（试听课编辑）
+     CourseManager.initModalEvents();
+     
+     // 监听来自组件的编辑事件
+     document.addEventListener('editTrialCourse', function(event) {
+         const { courseId, tableId } = event.detail;
+         console.log('编辑试听课事件触发，课程ID:', courseId);
+         
+         // 通过API获取课程详细信息
+         fetch(`/api/trial-courses/${courseId}`)
+             .then(response => response.json())
+             .then(data => {
+                 console.log('API返回数据:', data);
+                 
+                 if (data.success && data.course) {
+                     const course = data.course;
+                     const customer = data.customer || {};
+                     
+                     console.log('课程数据:', course);
+                     console.log('客户数据:', customer);
+                     
+                     // 构造课程数据对象
+                     const courseData = {
+                         customer_name: customer.name || '',
+                         customer_phone: customer.phone || '',
+                         customer_gender: customer.gender || '',
+                         customer_grade: customer.grade || '',
+                         customer_region: customer.region || '',
+                         trial_price: course.trial_price || course.price || '',
+                         price: course.trial_price || course.price || '',
+                         source: course.source || '',
+                         has_tutoring_experience: customer.has_tutoring_experience || ''
+                     };
+                     
+                     console.log('构造的课程数据对象:', courseData);
+                     
+                     // 使用公共模块进行编辑
+                     CourseManager.editTrialCourse(courseId, courseData);
+                 } else {
+                     console.error('API返回失败:', data);
+                     alert('获取课程信息失败');
+                 }
+             })
+             .catch(error => {
+                 console.error('API请求错误:', error);
+                 alert('获取课程信息失败');
+             });
+     });
+     
+     // 智能识别功能
+    const smartInput = document.getElementById('smartInput');
+    const parseBtn = document.getElementById('parseBtn');
+    
+    console.log('smartInput:', smartInput);
+    console.log('parseBtn:', parseBtn);
+    
+    if (parseBtn && smartInput) {
+        parseBtn.addEventListener('click', function() {
+            const text = smartInput.value.trim();
+             if (!text) {
+                 alert('请先输入学员信息');
+                 return;
+             }
+             
+             // 解析文本并填入表单
+             parseStudentInfo(text);
+             
+             // 清空智能识别区域
+             smartInput.value = '';
+             
+             // 显示成功提示
+             showParseSuccess();
+         });
+     }
+     
+     // 解析学员信息的函数
+     function parseStudentInfo(text) {
+         console.log('开始解析文本:', text);
+         
+         // 定义匹配规则
+         const patterns = {
+             name: [
+                 /学员姓名[：:]\s*([^\n\r]+)/i,
+                 /姓名[：:]\s*([^\n\r]+)/i,
+                 /名字[：:]\s*([^\n\r]+)/i
+             ],
+             gender: [
+                 /性别[：:]\s*([男女])/i
+             ],
+             grade: [
+                 /年级[：:]\s*([^\n\r]+)/i,
+                 /学年[：:]\s*([^\n\r]+)/i
+             ],
+             region: [
+                 /地区[：:]\s*([^\n\r]+)/i,
+                 /地址[：:]\s*([^\n\r]+)/i,
+                 /城市[：:]\s*([^\n\r]+)/i
+             ],
+             phone: [
+                 /联系方式[：:]\s*([1][3-9]\d{9})/i,
+                 /电话[：:]\s*([1][3-9]\d{9})/i,
+                 /手机[：:]\s*([1][3-9]\d{9})/i,
+                 /([1][3-9]\d{9})/g
+             ],
+             englishFullScore: [
+                 /英语试卷满分[：:]\s*(\d+)/i,
+                 /满分[：:]\s*(\d+)/i
+             ],
+             englishCurrentScore: [
+                 /英语当前分数[：:]\s*(\d+)/i,
+                 /当前分数[：:]\s*(\d+)/i,
+                 /现在分数[：:]\s*(\d+)/i
+             ],
+             hasTutoring: [
+                 /是否参加过英语课外辅导[：:]\s*([是否])/i,
+                 /课外辅导[：:]\s*([是否])/i
+             ]
+         };
+         
+         // 解析各个字段
+         const results = {};
+         
+         // 先尝试标准格式解析
+         for (const [field, regexList] of Object.entries(patterns)) {
+             for (const regex of regexList) {
+                 const match = text.match(regex);
+                 if (match && match[1]) {
+                     results[field] = match[1].trim();
+                     console.log(`匹配到${field}:`, results[field]);
+                     break;
+                 }
+             }
+         }
+         
+         // 智能识别：如果没有匹配到任何标准格式，尝试智能识别
+         if (Object.keys(results).length === 0) {
+             console.log('标准格式解析失败，尝试智能识别...');
+             
+             // 去除空白字符，获取纯文本
+             const cleanText = text.trim();
+             
+             // 定义常见地区、年级等关键词
+             const regions = ['北京', '上海', '广州', '深圳', '杭州', '南京', '苏州', '成都', '重庆', '武汉', '西安', '天津', '青岛', '大连', '宁波', '厦门', '长沙', '郑州', '济南', '哈尔滨', '沈阳', '长春', '石家庄', '太原', '呼和浩特', '兰州', '西宁', '银川', '乌鲁木齐', '拉萨', '昆明', '贵阳', '南宁', '海口', '三亚', '福州', '合肥', '南昌', '温州', '无锡', '常州', '徐州', '扬州', '镇江', '泰州', '盐城', '淮安', '连云港', '宿迁'];
+             const grades = ['小学', '初中', '高中', '大学', '幼儿园'];
+             const genders = ['男', '女'];
+             
+             // 检查是否只是手机号
+             const phoneMatch = cleanText.match(/^([1][3-9]\d{9})$/);
+             if (phoneMatch) {
+                 results.phone = phoneMatch[1];
+                 console.log('识别为纯手机号:', results.phone);
+             }
+             // 检查是否是年级
+             else if (grades.includes(cleanText)) {
+                 results.grade = cleanText;
+                 console.log('识别为年级:', results.grade);
+             }
+             // 检查是否是地区
+             else if (regions.includes(cleanText)) {
+                 results.region = cleanText;
+                 console.log('识别为地区:', results.region);
+             }
+             // 检查是否是性别
+             else if (genders.includes(cleanText)) {
+                 results.gender = cleanText;
+                 console.log('识别为性别:', results.gender);
+             }
+             // 检查是否只是姓名（2-4个中文字符，不包含数字，且不是地区、年级、性别）
+             else if (/^[\u4e00-\u9fa5]{2,4}$/.test(cleanText) && 
+                      !regions.includes(cleanText) && 
+                      !grades.includes(cleanText) && 
+                      !genders.includes(cleanText)) {
+                 results.name = cleanText;
+                 console.log('识别为纯姓名:', results.name);
+             }
+             // 检查是否包含多种信息的组合
+             else {
+                 // 提取手机号
+                 const phoneInText = cleanText.match(/([1][3-9]\d{9})/);
+                 if (phoneInText) {
+                     results.phone = phoneInText[1];
+                     console.log('从文本中提取手机号:', results.phone);
+                 }
+                 
+                 // 提取地区
+                 for (const region of regions) {
+                     if (cleanText.includes(region)) {
+                         results.region = region;
+                         console.log('从文本中提取地区:', results.region);
+                         break;
+                     }
+                 }
+                 
+                 // 提取年级
+                 for (const grade of grades) {
+                     if (cleanText.includes(grade)) {
+                         results.grade = grade;
+                         console.log('从文本中提取年级:', results.grade);
+                         break;
+                     }
+                 }
+                 
+                 // 提取性别
+                 for (const gender of genders) {
+                     if (cleanText.includes(gender)) {
+                         results.gender = gender;
+                         console.log('从文本中提取性别:', results.gender);
+                         break;
+                     }
+                 }
+                 
+                 // 提取姓名（移除已识别的信息后）
+                 let textForName = cleanText;
+                 if (results.phone) {
+                     textForName = textForName.replace(/([1][3-9]\d{9})/, '').trim();
+                 }
+                 if (results.region) {
+                     textForName = textForName.replace(results.region, '').trim();
+                 }
+                 if (results.grade) {
+                     textForName = textForName.replace(results.grade, '').trim();
+                 }
+                 if (results.gender) {
+                     textForName = textForName.replace(results.gender, '').trim();
+                 }
+                 
+                 // 从剩余文本中提取姓名
+                 const nameMatch = textForName.match(/[\u4e00-\u9fa5]{2,4}/);
+                 if (nameMatch) {
+                     results.name = nameMatch[0];
+                     console.log('从文本中提取姓名:', results.name);
+                 }
+             }
+         }
+         
+         // 填入表单
+         if (results.name) {
+             document.getElementById('new_customer_name').value = results.name;
+         }
+         
+         if (results.gender) {
+             document.getElementById('new_customer_gender').value = results.gender;
+         }
+         
+         if (results.grade) {
+             // 处理年级格式
+             let grade = results.grade;
+             if (grade.includes('新')) {
+                 grade = grade.replace('新', '');
+             }
+             // 尝试匹配下拉选项
+             const gradeSelect = document.getElementById('new_customer_grade');
+             const options = Array.from(gradeSelect.options);
+             const matchedOption = options.find(option => 
+                 option.value.includes(grade) || grade.includes(option.value)
+             );
+             if (matchedOption) {
+                 gradeSelect.value = matchedOption.value;
+             }
+         }
+         
+         if (results.region) {
+             document.getElementById('new_customer_region').value = results.region;
+         }
+         
+         if (results.phone) {
+             document.getElementById('new_customer_phone').value = results.phone;
+         }
+         
+         if (results.englishFullScore) {
+             document.getElementById('english_full_score').value = results.englishFullScore;
+         }
+         
+         if (results.englishCurrentScore) {
+             document.getElementById('english_current_score').value = results.englishCurrentScore;
+         }
+         
+         if (results.hasTutoring) {
+             document.getElementById('has_tutoring_experience').value = results.hasTutoring;
+         }
+         
+         console.log('解析结果:', results);
+     }
+     
+     // 显示解析成功提示
+     function showParseSuccess() {
+         const btn = document.getElementById('parseBtn');
+         if (btn) {
+             const originalText = btn.innerHTML;
+             btn.innerHTML = '<i class="fas fa-check"></i> 解析成功！';
+             btn.style.background = 'linear-gradient(135deg, #28a745 0%, #20c997 100%)';
+             
+             setTimeout(() => {
+                 btn.innerHTML = originalText;
+                 btn.style.background = 'linear-gradient(135deg, #17a2b8 0%, #138496 100%)';
+             }, 2000);
+         }
+     }
+     
+     // 表单提交验证
+     if (trialForm) {
+         trialForm.addEventListener('submit', function(e) {
+             const name = document.getElementById('new_customer_name').value.trim();
+             const phone = document.getElementById('new_customer_phone').value.trim();
+             const price = document.getElementById('trial_price').value.trim();
+             const source = document.getElementById('source').value;
+            
+            // 只验证联系电话为必填项
+            if (!phone) {
+                e.preventDefault();
+                alert('请输入联系电话');
+                return;
+            }
+            
+            // 验证手机号格式
+            const phoneRegex = /^1[3-9]\d{9}$/;
+            if (!phoneRegex.test(phone)) {
+                e.preventDefault();
+                alert('请输入正确的手机号码');
+                return;
+            }
+            
+            if (!price || parseFloat(price) < 0) {
+                e.preventDefault();
+                alert('请输入正确的试听课售价');
+                return;
+            }
+            
+            if (!source) {
+                e.preventDefault();
+                alert('请选择渠道来源');
+                return;
+            }
+         });
+    }
+    
+    // 自动隐藏消息提示
+    const flashMessages = document.getElementById('flash-messages');
+    if (flashMessages) {
+        setTimeout(() => {
+            flashMessages.style.opacity = '0';
+            setTimeout(() => {
+                flashMessages.remove();
+            }, 300);
+        }, 3000);
+    }
+    
+    // 导出数据功能
+    window.exportTrialData = function() {
+        const button = event.target;
+        const originalText = button.innerHTML;
+        
+        // 显示加载状态
+        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 导出中...';
+        button.disabled = true;
+        
+        // 创建一个隐藏的链接来下载文件
+        const link = document.createElement('a');
+        link.href = '/api/export/trial-courses';
+        link.download = '';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        // 恢复按钮状态
+        setTimeout(() => {
+            button.innerHTML = originalText;
+            button.disabled = false;
+        }, 2000);
+    };
+    
+    // 搜索和筛选功能
+    const searchInput = document.getElementById('searchInput');
+    const sourceFilter = document.getElementById('sourceFilter');
+    const statusFilter = document.getElementById('statusFilter');
+    const exportBtn = document.getElementById('exportBtn');
+    const tableRows = document.querySelectorAll('.data-table tbody tr');
+    
+    // 初始化图表
+    initCharts();
+    
+    // 搜索功能
+    function filterTable() {
+        const searchTerm = searchInput.value.toLowerCase();
+        const sourceValue = sourceFilter.value;
+        const statusValue = statusFilter.value;
+        
+        tableRows.forEach(row => {
+             if (row.cells.length === 1) return; // 跳过"暂无记录"行
+             
+             const name = row.cells[0].textContent.toLowerCase(); // 学员姓名
+             const phone = row.cells[4].textContent.toLowerCase(); // 联系方式
+             const source = row.cells[7].textContent.trim(); // 渠道来源（第8列）
+             const statusSelect = row.cells[10].querySelector('.status-select'); // 状态下拉（第11列）
+             const status = statusSelect ? statusSelect.value : '';
+            
+            const matchesSearch = name.includes(searchTerm) || phone.includes(searchTerm);
+            const matchesSource = !sourceValue || source === sourceValue;
+            const matchesStatus = !statusValue || status === statusValue;
+            
+            if (matchesSearch && matchesSource && matchesStatus) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+        
+        // 更新统计信息和图表
+        updateFilterStats();
+        updateChartsWithFilteredData();
+    }
+    
+    // 更新筛选后的统计信息
+    function updateFilterStats() {
+        const visibleRows = Array.from(tableRows).filter(row => 
+            row.style.display !== 'none' && row.cells.length > 1
+        );
+        
+        let totalPrice = 0;
+        visibleRows.forEach(row => {
+             const priceText = row.cells[6].textContent.replace('¥', '').replace(/,/g, '').trim(); // 试听课售价（第7列）
+             totalPrice += parseFloat(priceText) || 0;
+         });
+        
+        // 可以在这里添加显示筛选后统计信息的逻辑
+        console.log(`筛选后记录数: ${visibleRows.length}, 总金额: ¥${totalPrice.toFixed(2)}`);
+    }
+    
+    // 绑定事件
+    if (searchInput) searchInput.addEventListener('input', filterTable);
+    if (sourceFilter) sourceFilter.addEventListener('change', filterTable);
+    if (statusFilter) statusFilter.addEventListener('change', filterTable);
+    
+    // 导出功能
+    if (exportBtn) {
+        exportBtn.addEventListener('click', function() {
+        const visibleRows = Array.from(tableRows).filter(row => 
+            row.style.display !== 'none' && row.cells.length > 1
+        );
+        
+        if (visibleRows.length === 0) {
+            alert('没有数据可导出');
+            return;
+        }
+        
+        // 构建CSV数据（按指定列顺序输出）
+        let csvContent = '学员姓名,性别,年级,地区,联系方式,试听课售价,渠道来源,报名时间,状态\n';
+        
+        visibleRows.forEach(row => {
+            const pick = idx => (row.cells[idx]?.textContent || '').trim();
+            const statusSelect = row.cells[10].querySelector('.status-select');
+            const statusTextMap = {
+                registered: '已报名试听课',
+                not_registered: '未报名试听课',
+                refunded: '试听后退费',
+                converted: '试听后转正课',
+                no_action: '试听后无操作'
+            };
+            const data = [
+                pick(0), // 姓名
+                pick(1), // 性别
+                pick(2), // 年级
+                pick(3), // 地区
+                pick(4), // 联系方式
+                pick(6).replace(/^¥/, ''), // 售价（去¥）
+                pick(7), // 渠道来源
+                pick(9), // 报名时间
+                statusTextMap[statusSelect ? statusSelect.value : ''] || '' // 状态
+            ];
+            const escaped = data.map(text => {
+                let t = (text || '').toString();
+                if (t.includes(',') || t.includes('"') || t.includes('\n')) {
+                    t = '"' + t.replace(/"/g, '""') + '"';
+                }
+                return t;
+            });
+            csvContent += escaped.join(',') + '\n';
+        });
+        
+        // 下载文件
+        const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', `试听课记录_${new Date().toISOString().split('T')[0]}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+         document.body.removeChild(link);
+         });
+     }
+     
+     // 根据筛选结果更新图表
+     function updateChartsWithFilteredData() {
+         const visibleRows = Array.from(tableRows).filter(row => 
+             row.style.display !== 'none' && row.cells.length > 1
+         );
+         
+         const sourceData = {};
+         const conversionData = { total: 0, converted: 0 };
+         
+         visibleRows.forEach(row => {
+             const source = row.cells[7].textContent.trim(); // 渠道来源（第8列）
+             const statusSelect = row.cells[10].querySelector('.status-select'); // 状态（第11列）
+             const isConverted = statusSelect && statusSelect.value === 'converted';
+             
+             // 统计渠道来源
+             sourceData[source] = (sourceData[source] || 0) + 1;
+             
+             // 统计转化率
+             conversionData.total++;
+             if (isConverted) {
+                 conversionData.converted++;
+             }
+         });
+         
+         // 重新绘制图表
+         drawSourceChart(sourceData);
+         drawConversionChart(conversionData);
+     }
+     
+     // 图表初始化函数
+     function initCharts() {
+        // 统计数据
+        const sourceData = {};
+        const conversionData = { total: 0, converted: 0 };
+        
+        tableRows.forEach(row => {
+            if (row.cells.length === 1) return; // 跳过"暂无记录"行
+            
+            const source = row.cells[7].textContent.trim(); // 渠道来源（第8列）
+            const statusSelect = row.cells[10].querySelector('.status-select'); // 状态（第11列）
+            const isConverted = statusSelect && statusSelect.value === 'converted';
+            
+            // 统计渠道来源
+            sourceData[source] = (sourceData[source] || 0) + 1;
+            
+            // 统计转化率
+            conversionData.total++;
+            if (isConverted) {
+                conversionData.converted++;
+            }
+        });
+         
+         // 绘制渠道来源饼图
+         drawSourceChart(sourceData);
+         
+         // 绘制转化率柱状图
+         drawConversionChart(conversionData);
+     }
+     
+     // 绘制渠道来源饼图
+     function drawSourceChart(data) {
+         const canvas = document.getElementById('sourceChart');
+         const ctx = canvas.getContext('2d');
+         const centerX = canvas.width / 2;
+         const centerY = canvas.height / 2;
+         const radius = Math.min(centerX, centerY) - 20;
+         
+         // 清空画布
+         ctx.clearRect(0, 0, canvas.width, canvas.height);
+         
+         if (Object.keys(data).length === 0) {
+             ctx.fillStyle = '#666';
+             ctx.font = '14px Arial';
+             ctx.textAlign = 'center';
+             ctx.fillText('暂无数据', centerX, centerY);
+             return;
+         }
+         
+         const total = Object.values(data).reduce((sum, val) => sum + val, 0);
+         const colors = ['#007bff', '#28a745', '#ffc107', '#dc3545', '#6f42c1', '#fd7e14'];
+         
+         let currentAngle = -Math.PI / 2;
+         let colorIndex = 0;
+         
+         // 绘制饼图
+         Object.entries(data).forEach(([source, count]) => {
+             const sliceAngle = (count / total) * 2 * Math.PI;
+             
+             ctx.beginPath();
+             ctx.moveTo(centerX, centerY);
+             ctx.arc(centerX, centerY, radius, currentAngle, currentAngle + sliceAngle);
+             ctx.closePath();
+             ctx.fillStyle = colors[colorIndex % colors.length];
+             ctx.fill();
+             
+             // 绘制标签
+             const labelAngle = currentAngle + sliceAngle / 2;
+             const labelX = centerX + Math.cos(labelAngle) * (radius * 0.7);
+             const labelY = centerY + Math.sin(labelAngle) * (radius * 0.7);
+             
+             ctx.fillStyle = 'white';
+             ctx.font = 'bold 12px Arial';
+             ctx.textAlign = 'center';
+             ctx.fillText(`${count}`, labelX, labelY);
+             
+             currentAngle += sliceAngle;
+             colorIndex++;
+         });
+         
+         // 绘制图例
+         let legendY = 10;
+         colorIndex = 0;
+         Object.entries(data).forEach(([source, count]) => {
+             const percentage = ((count / total) * 100).toFixed(1);
+             
+             ctx.fillStyle = colors[colorIndex % colors.length];
+             ctx.fillRect(canvas.width - 120, legendY, 12, 12);
+             
+             ctx.fillStyle = '#333';
+             ctx.font = '11px Arial';
+             ctx.textAlign = 'left';
+             ctx.fillText(`${source} (${percentage}%)`, canvas.width - 105, legendY + 9);
+             
+             legendY += 18;
+             colorIndex++;
+         });
+     }
+     
+     // 绘制转化率柱状图
+     function drawConversionChart(data) {
+         const canvas = document.getElementById('conversionChart');
+         const ctx = canvas.getContext('2d');
+         
+         // 清空画布
+         ctx.clearRect(0, 0, canvas.width, canvas.height);
+         
+         if (data.total === 0) {
+             ctx.fillStyle = '#666';
+             ctx.font = '14px Arial';
+             ctx.textAlign = 'center';
+             ctx.fillText('暂无数据', canvas.width / 2, canvas.height / 2);
+             return;
+         }
+         
+         const conversionRate = (data.converted / data.total * 100).toFixed(1);
+         const pendingRate = (100 - conversionRate).toFixed(1);
+         
+         const barWidth = 80;
+         const maxHeight = canvas.height - 60;
+         const spacing = 60;
+         
+         // 绘制已转化柱状图
+         const convertedHeight = (data.converted / data.total) * maxHeight;
+         ctx.fillStyle = '#28a745';
+         ctx.fillRect(spacing, canvas.height - 40 - convertedHeight, barWidth, convertedHeight);
+         
+         // 绘制待转化柱状图
+         const pendingCount = data.total - data.converted;
+         const pendingHeight = (pendingCount / data.total) * maxHeight;
+         ctx.fillStyle = '#ffc107';
+         ctx.fillRect(spacing + barWidth + 40, canvas.height - 40 - pendingHeight, barWidth, pendingHeight);
+         
+         // 绘制标签
+         ctx.fillStyle = '#333';
+         ctx.font = '12px Arial';
+         ctx.textAlign = 'center';
+         
+         // 已转化标签
+         ctx.fillText('已转化', spacing + barWidth / 2, canvas.height - 20);
+         ctx.fillText(`${data.converted}`, spacing + barWidth / 2, canvas.height - 45 - convertedHeight);
+         ctx.fillText(`${conversionRate}%`, spacing + barWidth / 2, canvas.height - 5);
+         
+         // 待转化标签
+         ctx.fillText('待转化', spacing + barWidth + 40 + barWidth / 2, canvas.height - 20);
+         ctx.fillText(`${pendingCount}`, spacing + barWidth + 40 + barWidth / 2, canvas.height - 45 - pendingHeight);
+         ctx.fillText(`${pendingRate}%`, spacing + barWidth + 40 + barWidth / 2, canvas.height - 5);
+         
+         // 绘制标题
+         ctx.font = 'bold 14px Arial';
+         ctx.fillText(`总转化率: ${conversionRate}%`, canvas.width / 2, 20);
+     }
+});
+</script>
+
+<style>
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.stat-card {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.stat-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    color: white;
+}
+
+.stat-card:nth-child(1) .stat-icon { background: #007bff; }
+.stat-card:nth-child(2) .stat-icon { background: #28a745; }
+.stat-card:nth-child(3) .stat-icon { background: #ffc107; }
+.stat-card:nth-child(4) .stat-icon { background: #17a2b8; }
+
+.stat-content h3 {
+    margin: 0;
+    font-size: 24px;
+    font-weight: bold;
+    color: #333;
+}
+
+.stat-content p {
+    margin: 5px 0 0 0;
+    color: #666;
+    font-size: 14px;
+}
+
+.form-section {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    margin-bottom: 30px;
+}
+
+.charts-section {
+    margin-bottom: 30px;
+}
+
+.charts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    gap: 20px;
+}
+
+.chart-card {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    text-align: center;
+}
+
+.chart-card h4 {
+    margin: 0 0 15px 0;
+    color: #333;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.chart-card canvas {
+    border: 1px solid #eee;
+    border-radius: 4px;
+    background: #fafafa;
+}
+
+.form-section h3 {
+    margin: 0 0 20px 0;
+    color: #333;
+}
+
+.form-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.input-mode-selector {
+    margin-bottom: 25px;
+    padding: 20px;
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-radius: 12px;
+    border: 1px solid #dee2e6;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.input-mode-selector h4 {
+    margin: 0 0 15px 0;
+    color: #495057;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.mode-options {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+}
+
+.radio-option {
+    position: relative;
+    cursor: pointer;
+    background: white;
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    padding: 15px;
+    transition: all 0.3s ease;
+    overflow: hidden;
+}
+
+.radio-option:hover {
+    border-color: #007bff;
+    box-shadow: 0 2px 8px rgba(0,123,255,0.15);
+    transform: translateY(-1px);
+}
+
+.radio-option input[type="radio"] {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    margin: 0;
+    accent-color: #007bff;
+    transform: scale(1.2);
+}
+
+.radio-option input[type="radio"]:checked + .option-content {
+    color: #007bff;
+}
+
+.radio-option input[type="radio"]:checked {
+    background: #007bff;
+}
+
+.radio-option:has(input[type="radio"]:checked) {
+    border-color: #007bff;
+    background: linear-gradient(135deg, #e3f2fd 0%, #f8f9fa 100%);
+    box-shadow: 0 2px 8px rgba(0,123,255,0.2);
+}
+
+.option-content {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    padding-right: 30px;
+}
+
+.option-content i {
+    font-size: 20px;
+    color: #6c757d;
+    margin-bottom: 5px;
+}
+
+.option-content span {
+    font-weight: 600;
+    font-size: 14px;
+    color: #495057;
+}
+
+.option-content small {
+    color: #6c757d;
+    font-size: 12px;
+    line-height: 1.3;
+}
+
+.radio-option:has(input[type="radio"]:checked) .option-content i {
+    color: #007bff;
+}
+
+.radio-option:has(input[type="radio"]:checked) .option-content span {
+    color: #007bff;
+}
+
+/* 选择已有学员样式 */
+.customer-select {
+    width: 100%;
+    padding: 12px 16px;
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    font-size: 14px;
+    background: white;
+    transition: all 0.3s ease;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+    background-position: right 12px center;
+    background-repeat: no-repeat;
+    background-size: 16px;
+    padding-right: 40px;
+}
+
+.customer-select:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 3px rgba(0,123,255,0.1);
+}
+
+.customer-select option {
+    padding: 10px;
+    font-size: 14px;
+}
+
+.form-help {
+    display: block;
+    margin-top: 8px;
+    color: #6c757d;
+    font-size: 12px;
+}
+
+.form-help i {
+    margin-right: 4px;
+    color: #007bff;
+}
+
+/* 学员信息预览样式 */
+.customer-preview {
+    margin-top: 20px;
+    padding: 16px;
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    animation: fadeIn 0.3s ease;
+}
+
+.customer-preview h5 {
+    margin: 0 0 12px 0;
+    color: #495057;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.customer-preview h5 i {
+    margin-right: 6px;
+    color: #007bff;
+}
+
+.preview-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.preview-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.preview-item label {
+    font-weight: 500;
+    color: #6c757d;
+    font-size: 12px;
+    min-width: 40px;
+    margin: 0;
+}
+
+.preview-item span {
+    color: #495057;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* 添加试听课按钮区域样式 */
+.add-trial-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-radius: 12px;
+    border: 1px solid #dee2e6;
+    margin-bottom: 30px;
+}
+
+.add-trial-header h3 {
+    margin: 0;
+    color: #495057;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.add-trial-header h3 i {
+    margin-right: 8px;
+    color: #007bff;
+}
+
+/* 模态框样式 */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 2000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(3px);
+    animation: modalFadeIn 0.3s ease;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-content {
+    background-color: #fff;
+    margin: 0;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 600px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    animation: modalSlideIn 0.3s ease;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 25px;
+    border-bottom: 1px solid #e9ecef;
+    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+    color: white;
+    border-radius: 12px 12px 0 0;
+}
+
+.modal-header h4 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.modal-header h4 i {
+    margin-right: 8px;
+}
+
+.close {
+    color: white;
+    font-size: 24px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    padding: 5px;
+    border-radius: 50%;
+}
+
+.close:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: scale(1.1);
+}
+
+.modal-body {
+    padding: 25px;
+}
+
+.form-section-modal {
+    margin-bottom: 25px;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border-left: 4px solid #007bff;
+}
+
+.form-section-modal h5 {
+    margin: 0 0 15px 0;
+    color: #495057;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.form-section-modal h5 i {
+    margin-right: 8px;
+    color: #007bff;
+}
+
+/* 智能识别区域样式 */
+.smart-input-container {
+    position: relative;
+}
+
+.smart-input-container textarea {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: inherit;
+    resize: vertical;
+    min-height: 120px;
+    transition: all 0.3s ease;
+    background: #fff;
+}
+
+.smart-input-container textarea:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
+.smart-input-container textarea::placeholder {
+    color: #6c757d;
+    line-height: 1.4;
+}
+
+#parseBtn {
+    margin-top: 10px;
+    background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+#parseBtn:hover {
+    background: linear-gradient(135deg, #138496 0%, #117a8b 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(23, 162, 184, 0.3);
+}
+
+#parseBtn:active {
+    transform: translateY(0);
+}
+
+.btn-info {
+    background: #17a2b8;
+    color: white;
+}
+
+.modal-form .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    margin-bottom: 15px;
+}
+
+.modal-form .form-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.modal-form .form-group:last-child {
+    grid-column: 1 / -1;
+}
+
+.modal-form label {
+    margin-bottom: 5px;
+    font-weight: 500;
+    color: #495057;
+    font-size: 14px;
+}
+
+.modal-form input,
+.modal-form select {
+    padding: 10px 12px;
+    border: 2px solid #e9ecef;
+    border-radius: 6px;
+    font-size: 14px;
+    transition: all 0.3s ease;
+}
+
+.modal-form input:focus,
+.modal-form select:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 20px 25px;
+    border-top: 1px solid #e9ecef;
+    background: #f8f9fa;
+    border-radius: 0 0 12px 12px;
+}
+
+.btn-secondary {
+    background: #6c757d;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.btn-secondary:hover {
+    background: #5a6268;
+    transform: translateY(-1px);
+}
+
+@keyframes modalFadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-50px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .modal-content {
+        width: 95%;
+        margin: 5% auto;
+    }
+    
+    .modal-form .form-row {
+        grid-template-columns: 1fr;
+    }
+    
+    .add-trial-header {
+        flex-direction: column;
+        gap: 15px;
+        text-align: center;
+    }
+}
+
+.customer-section {
+    transition: all 0.3s ease;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 15px;
+    margin-bottom: 15px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.form-group label {
+    margin-bottom: 5px;
+    font-weight: 500;
+    color: #333;
+}
+
+.form-group input,
+.form-group select {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 2px rgba(0,123,255,0.25);
+}
+
+.table-section {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    overflow: hidden;
+}
+
+.table-header {
+    padding: 20px;
+    border-bottom: 1px solid #eee;
+}
+
+.table-header h3 {
+    margin: 0 0 20px 0;
+    color: #333;
+}
+
+.search-filter-section {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.search-box {
+    position: relative;
+    flex: 1;
+    min-width: 250px;
+}
+
+.search-input {
+    width: 100%;
+    padding: 10px 40px 10px 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 14px;
+    transition: border-color 0.2s;
+}
+
+.search-input:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 2px rgba(0,123,255,0.25);
+}
+
+.search-icon {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #6c757d;
+    pointer-events: none;
+}
+
+.filter-controls {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.filter-select {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+    background: white;
+    min-width: 120px;
+}
+
+.filter-select:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 2px rgba(0,123,255,0.25);
+}
+
+.btn-outline-primary {
+    background: transparent;
+    color: #007bff;
+    border: 1px solid #007bff;
+}
+
+.btn-outline-primary:hover {
+    background: #007bff;
+    color: white;
+}
+
+.btn-outline-danger {
+    background: transparent;
+    color: #dc3545;
+    border: 1px solid #dc3545;
+}
+
+.btn-outline-danger:hover {
+    background: #dc3545;
+    color: white;
+}
+
+.batch-checkbox,
+.row-checkbox {
+    cursor: pointer;
+    transform: scale(1.2);
+}
+
+.data-table th:first-child,
+.data-table td:first-child {
+    width: 40px;
+    text-align: center;
+}
+
+.table-container {
+    overflow-x: auto;
+}
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.data-table th,
+.data-table td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid #eee;
+}
+
+.data-table th {
+    background: #f8f9fa;
+    font-weight: 600;
+    color: #333;
+}
+
+.data-table tbody tr:hover {
+    background: #f8f9fa;
+}
+
+.status-badge {
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.status-converted {
+    background: #d4edda;
+    color: #155724;
+}
+
+.status-pending {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.status-experience {
+    background: #d1ecf1;
+    color: #0c5460;
+}
+
+.status-no-experience {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.employee-badge {
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+    background: #e3f2fd;
+    color: #1565c0;
+    border: 1px solid #bbdefb;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 5px;
+}
+
+.btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 14px;
+    transition: all 0.2s;
+}
+
+.btn-primary {
+    background: #007bff;
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #0056b3;
+}
+
+.btn-success {
+    background: #28a745;
+    color: white;
+}
+
+.btn-success:hover {
+    background: #1e7e34;
+}
+
+.btn-danger {
+    background: #dc3545;
+    color: white;
+}
+
+.btn-danger:hover {
+    background: #c82333;
+}
+
+.btn-warning {
+    background: #ffc107;
+    color: #212529;
+}
+
+.btn-warning:hover {
+    background: #e0a800;
+}
+
+.btn-sm {
+    padding: 4px 8px;
+    font-size: 12px;
+}
+
+.text-center {
+    text-align: center;
+}
+
+.text-muted {
+    color: #6c757d;
+}
+
+#flash-messages {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1000;
+    transition: opacity 0.3s;
+}
+
+.alert {
+    padding: 12px 20px;
+    border-radius: 4px;
+    margin-bottom: 10px;
+    font-weight: 500;
+}
+
+.alert-success {
+    background: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.alert-error {
+    background: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+/* 状态管理样式 */
+.status-management {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.status-select {
+    padding: 6px 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 13px;
+    background: white;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.status-select:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 2px rgba(0,123,255,0.25);
+}
+
+.status-select:hover {
+    border-color: #007bff;
+}
+
+.refund-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-top: 5px;
+    padding: 5px;
+    background: #fff3cd;
+    border-radius: 3px;
+    border-left: 3px solid #ffc107;
+}
+
+.refund-info small {
+    font-size: 11px;
+    color: #856404;
+    font-weight: 500;
+}
+
+/* 状态统计详情样式 */
+.status-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin-top: 20px;
+}
+
+.status-stat-card {
+    background: white;
+    border-radius: 8px;
+    padding: 15px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    border-left: 4px solid #007bff;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.status-stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.status-stat-card.registered {
+    border-left-color: #28a745;
+}
+
+.status-stat-card.not-registered {
+    border-left-color: #6c757d;
+}
+
+.status-stat-card.refunded {
+    border-left-color: #dc3545;
+}
+
+.status-stat-card.converted {
+    border-left-color: #007bff;
+}
+
+.status-stat-card.no-action {
+    border-left-color: #ffc107;
+}
+
+.status-stat-card h4 {
+    margin: 0 0 10px 0;
+    font-size: 14px;
+    color: #666;
+    font-weight: 600;
+}
+
+.status-stat-card .stat-value {
+    font-size: 18px;
+    font-weight: bold;
+    color: #333;
+    margin-bottom: 5px;
+}
+
+.status-stat-card .stat-details {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.status-stat-card .stat-details span {
+    font-size: 12px;
+    color: #666;
+}
+
+.status-stat-card .stat-details .positive {
+    color: #28a745;
+}
+
+.status-stat-card .stat-details .negative {
+    color: #dc3545;
+}
+
+/* 全宽表单组样式 */
+.form-group.full-width {
+    grid-column: 1 / -1;
+}
+
+.form-group textarea {
+    padding: 10px 12px;
+    border: 2px solid #e9ecef;
+    border-radius: 6px;
+    font-size: 14px;
+    font-family: inherit;
+    resize: vertical;
+    transition: all 0.3s ease;
+}
+
+.form-group textarea:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
+/* 员工分配下拉框样式 */
+.employee-select {
+    min-width: 100px;
+    padding: 2px 8px;
+    font-size: 12px;
+}
+
+.employee-assign {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+</style>
+
+<script>
+    // 为编辑表单添加提交事件处理器
+    document.addEventListener('DOMContentLoaded', function() {
+        const editTrialForm = document.getElementById('editTrialForm');
+        if (editTrialForm) {
+            editTrialForm.addEventListener('submit', function(e) {
+                e.preventDefault(); // 阻止默认提交
+                
+                const formData = new FormData(this);
+                const courseId = formData.get('course_id');
+                
+                // 显示加载状态
+                const submitBtn = this.querySelector('button[type="submit"]');
+                const originalText = submitBtn.innerHTML;
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 保存中...';
+                submitBtn.disabled = true;
+                
+                // 发送AJAX请求
+                fetch('/trial-courses', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // 更新页面内容
+                        updateTrialCourseRow(courseId, formData);
+                        updateStatistics();
+                        
+                        // 显示成功消息
+                        showAlert('保存成功！', 'success');
+                        
+                        // 关闭模态框
+                        closeEditModal();
+                    } else {
+                        showAlert(data.message || '保存失败', 'danger');
+                    }
+                })
+                .catch(error => {
+                    console.error('保存失败:', error);
+                    showAlert('保存失败：' + error.message, 'danger');
+                })
+                .finally(() => {
+                    // 恢复按钮状态
+                    submitBtn.innerHTML = originalText;
+                    submitBtn.disabled = false;
+                });
+            });
+        }
+    });
+
+    // 更新表格行数据
+    function updateTrialCourseRow(courseId, formData) {
+        const row = document.querySelector(`tr[data-course-id="${courseId}"]`);
+        if (row) {
+            // 更新学员姓名
+            const nameCell = row.cells[0];
+            if (nameCell) nameCell.textContent = formData.get('customer_name');
+            
+            // 更新性别
+            const genderCell = row.cells[1];
+            if (genderCell) genderCell.textContent = formData.get('customer_gender') || '-';
+            
+            // 更新年级
+            const gradeCell = row.cells[2];
+            if (gradeCell) gradeCell.textContent = formData.get('customer_grade') || '-';
+            
+            // 更新地区
+            const regionCell = row.cells[3];
+            if (regionCell) regionCell.textContent = formData.get('customer_region') || '-';
+            
+            // 更新试听课售价
+            const priceCell = row.cells[6];
+            if (priceCell) priceCell.textContent = '¥' + parseFloat(formData.get('trial_price')).toFixed(2);
+            
+            // 更新渠道来源
+            const sourceCell = row.cells[7];
+            if (sourceCell) sourceCell.textContent = formData.get('source');
+        }
+    }
+
+    // 更新统计信息
+    function updateStatistics() {
+        // 重新计算统计数据
+        const tableRows = document.querySelectorAll('.data-table tbody tr');
+        let totalRevenue = 0;
+        
+        tableRows.forEach(row => {
+            if (row.cells.length > 1) {
+                const price = parseFloat(row.cells[6].textContent.replace('¥', '')) || 0;
+                totalRevenue += price;
+            }
+        });
+        
+        // 更新统计卡片
+        const revenueCard = document.querySelector('.stat-card:nth-child(2) h3');
+        if (revenueCard) revenueCard.textContent = '¥' + totalRevenue.toFixed(2);
+        
+        // 更新状态统计
+        updateStatusStatistics();
+    }
+
+    // 更新状态统计
+    function updateStatusStatistics() {
+        const tableRows = document.querySelectorAll('.data-table tbody tr');
+        const statusStats = {
+            'registered': { count: 0, revenue: 0 },
+            'not_registered': { count: 0, revenue: 0 },
+            'refunded': { count: 0, revenue: 0 },
+            'converted': { count: 0, revenue: 0 },
+            'no_action': { count: 0, revenue: 0 }
+        };
+        
+        tableRows.forEach(row => {
+            if (row.cells.length > 1) {
+                const statusSelect = row.cells[10].querySelector('.status-select');
+                const price = parseFloat(row.cells[6].textContent.replace('¥', '')) || 0;
+                
+                if (statusSelect) {
+                    const status = statusSelect.value;
+                    if (statusStats[status]) {
+                        statusStats[status].count++;
+                        statusStats[status].revenue += price;
+                    }
+                }
+            }
+        });
+        
+        // 更新状态统计显示
+        Object.keys(statusStats).forEach(status => {
+            const countElement = document.querySelector(`.status-stat-card.${status} .stat-row:nth-child(1) span:last-child`);
+            const revenueElement = document.querySelector(`.status-stat-card.${status} .stat-row:nth-child(2) span:last-child`);
+            
+            if (countElement) countElement.textContent = statusStats[status].count;
+            if (revenueElement) revenueElement.textContent = '¥' + statusStats[status].revenue.toFixed(2);
+        });
+    }
+
+    // 关闭编辑模态框
+    function closeEditModal() {
+        const modal = document.getElementById('editTrialModal');
+        if (modal) {
+            modal.style.display = 'none';
+            document.body.style.overflow = 'auto';
+        }
+    }
+
+    // 分配员工
+function assignEmployee(courseId, employeeId, forceUpdate = false) {
+    // 获取select元素 - 优先从event获取，否则通过courseId查找
+    let selectElement = null;
+    if (typeof event !== 'undefined' && event && event.target) {
+        selectElement = event.target;
+    } else {
+        // 查找员工分配的select元素 - 需要更精确的选择器
+        selectElement = document.querySelector(`select.employee-select[data-course-id="${courseId}"]`);
+    }
+    
+    // 确保找到了select元素
+    if (!selectElement) {
+        console.error(`无法找到课程ID ${courseId} 的员工选择框`);
+        showAlert('操作失败：无法找到员工选择框', 'danger');
+        return;
+    }
+    
+    // 确保是select元素并且有options
+    if (!selectElement.tagName || selectElement.tagName.toLowerCase() !== 'select' || !selectElement.options) {
+        console.error(`找到的元素不是有效的select元素`, selectElement);
+        showAlert('操作失败：选择框无效', 'danger');
+        return;
+    }
+    
+    // 获取员工名称 - 需要更安全的方式
+    let selectedText = "未分配";
+    if (employeeId) {
+        // 查找对应的option
+        const option = Array.from(selectElement.options).find(opt => opt.value === String(employeeId));
+        if (option) {
+            selectedText = option.text.replace('✅ ', '').replace('🚫 ', '').trim();
+        } else {
+            // 如果在select中找不到，可能是因为员工列表不完整
+            selectedText = `员工ID: ${employeeId}`;
+        }
+    }
+    
+    const currentText = selectElement.getAttribute('data-original-value') || 
+                       (selectElement.options[0].selected ? "未分配" : selectElement.options[selectElement.selectedIndex].text.replace('✅ ', '').replace('🚫 ', '').trim());
+    
+    // 如果不是强制更新，先确认
+    if (!forceUpdate) {
+        // 构建确认消息
+        let confirmMessage = '';
+        if (employeeId) {
+            confirmMessage = `确定要将该试听课分配给【${selectedText}】吗？`;
+        } else {
+            confirmMessage = `确定要取消该试听课的员工分配吗？\n当前负责员工：${currentText}`;
+        }
+        
+        if (employeeId) {
+            confirmMessage += '\n\n注意：该客户的所有课程（包括独立创建的正课）都将分配给此员工。';
+        } else {
+            confirmMessage += '\n\n注意：该客户的所有课程都将变为未分配状态。';
+        }
+        
+        if (!confirm(confirmMessage)) {
+            // 恢复原选项
+            location.reload();
+            return;
+        }
+    }
+    
+    // 显示加载状态
+    selectElement.disabled = true;
+    
+    fetch(`/api/trial-courses/${courseId}/assign`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            employee_id: employeeId || null,
+            force_update: forceUpdate
+        })
+    })
+    .then(response => {
+        if (response.status === 409) {
+            // 处理冲突情况
+            return response.json().then(data => {
+                handleAssignmentConflict(courseId, employeeId, data);
+                selectElement.disabled = false;
+            });
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data && data.success) {
+            showAlert(data.message || '分配成功', 'success');
+            // 显示更新详情
+            if (data.details && data.details.updated_courses_count > 1) {
+                showAlert(`共更新了 ${data.details.updated_courses_count} 个相关课程`, 'info');
+            }
+            // 更新原始值属性
+            selectElement.setAttribute('data-original-value', selectedText);
+            selectElement.disabled = false;
+            
+            // 如果解决了冲突，刷新页面
+            if (data.details && data.details.resolved_conflict) {
+                setTimeout(() => location.reload(), 1500);
+            }
+        } else if (data && !data.conflict) {
+            showAlert(data.message || '分配失败', 'danger');
+            location.reload();
+        }
+    })
+    .catch(error => {
+        showAlert('分配失败：' + error.message, 'danger');
+        location.reload();
+    });
+}
+
+// 处理员工分配冲突
+function handleAssignmentConflict(courseId, newEmployeeId, conflictData) {
+    const message = conflictData.conflict_info.message;
+    
+    // 获取新员工名称 - 从当前页面的员工列表中查找
+    let newEmployeeName = "未知员工";
+    if (newEmployeeId) {
+        // 尝试从任意一个员工select中找到员工名称
+        const anyEmployeeSelect = document.querySelector('select.employee-select');
+        if (anyEmployeeSelect && anyEmployeeSelect.options) {
+            const option = Array.from(anyEmployeeSelect.options).find(opt => opt.value === String(newEmployeeId));
+            if (option) {
+                newEmployeeName = option.text.replace('✅ ', '').replace('🚫 ', '').trim();
+            }
+        }
+    }
+    
+    // 保存必要信息到对话框元素上
+    const dialogId = 'conflictDialog';
+    
+    // 创建冲突解决对话框
+    const dialog = `
+        <div id="${dialogId}" 
+             data-course-id="${courseId}" 
+             data-employee-id="${newEmployeeId || ''}"
+             data-employee-name="${newEmployeeName}"
+             style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); 
+                    background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                    z-index: 1000; min-width: 400px; max-width: 500px;">
+            <h4 style="color: #ff6b6b; margin-bottom: 15px;">
+                <i class="fas fa-exclamation-triangle"></i> 发现数据不一致
+            </h4>
+            <p style="margin-bottom: 15px;">${message}</p>
+            <div style="background: #f8f9fa; padding: 10px; border-radius: 4px; margin-bottom: 15px;">
+                <small>
+                    <strong>说明：</strong>这个试听课对应的正课已经分配给了其他员工。
+                    这可能是历史数据导致的。您可以选择：
+                </small>
+            </div>
+            <div style="text-align: right;">
+                <button onclick="closeConflictDialog()" class="btn btn-secondary" style="margin-right: 10px;">
+                    保持现状
+                </button>
+                <button onclick="forceAssignEmployeeFromDialog()" class="btn btn-warning">
+                    <i class="fas fa-sync"></i> 统一更新为新员工
+                </button>
+            </div>
+        </div>
+        <div id="conflictOverlay" onclick="closeConflictDialog()" 
+             style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; 
+                    background: rgba(0,0,0,0.5); z-index: 999;"></div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', dialog);
+}
+
+// 关闭冲突对话框
+function closeConflictDialog() {
+    const overlay = document.getElementById('conflictOverlay');
+    const dialog = document.getElementById('conflictDialog');
+    if (overlay) overlay.remove();
+    if (dialog) dialog.remove();
+}
+
+// 强制分配员工（解决冲突）
+function forceAssignEmployee(courseId, employeeId) {
+    closeConflictDialog();
+    assignEmployee(courseId, employeeId, true);
+}
+
+// 从对话框触发强制分配
+function forceAssignEmployeeFromDialog() {
+    const dialog = document.getElementById('conflictDialog');
+    if (!dialog) {
+        console.error('无法找到冲突对话框');
+        return;
+    }
+    
+    const courseId = dialog.getAttribute('data-course-id');
+    const employeeId = dialog.getAttribute('data-employee-id') || null;
+    const employeeName = dialog.getAttribute('data-employee-name');
+    
+    console.log(`强制分配: 课程ID=${courseId}, 员工ID=${employeeId}, 员工名称=${employeeName}`);
+    
+    closeConflictDialog();
+    
+    // 直接发送请求，避免再次查找DOM元素
+    fetch(`/api/trial-courses/${courseId}/assign`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            employee_id: employeeId || null,
+            force_update: true
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data && data.success) {
+            showAlert(data.message || '分配成功', 'success');
+            // 显示更新详情
+            if (data.details && data.details.updated_courses_count > 1) {
+                showAlert(`共更新了 ${data.details.updated_courses_count} 个相关课程`, 'info');
+            }
+            // 刷新页面
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            showAlert(data.message || '分配失败', 'danger');
+            location.reload();
+        }
+    })
+    .catch(error => {
+        showAlert('分配失败：' + error.message, 'danger');
+        location.reload();
+    });
+}
+
+// 显示提示信息
+function showAlert(message, type) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 9999;';
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="close" data-dismiss="alert">
+            <span>&times;</span>
+        </button>
+    `;
+    document.body.appendChild(alertDiv);
+    
+    setTimeout(() => alertDiv.remove(), 3000);
+}
+
+// ========== 批量操作功能 ==========
+let selectedCourses = new Set();
+
+function toggleSelectAll() {
+    const selectAll = document.getElementById('selectAll');
+    const checkboxes = document.querySelectorAll('.course-checkbox');
+    
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = selectAll.checked;
+        if (selectAll.checked) {
+            selectedCourses.add(checkbox.value);
+        } else {
+            selectedCourses.delete(checkbox.value);
+        }
+    });
+    
+    updateSelection();
+}
+
+function updateSelection() {
+    selectedCourses.clear();
+    const checkboxes = document.querySelectorAll('.course-checkbox:checked');
+    
+    checkboxes.forEach(checkbox => {
+        selectedCourses.add(checkbox.value);
+    });
+    
+    const count = selectedCourses.size;
+    document.getElementById('selectedCount').textContent = count;
+    document.getElementById('batchOperations').style.display = count > 0 ? 'block' : 'none';
+    
+    // 更新全选框状态
+    const allCheckboxes = document.querySelectorAll('.course-checkbox');
+    const selectAll = document.getElementById('selectAll');
+    selectAll.checked = count > 0 && count === allCheckboxes.length;
+    selectAll.indeterminate = count > 0 && count < allCheckboxes.length;
+}
+
+function clearSelection() {
+    selectedCourses.clear();
+    document.querySelectorAll('.course-checkbox').forEach(checkbox => {
+        checkbox.checked = false;
+    });
+    document.getElementById('selectAll').checked = false;
+    updateSelection();
+}
+
+function batchAssignEmployee() {
+    if (selectedCourses.size === 0) return;
+    
+    // 创建员工选择对话框
+    const employees = [
+        {% for employee in employees %}
+        {id: {{ employee.id }}, name: '{{ employee.name }}'},
+        {% endfor %}
+    ];
+    
+    let options = employees.map(emp => 
+        `<option value="${emp.id}">${emp.name}</option>`
+    ).join('');
+    
+    const dialog = `
+        <div id="batchAssignDialog" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); 
+                    background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                    z-index: 1000; min-width: 300px;">
+            <h4>批量分配员工</h4>
+            <p>将选中的 ${selectedCourses.size} 个试听课分配给：</p>
+            <select id="batchEmployeeSelect" class="form-control">
+                <option value="">选择员工</option>
+                ${options}
+            </select>
+            <div style="margin-top: 15px; text-align: right;">
+                <button onclick="closeBatchDialog()" class="btn btn-secondary" style="margin-right: 10px;">取消</button>
+                <button onclick="confirmBatchAssign()" class="btn btn-primary">确认分配</button>
+            </div>
+        </div>
+        <div id="dialogOverlay" onclick="closeBatchDialog()" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; 
+                                       background: rgba(0,0,0,0.5); z-index: 999;"></div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', dialog);
+}
+
+function batchUnassign() {
+    if (selectedCourses.size === 0) return;
+    
+    if (!confirm(`确定要取消这 ${selectedCourses.size} 个试听课的员工分配吗？\n\n注意：相关的正课和续课也将同时取消分配。`)) {
+        return;
+    }
+    
+    processBatchUpdate(null);
+}
+
+function closeBatchDialog() {
+    const overlay = document.getElementById('dialogOverlay');
+    const dialog = document.getElementById('batchAssignDialog');
+    if (overlay) overlay.remove();
+    if (dialog) dialog.remove();
+}
+
+function confirmBatchAssign() {
+    const employeeId = document.getElementById('batchEmployeeSelect').value;
+    if (!employeeId) {
+        alert('请选择员工');
+        return;
+    }
+    
+    closeBatchDialog();
+    processBatchUpdate(employeeId);
+}
+
+function processBatchUpdate(employeeId) {
+    const courseIds = Array.from(selectedCourses);
+    let completed = 0;
+    let failed = 0;
+    
+    // 显示进度
+    showAlert(`正在处理 ${courseIds.length} 个试听课...`, 'info');
+    
+    // 依次处理每个课程
+    courseIds.forEach((courseId, index) => {
+        setTimeout(() => {
+            fetch(`/api/trial-courses/${courseId}/assign`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({employee_id: employeeId || null})
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    completed++;
+                } else {
+                    failed++;
+                }
+                
+                // 处理完成
+                if (completed + failed === courseIds.length) {
+                    if (failed === 0) {
+                        showAlert(`成功处理 ${completed} 个试听课`, 'success');
+                    } else {
+                        showAlert(`处理完成：成功 ${completed} 个，失败 ${failed} 个`, 'warning');
+                    }
+                    
+                    // 刷新页面
+                    setTimeout(() => location.reload(), 1500);
+                }
+            })
+            .catch(error => {
+                failed++;
+                if (completed + failed === courseIds.length) {
+                    showAlert(`处理出错，请重试`, 'danger');
+                }
+            });
+        }, index * 100); // 每个请求间隔100ms，避免并发过多
+    });
+}
+</script>
+
+<!-- 引入学员详情模态框 -->
+{% include 'components/customer_detail_modal.html' %}
+
+{% endblock %}

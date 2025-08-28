@@ -134,10 +134,8 @@ class DatabaseMigrator:
             
             # 添加新的配置项
             new_configs = [
-                ('new_course_shareholder_a', '50'),
-                ('new_course_shareholder_b', '50'),
-                ('renewal_shareholder_a', '40'),
-                ('renewal_shareholder_b', '60'),
+                ('shareholder_a_ratio', '50'),
+                ('shareholder_b_ratio', '50'),
                 ('shareholder_a_name', '股东A'),
                 ('shareholder_b_name', '股东B')
             ]

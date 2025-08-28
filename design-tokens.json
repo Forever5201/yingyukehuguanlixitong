@@ -1,0 +1,223 @@
+{
+  "color": {
+    "primary": {
+      "value": "#4A90E2",
+      "description": "主色 - 知识蓝"
+    },
+    "primary-light": {
+      "value": "#6BA3E5",
+      "description": "主色浅色"
+    },
+    "primary-dark": {
+      "value": "#357ABD",
+      "description": "主色深色"
+    },
+    "success": {
+      "value": "#52C41A",
+      "description": "成功色 - 成长绿"
+    },
+    "danger": {
+      "value": "#F5222D",
+      "description": "危险色"
+    },
+    "warning": {
+      "value": "#FAAD14",
+      "description": "警告色"
+    },
+    "info": {
+      "value": "#1890FF",
+      "description": "信息色"
+    },
+    "gray": {
+      "50": {
+        "value": "#FAFAFA"
+      },
+      "100": {
+        "value": "#F5F5F5"
+      },
+      "200": {
+        "value": "#E8E8E8"
+      },
+      "300": {
+        "value": "#D9D9D9"
+      },
+      "400": {
+        "value": "#BFBFBF"
+      },
+      "500": {
+        "value": "#8C8C8C"
+      },
+      "600": {
+        "value": "#595959"
+      },
+      "700": {
+        "value": "#434343"
+      },
+      "800": {
+        "value": "#262626"
+      },
+      "900": {
+        "value": "#1F1F1F"
+      }
+    }
+  },
+  "spacing": {
+    "xs": {
+      "value": "8px",
+      "description": "最小间距"
+    },
+    "sm": {
+      "value": "16px",
+      "description": "小间距"
+    },
+    "md": {
+      "value": "24px",
+      "description": "中等间距"
+    },
+    "lg": {
+      "value": "32px",
+      "description": "大间距"
+    },
+    "xl": {
+      "value": "48px",
+      "description": "超大间距"
+    },
+    "xxl": {
+      "value": "64px",
+      "description": "特大间距"
+    }
+  },
+  "typography": {
+    "fontFamily": {
+      "primary": {
+        "value": "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif"
+      },
+      "mono": {
+        "value": "'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace"
+      }
+    },
+    "fontSize": {
+      "h1": {
+        "value": "32px",
+        "lineHeight": "40px"
+      },
+      "h2": {
+        "value": "24px",
+        "lineHeight": "32px"
+      },
+      "h3": {
+        "value": "20px",
+        "lineHeight": "28px"
+      },
+      "h4": {
+        "value": "18px",
+        "lineHeight": "24px"
+      },
+      "body": {
+        "value": "14px",
+        "lineHeight": "22px"
+      },
+      "small": {
+        "value": "12px",
+        "lineHeight": "20px"
+      }
+    },
+    "fontWeight": {
+      "regular": {
+        "value": "400"
+      },
+      "medium": {
+        "value": "500"
+      },
+      "semibold": {
+        "value": "600"
+      },
+      "bold": {
+        "value": "700"
+      }
+    }
+  },
+  "borderRadius": {
+    "sm": {
+      "value": "4px"
+    },
+    "md": {
+      "value": "8px"
+    },
+    "lg": {
+      "value": "12px"
+    },
+    "xl": {
+      "value": "16px"
+    },
+    "full": {
+      "value": "9999px"
+    }
+  },
+  "shadow": {
+    "sm": {
+      "value": "0 1px 2px 0 rgba(0, 0, 0, 0.05)"
+    },
+    "md": {
+      "value": "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)"
+    },
+    "lg": {
+      "value": "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)"
+    },
+    "xl": {
+      "value": "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)"
+    }
+  },
+  "breakpoint": {
+    "mobile": {
+      "value": "375px",
+      "maxWidth": "767px"
+    },
+    "tablet": {
+      "value": "768px",
+      "maxWidth": "1023px"
+    },
+    "desktop": {
+      "value": "1024px",
+      "maxWidth": "1365px"
+    },
+    "desktopLarge": {
+      "value": "1366px"
+    }
+  },
+  "components": {
+    "kpiCard": {
+      "height": {
+        "value": "120px"
+      },
+      "padding": {
+        "value": "24px"
+      },
+      "valueFontSize": {
+        "value": "24px"
+      },
+      "labelFontSize": {
+        "value": "14px"
+      }
+    },
+    "dataTable": {
+      "rowHeight": {
+        "value": "48px"
+      },
+      "headerHeight": {
+        "value": "56px"
+      },
+      "cellPadding": {
+        "value": "12px 16px"
+      }
+    },
+    "filterBar": {
+      "height": {
+        "value": "56px"
+      },
+      "drawerWidth": {
+        "value": "320px"
+      }
+    }
+  }
+}

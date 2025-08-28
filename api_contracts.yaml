@@ -1,0 +1,587 @@
+openapi: 3.0.0
+info:
+  title: 客户管理系统API
+  version: 2.0.0
+  description: Dashboard和List页面的后端接口契约
+
+servers:
+  - url: http://localhost:5000/api
+    description: 开发环境
+  - url: https://api.example.com
+    description: 生产环境
+
+paths:
+  /dashboard/kpis:
+    get:
+      summary: 获取Dashboard KPI数据
+      description: 返回4个关键指标的实时数据
+      tags:
+        - Dashboard
+      parameters:
+        - name: period
+          in: query
+          schema:
+            type: string
+            enum: [today, week, month, year]
+            default: month
+          description: 统计周期
+      responses:
+        '200':
+          description: 成功返回KPI数据
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  totalCustomers:
+                    type: object
+                    properties:
+                      value:
+                        type: integer
+                        example: 1856
+                      change:
+                        type: number
+                        format: float
+                        example: 12.5
+                        description: 环比增长率
+                      changeType:
+                        type: string
+                        enum: [increase, decrease]
+                  todayNewCustomers:
+                    type: object
+                    properties:
+                      value:
+                        type: integer
+                        example: 23
+                      lastUpdate:
+                        type: string
+                        format: date-time
+                        example: "2024-01-26T15:30:00Z"
+                  totalRevenue:
+                    type: object
+                    properties:
+                      value:
+                        type: number
+                        format: float
+                        example: 486750.50
+                      monthlyRevenue:
+                        type: number
+                        format: float
+                        example: 58600.00
+                      currency:
+                        type: string
+                        example: "CNY"
+                  conversionRate:
+                    type: object
+                    properties:
+                      value:
+                        type: number
+                        format: float
+                        example: 68.5
+                        description: 百分比值
+                      trend:
+                        type: array
+                        items:
+                          type: number
+                        example: [65.2, 66.8, 67.1, 68.5]
+                        description: 最近4个周期的趋势数据
+
+  /dashboard/charts/trend:
+    get:
+      summary: 获取趋势图数据
+      tags:
+        - Dashboard
+      parameters:
+        - name: range
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [today, 7days, 30days, custom]
+        - name: startDate
+          in: query
+          schema:
+            type: string
+            format: date
+          description: 自定义开始日期
+        - name: endDate
+          in: query
+          schema:
+            type: string
+            format: date
+          description: 自定义结束日期
+      responses:
+        '200':
+          description: 趋势数据
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  labels:
+                    type: array
+                    items:
+                      type: string
+                    example: ["1月20日", "1月21日", "1月22日"]
+                  datasets:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        label:
+                          type: string
+                        data:
+                          type: array
+                          items:
+                            type: number
+
+  /dashboard/charts/channel:
+    get:
+      summary: 获取渠道分布数据
+      tags:
+        - Dashboard
+      responses:
+        '200':
+          description: 渠道分布数据
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  channels:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        name:
+                          type: string
+                          example: "淘宝"
+                        value:
+                          type: integer
+                          example: 450
+                        percentage:
+                          type: number
+                          format: float
+                          example: 35.5
+                        color:
+                          type: string
+                          example: "#FF6B00"
+
+  /dashboard/charts/funnel:
+    get:
+      summary: 获取转化漏斗数据
+      tags:
+        - Dashboard
+      responses:
+        '200':
+          description: 漏斗数据
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  stages:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        name:
+                          type: string
+                          example: "咨询"
+                        value:
+                          type: integer
+                          example: 1000
+                        rate:
+                          type: number
+                          format: float
+                          example: 100.0
+
+  /customers:
+    get:
+      summary: 获取客户列表
+      description: 支持分页、筛选、排序的客户列表接口
+      tags:
+        - Customers
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+          description: 页码
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            default: 50
+            maximum: 100
+          description: 每页条数
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [all, trial, converted, churned]
+          description: 客户状态筛选
+          example: converted
+        - name: dateRange
+          in: query
+          schema:
+            type: string
+            enum: [today, yesterday, week, month, custom]
+          description: 时间范围筛选
+          example: today
+        - name: source
+          in: query
+          schema:
+            type: string
+            enum: [taobao, wechat, offline, other]
+          description: 客户来源筛选
+          example: taobao
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [createdAt, name, revenue, lastActivity]
+            default: createdAt
+          description: 排序字段
+        - name: order
+          in: query
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
+          description: 排序方向
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: 搜索关键词（姓名、电话）
+      responses:
+        '200':
+          description: 客户列表
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Customer'
+                  pagination:
+                    type: object
+                    properties:
+                      total:
+                        type: integer
+                        example: 1856
+                      page:
+                        type: integer
+                        example: 1
+                      pageSize:
+                        type: integer
+                        example: 50
+                      totalPages:
+                        type: integer
+                        example: 38
+                  filters:
+                    type: object
+                    description: 当前应用的筛选条件
+
+    post:
+      summary: 创建新客户
+      tags:
+        - Customers
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomerInput'
+      responses:
+        '201':
+          description: 创建成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Customer'
+
+  /customers/{id}:
+    get:
+      summary: 获取客户详情
+      tags:
+        - Customers
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 客户详情
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerDetail'
+
+    put:
+      summary: 更新客户信息
+      tags:
+        - Customers
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomerInput'
+      responses:
+        '200':
+          description: 更新成功
+
+    delete:
+      summary: 删除客户
+      tags:
+        - Customers
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: 删除成功
+
+  /customers/{id}/action:
+    post:
+      summary: 执行客户操作
+      description: 批量操作接口，支持状态变更、标签、导出等
+      tags:
+        - Customers
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                action:
+                  type: string
+                  enum: [convert, archive, tag, export]
+                  description: 操作类型
+                params:
+                  type: object
+                  description: 操作参数
+              example:
+                action: convert
+                params:
+                  courseType: formal
+                  price: 1200
+      responses:
+        '200':
+          description: 操作成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+
+  /customers/batch:
+    post:
+      summary: 批量操作客户
+      tags:
+        - Customers
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ids:
+                  type: array
+                  items:
+                    type: integer
+                  description: 客户ID列表
+                action:
+                  type: string
+                  enum: [delete, export, tag, updateStatus]
+                params:
+                  type: object
+      responses:
+        '200':
+          description: 批量操作结果
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: integer
+                    description: 成功数量
+                  failed:
+                    type: integer
+                    description: 失败数量
+                  errors:
+                    type: array
+                    items:
+                      type: object
+
+  /customers/export:
+    post:
+      summary: 导出客户数据
+      tags:
+        - Customers
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                format:
+                  type: string
+                  enum: [xlsx, csv, pdf]
+                  default: xlsx
+                filters:
+                  type: object
+                  description: 与列表接口相同的筛选条件
+                columns:
+                  type: array
+                  items:
+                    type: string
+                  description: 要导出的列
+      responses:
+        '200':
+          description: 导出文件
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+
+components:
+  schemas:
+    Customer:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: "张三"
+        phone:
+          type: string
+          example: "13800138000"
+        gender:
+          type: string
+          enum: [male, female, other]
+        grade:
+          type: string
+          example: "初三"
+        region:
+          type: string
+          example: "北京"
+        source:
+          type: string
+          enum: [taobao, wechat, offline, other]
+        status:
+          type: string
+          enum: [trial, converted, churned]
+        createdAt:
+          type: string
+          format: date-time
+        revenue:
+          type: number
+          format: float
+          example: 5600.00
+
+    CustomerDetail:
+      allOf:
+        - $ref: '#/components/schemas/Customer'
+        - type: object
+          properties:
+            courses:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  type:
+                    type: string
+                  price:
+                    type: number
+                  status:
+                    type: string
+            notes:
+              type: string
+            tags:
+              type: array
+              items:
+                type: string
+            timeline:
+              type: array
+              items:
+                type: object
+                properties:
+                  date:
+                    type: string
+                    format: date-time
+                  event:
+                    type: string
+                  details:
+                    type: string
+
+    CustomerInput:
+      type: object
+      required:
+        - name
+        - phone
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 50
+        phone:
+          type: string
+          pattern: '^1[3-9]\d{9}$'
+        gender:
+          type: string
+          enum: [male, female, other]
+        grade:
+          type: string
+        region:
+          type: string
+        source:
+          type: string
+          enum: [taobao, wechat, offline, other]
+        notes:
+          type: string
+          maxLength: 500
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+security:
+  - bearerAuth: []

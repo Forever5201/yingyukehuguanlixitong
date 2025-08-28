@@ -1,58 +1,259 @@
 {% extends "base.html" %}
 
-{% block title %}试听课管理 - 客户管理系统{% endblock %}
-{% block page_title %}试听课管理{% endblock %}
+{% block title %}试听课管理 - 教育培训管理系统{% endblock %}
+{% block page_title %}试听课管理中心{% endblock %}
+
+{% block head %}
+<style>
+/* 试听课页面专属样式 */
+.page-header-section {
+    margin-bottom: 30px;
+}
+
+.page-main-title {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--edu-gray-900);
+    margin-bottom: 8px;
+}
+
+.page-subtitle {
+    font-size: 16px;
+    color: var(--edu-gray-600);
+}
+
+/* 状态进度条 */
+.stat-progress {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: var(--edu-gray-200);
+    border-radius: 0 0 var(--edu-radius-lg) var(--edu-radius-lg);
+    overflow: hidden;
+}
+
+.stat-progress .progress-bar {
+    height: 100%;
+    background: var(--edu-gradient-success);
+    transition: width 0.6s ease;
+}
+
+/* 状态统计卡片美化 */
+.status-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+    margin-top: 24px;
+}
+
+.status-stat-card {
+    background: white;
+    border-radius: var(--edu-radius-md);
+    padding: 20px;
+    box-shadow: var(--edu-shadow-sm);
+    transition: all 0.3s ease;
+}
+
+.status-stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--edu-shadow-md);
+}
+
+.status-stat-card.registered {
+    border-left: 4px solid var(--edu-primary);
+}
+
+.status-stat-card.not-registered {
+    border-left: 4px solid var(--edu-warm);
+}
+
+.status-stat-card.completed {
+    border-left: 4px solid var(--edu-success);
+}
+
+.status-stat-card.converted {
+    border-left: 4px solid var(--edu-purple);
+}
+
+.status-stat-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+    font-weight: 600;
+    color: var(--edu-gray-800);
+}
+
+.status-stat-content .stat-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--edu-gray-100);
+    font-size: 14px;
+}
+
+.status-stat-content .stat-row:last-child {
+    border-bottom: none;
+}
+
+.status-stat-content .stat-row.profit {
+    font-weight: 600;
+    padding-top: 12px;
+}
+
+.profit-positive {
+    color: var(--edu-success);
+}
+
+.profit-negative {
+    color: var(--edu-danger);
+}
+
+/* 表格视图切换 */
+.view-options {
+    display: flex;
+    gap: 4px;
+    background: var(--edu-gray-100);
+    padding: 4px;
+    border-radius: var(--edu-radius-sm);
+}
+
+.view-btn {
+    padding: 6px 12px;
+    background: transparent;
+    border: none;
+    color: var(--edu-gray-600);
+    cursor: pointer;
+    border-radius: var(--edu-radius-sm);
+    transition: all 0.2s ease;
+}
+
+.view-btn.active {
+    background: white;
+    color: var(--edu-primary);
+    box-shadow: var(--edu-shadow-sm);
+}
+
+/* 表格头部 */
+.table-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    border-bottom: 1px solid var(--edu-gray-200);
+}
+
+.table-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--edu-gray-900);
+    margin: 0;
+}
+
+.table-info {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.record-count {
+    font-size: 14px;
+    color: var(--edu-gray-600);
+}
+
+/* 年级标签 */
+.grade-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    background: var(--edu-gradient-primary);
+    color: white;
+    border-radius: var(--edu-radius-full);
+    font-size: 13px;
+    font-weight: 500;
+}
+
+/* 位置信息 */
+.location-info {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--edu-gray-600);
+    font-size: 14px;
+}
+
+.location-info i {
+    color: var(--edu-primary);
+}
+
+/* 批量操作栏 */
+.batch-actions {
+    background: var(--edu-gradient-light);
+    border: 1px solid var(--edu-primary-light);
+    border-radius: var(--edu-radius-md);
+    padding: 12px 16px;
+    margin-bottom: 20px;
+    display: none;
+}
+
+.batch-actions.show {
+    display: block;
+    animation: slideInUp 0.3s ease;
+}
+
+/* 响应式表格 */
+.table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 768px) {
+    .status-stats-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .table-header {
+        flex-direction: column;
+        gap: 16px;
+        align-items: flex-start;
+    }
+    
+    .action-bar {
+        flex-direction: column;
+    }
+    
+    .search-section {
+        width: 100%;
+    }
+}
+</style>
+{% endblock %}
 
 {% block content %}
 <div class="page-container">
+    <!-- 引入 KPI 卡片组件 -->
+    {% from 'components/kpi_card.html' import kpi_card %}
+    
     <!-- 统计卡片 -->
-    <div class="stats-grid">
-        <div class="stat-card">
-            <div class="stat-icon">
-                <i class="fas fa-play-circle"></i>
-            </div>
-            <div class="stat-content">
-                <h3>{{ stats.total_trials }}</h3>
-                <p>试听课总数</p>
-            </div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-icon">
-                <i class="fas fa-money-bill-wave"></i>
-            </div>
-            <div class="stat-content">
-                <h3>¥{{ "%.2f"|format(stats.total_revenue) }}</h3>
-                <p>总收入</p>
-            </div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-icon">
-                <i class="fas fa-coins"></i>
-            </div>
-            <div class="stat-content">
-                <h3>¥{{ "%.2f"|format(stats.total_cost) }}</h3>
-                <p>总成本</p>
-            </div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-icon">
-                <i class="fas fa-chart-line"></i>
-            </div>
-            <div class="stat-content">
-                <h3>¥{{ "%.2f"|format(stats.total_profit) }}</h3>
-                <p>总利润</p>
-            </div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-icon">
-                <i class="fas fa-percentage"></i>
-            </div>
-            <div class="stat-content">
-                <h3>¥{{ "%.2f"|format(stats.total_fees) }}</h3>
-                <p>总手续费</p>
-            </div>
-        </div>
+    <div class="kpi-grid">
+        {{ kpi_card(stats.total_trials, '试听课总数', None, 'fa-play-circle', 'primary') }}
+        {{ kpi_card('¥' ~ "%.2f"|format(stats.total_revenue), '总收入', None, 'fa-money-bill-wave', 'success') }}
+        {{ kpi_card('¥' ~ "%.2f"|format(stats.total_cost), '总成本', None, 'fa-coins', 'warning') }}
+        {{ kpi_card('¥' ~ "%.2f"|format(stats.total_profit), '总利润', (stats.total_profit / stats.total_revenue * 100) if stats.total_revenue > 0 else 0, 'fa-chart-line', 'info') }}
+        {{ kpi_card('¥' ~ "%.2f"|format(stats.total_fees), '总手续费', None, 'fa-percentage', 'default') }}
     </div>
+
+    <!-- 筛选面板 -->
+    {% with show_status=true, show_source=true, custom_status_options=[
+        {'value': 'registered', 'label': '已报名'},
+        {'value': 'not_registered', 'label': '未报名'},
+        {'value': 'completed', 'label': '已试听'},
+        {'value': 'converted', 'label': '已转正课'},
+        {'value': 'refunded', 'label': '已退费'}
+    ] %}
+        {% include 'components/filter_panel.html' %}
+    {% endwith %}
 
     <!-- 状态统计详情 -->
     <div class="status-stats-section">
@@ -215,18 +416,21 @@
         </div>
     </div>
 
-    <!-- 添加试听课按钮 -->
-    <div class="form-section">
-        <div class="add-trial-header">
-            <h3><i class="fas fa-plus"></i> 试听课管理</h3>
-            <div class="header-actions">
-                <button type="button" class="btn btn-info" onclick="exportTrialData()">
-                    <i class="fas fa-download"></i> 导出数据
-                </button>
-                <button type="button" class="btn btn-primary" id="addTrialBtn">
-                    <i class="fas fa-user-plus"></i> 录入新学员
-                </button>
-            </div>
+    <!-- 操作栏 -->
+    <div class="action-bar">
+        <div class="search-section">
+            <input type="text" class="search-input" placeholder="搜索学员姓名、电话..." id="searchInput">
+            <button class="btn btn-primary" onclick="searchTrials()">
+                <i class="fas fa-search"></i> 搜索
+            </button>
+        </div>
+        <div class="action-buttons">
+            <button type="button" class="btn btn-outline" onclick="exportTrialData()">
+                <i class="fas fa-download"></i> 导出数据
+            </button>
+            <button type="button" class="btn btn-warm" id="addTrialBtn">
+                <i class="fas fa-user-plus"></i> 录入新学员
+            </button>
         </div>
     </div>
 
@@ -558,10 +762,31 @@
             </div>
         </div>
         
+        <!-- 批量操作工具栏 -->
+        <div class="batch-operations mb-3" id="batchOperations" style="display: none;">
+            <div class="alert alert-info d-flex align-items-center" style="margin-bottom: 10px;">
+                <span style="margin-right: auto;">已选择 <strong id="selectedCount">0</strong> 个试听课</span>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn-primary" onclick="batchAssignEmployee()" style="padding: 5px 15px; border-radius: 4px; border: none;">
+                        <i class="fas fa-user-tag"></i> 批量分配员工
+                    </button>
+                    <button class="btn-warning" onclick="batchUnassign()" style="padding: 5px 15px; border-radius: 4px; border: none;">
+                        <i class="fas fa-user-slash"></i> 批量取消分配
+                    </button>
+                    <button class="btn-secondary" onclick="clearSelection()" style="padding: 5px 15px; border-radius: 4px; border: none;">
+                        <i class="fas fa-times"></i> 取消选择
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <div class="table-container">
             <table class="data-table">
                 <thead>
                     <tr>
+                        <th width="40">
+                            <input type="checkbox" id="selectAll" onchange="toggleSelectAll()">
+                        </th>
                         <th>学员姓名</th>
                         <th>性别</th>
                         <th>年级</th>
@@ -580,6 +805,9 @@
                 <tbody>
                     {% for course, customer in trial_courses %}
                     <tr data-course-id="{{ course.id }}">
+                        <td>
+                            <input type="checkbox" class="course-checkbox" value="{{ course.id }}" onchange="updateSelection()">
+                        </td>
                         <td>{{ customer.name }}</td>
                         <td>{{ customer.gender or '-' }}</td>
                         <td>{{ customer.grade or '-' }}</td>
@@ -639,14 +867,17 @@
                         </td>
                         <td>
                             <div class="employee-assign">
-                                <select class="form-control form-control-sm employee-select" 
+                                <select class="form-control form-control-sm employee-select {% if not course.assigned_employee_id %}text-muted{% endif %}" 
                                         data-course-id="{{ course.id }}" 
+                                        data-original-value="{% if course.assigned_employee %}{{ course.assigned_employee.name }}{% else %}未分配{% endif %}"
                                         onchange="assignEmployee('{{ course.id }}', this.value)">
-                                    <option value="">未分配</option>
+                                    <option value="" {% if not course.assigned_employee_id %}selected{% endif %}>
+                                        🚫 未分配
+                                    </option>
                                     {% for employee in employees %}
                                     <option value="{{ employee.id }}" 
                                             {% if course.assigned_employee_id == employee.id %}selected{% endif %}>
-                                        {{ employee.name }}
+                                        ✅ {{ employee.name }}
                                     </option>
                                     {% endfor %}
                                 </select>
@@ -2786,12 +3017,71 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // 分配员工
-function assignEmployee(courseId, employeeId) {
-    if (!confirm('确定要将该试听课分配给此员工吗？')) {
-        // 恢复原选项
-        location.reload();
+function assignEmployee(courseId, employeeId, forceUpdate = false) {
+    // 获取select元素 - 优先从event获取，否则通过courseId查找
+    let selectElement = null;
+    if (typeof event !== 'undefined' && event && event.target) {
+        selectElement = event.target;
+    } else {
+        // 查找员工分配的select元素 - 需要更精确的选择器
+        selectElement = document.querySelector(`select.employee-select[data-course-id="${courseId}"]`);
+    }
+    
+    // 确保找到了select元素
+    if (!selectElement) {
+        console.error(`无法找到课程ID ${courseId} 的员工选择框`);
+        showAlert('操作失败：无法找到员工选择框', 'danger');
         return;
     }
+    
+    // 确保是select元素并且有options
+    if (!selectElement.tagName || selectElement.tagName.toLowerCase() !== 'select' || !selectElement.options) {
+        console.error(`找到的元素不是有效的select元素`, selectElement);
+        showAlert('操作失败：选择框无效', 'danger');
+        return;
+    }
+    
+    // 获取员工名称 - 需要更安全的方式
+    let selectedText = "未分配";
+    if (employeeId) {
+        // 查找对应的option
+        const option = Array.from(selectElement.options).find(opt => opt.value === String(employeeId));
+        if (option) {
+            selectedText = option.text.replace('✅ ', '').replace('🚫 ', '').trim();
+        } else {
+            // 如果在select中找不到，可能是因为员工列表不完整
+            selectedText = `员工ID: ${employeeId}`;
+        }
+    }
+    
+    const currentText = selectElement.getAttribute('data-original-value') || 
+                       (selectElement.options[0].selected ? "未分配" : selectElement.options[selectElement.selectedIndex].text.replace('✅ ', '').replace('🚫 ', '').trim());
+    
+    // 如果不是强制更新，先确认
+    if (!forceUpdate) {
+        // 构建确认消息
+        let confirmMessage = '';
+        if (employeeId) {
+            confirmMessage = `确定要将该试听课分配给【${selectedText}】吗？`;
+        } else {
+            confirmMessage = `确定要取消该试听课的员工分配吗？\n当前负责员工：${currentText}`;
+        }
+        
+        if (employeeId) {
+            confirmMessage += '\n\n注意：该客户的所有课程（包括独立创建的正课）都将分配给此员工。';
+        } else {
+            confirmMessage += '\n\n注意：该客户的所有课程都将变为未分配状态。';
+        }
+        
+        if (!confirm(confirmMessage)) {
+            // 恢复原选项
+            location.reload();
+            return;
+        }
+    }
+    
+    // 显示加载状态
+    selectElement.disabled = true;
     
     fetch(`/api/trial-courses/${courseId}/assign`, {
         method: 'POST',
@@ -2799,13 +3089,153 @@ function assignEmployee(courseId, employeeId) {
             'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-            employee_id: employeeId || null
+            employee_id: employeeId || null,
+            force_update: forceUpdate
+        })
+    })
+    .then(response => {
+        if (response.status === 409) {
+            // 处理冲突情况
+            return response.json().then(data => {
+                handleAssignmentConflict(courseId, employeeId, data);
+                selectElement.disabled = false;
+            });
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data && data.success) {
+            showAlert(data.message || '分配成功', 'success');
+            // 显示更新详情
+            if (data.details && data.details.updated_courses_count > 1) {
+                showAlert(`共更新了 ${data.details.updated_courses_count} 个相关课程`, 'info');
+            }
+            // 更新原始值属性
+            selectElement.setAttribute('data-original-value', selectedText);
+            selectElement.disabled = false;
+            
+            // 如果解决了冲突，刷新页面
+            if (data.details && data.details.resolved_conflict) {
+                setTimeout(() => location.reload(), 1500);
+            }
+        } else if (data && !data.conflict) {
+            showAlert(data.message || '分配失败', 'danger');
+            location.reload();
+        }
+    })
+    .catch(error => {
+        showAlert('分配失败：' + error.message, 'danger');
+        location.reload();
+    });
+}
+
+// 处理员工分配冲突
+function handleAssignmentConflict(courseId, newEmployeeId, conflictData) {
+    const message = conflictData.conflict_info.message;
+    
+    // 获取新员工名称 - 从当前页面的员工列表中查找
+    let newEmployeeName = "未知员工";
+    if (newEmployeeId) {
+        // 尝试从任意一个员工select中找到员工名称
+        const anyEmployeeSelect = document.querySelector('select.employee-select');
+        if (anyEmployeeSelect && anyEmployeeSelect.options) {
+            const option = Array.from(anyEmployeeSelect.options).find(opt => opt.value === String(newEmployeeId));
+            if (option) {
+                newEmployeeName = option.text.replace('✅ ', '').replace('🚫 ', '').trim();
+            }
+        }
+    }
+    
+    // 保存必要信息到对话框元素上
+    const dialogId = 'conflictDialog';
+    
+    // 创建冲突解决对话框
+    const dialog = `
+        <div id="${dialogId}" 
+             data-course-id="${courseId}" 
+             data-employee-id="${newEmployeeId || ''}"
+             data-employee-name="${newEmployeeName}"
+             style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); 
+                    background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                    z-index: 1000; min-width: 400px; max-width: 500px;">
+            <h4 style="color: #ff6b6b; margin-bottom: 15px;">
+                <i class="fas fa-exclamation-triangle"></i> 发现数据不一致
+            </h4>
+            <p style="margin-bottom: 15px;">${message}</p>
+            <div style="background: #f8f9fa; padding: 10px; border-radius: 4px; margin-bottom: 15px;">
+                <small>
+                    <strong>说明：</strong>这个试听课对应的正课已经分配给了其他员工。
+                    这可能是历史数据导致的。您可以选择：
+                </small>
+            </div>
+            <div style="text-align: right;">
+                <button onclick="closeConflictDialog()" class="btn btn-secondary" style="margin-right: 10px;">
+                    保持现状
+                </button>
+                <button onclick="forceAssignEmployeeFromDialog()" class="btn btn-warning">
+                    <i class="fas fa-sync"></i> 统一更新为新员工
+                </button>
+            </div>
+        </div>
+        <div id="conflictOverlay" onclick="closeConflictDialog()" 
+             style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; 
+                    background: rgba(0,0,0,0.5); z-index: 999;"></div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', dialog);
+}
+
+// 关闭冲突对话框
+function closeConflictDialog() {
+    const overlay = document.getElementById('conflictOverlay');
+    const dialog = document.getElementById('conflictDialog');
+    if (overlay) overlay.remove();
+    if (dialog) dialog.remove();
+}
+
+// 强制分配员工（解决冲突）
+function forceAssignEmployee(courseId, employeeId) {
+    closeConflictDialog();
+    assignEmployee(courseId, employeeId, true);
+}
+
+// 从对话框触发强制分配
+function forceAssignEmployeeFromDialog() {
+    const dialog = document.getElementById('conflictDialog');
+    if (!dialog) {
+        console.error('无法找到冲突对话框');
+        return;
+    }
+    
+    const courseId = dialog.getAttribute('data-course-id');
+    const employeeId = dialog.getAttribute('data-employee-id') || null;
+    const employeeName = dialog.getAttribute('data-employee-name');
+    
+    console.log(`强制分配: 课程ID=${courseId}, 员工ID=${employeeId}, 员工名称=${employeeName}`);
+    
+    closeConflictDialog();
+    
+    // 直接发送请求，避免再次查找DOM元素
+    fetch(`/api/trial-courses/${courseId}/assign`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            employee_id: employeeId || null,
+            force_update: true
         })
     })
     .then(response => response.json())
     .then(data => {
-        if (data.success) {
-            showAlert('分配成功', 'success');
+        if (data && data.success) {
+            showAlert(data.message || '分配成功', 'success');
+            // 显示更新详情
+            if (data.details && data.details.updated_courses_count > 1) {
+                showAlert(`共更新了 ${data.details.updated_courses_count} 个相关课程`, 'info');
+            }
+            // 刷新页面
+            setTimeout(() => location.reload(), 1500);
         } else {
             showAlert(data.message || '分配失败', 'danger');
             location.reload();
@@ -2831,6 +3261,163 @@ function showAlert(message, type) {
     document.body.appendChild(alertDiv);
     
     setTimeout(() => alertDiv.remove(), 3000);
+}
+
+// ========== 批量操作功能 ==========
+let selectedCourses = new Set();
+
+function toggleSelectAll() {
+    const selectAll = document.getElementById('selectAll');
+    const checkboxes = document.querySelectorAll('.course-checkbox');
+    
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = selectAll.checked;
+        if (selectAll.checked) {
+            selectedCourses.add(checkbox.value);
+        } else {
+            selectedCourses.delete(checkbox.value);
+        }
+    });
+    
+    updateSelection();
+}
+
+function updateSelection() {
+    selectedCourses.clear();
+    const checkboxes = document.querySelectorAll('.course-checkbox:checked');
+    
+    checkboxes.forEach(checkbox => {
+        selectedCourses.add(checkbox.value);
+    });
+    
+    const count = selectedCourses.size;
+    document.getElementById('selectedCount').textContent = count;
+    document.getElementById('batchOperations').style.display = count > 0 ? 'block' : 'none';
+    
+    // 更新全选框状态
+    const allCheckboxes = document.querySelectorAll('.course-checkbox');
+    const selectAll = document.getElementById('selectAll');
+    selectAll.checked = count > 0 && count === allCheckboxes.length;
+    selectAll.indeterminate = count > 0 && count < allCheckboxes.length;
+}
+
+function clearSelection() {
+    selectedCourses.clear();
+    document.querySelectorAll('.course-checkbox').forEach(checkbox => {
+        checkbox.checked = false;
+    });
+    document.getElementById('selectAll').checked = false;
+    updateSelection();
+}
+
+function batchAssignEmployee() {
+    if (selectedCourses.size === 0) return;
+    
+    // 创建员工选择对话框
+    const employees = [
+        {% for employee in employees %}
+        {id: {{ employee.id }}, name: '{{ employee.name }}'},
+        {% endfor %}
+    ];
+    
+    let options = employees.map(emp => 
+        `<option value="${emp.id}">${emp.name}</option>`
+    ).join('');
+    
+    const dialog = `
+        <div id="batchAssignDialog" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); 
+                    background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                    z-index: 1000; min-width: 300px;">
+            <h4>批量分配员工</h4>
+            <p>将选中的 ${selectedCourses.size} 个试听课分配给：</p>
+            <select id="batchEmployeeSelect" class="form-control">
+                <option value="">选择员工</option>
+                ${options}
+            </select>
+            <div style="margin-top: 15px; text-align: right;">
+                <button onclick="closeBatchDialog()" class="btn btn-secondary" style="margin-right: 10px;">取消</button>
+                <button onclick="confirmBatchAssign()" class="btn btn-primary">确认分配</button>
+            </div>
+        </div>
+        <div id="dialogOverlay" onclick="closeBatchDialog()" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; 
+                                       background: rgba(0,0,0,0.5); z-index: 999;"></div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', dialog);
+}
+
+function batchUnassign() {
+    if (selectedCourses.size === 0) return;
+    
+    if (!confirm(`确定要取消这 ${selectedCourses.size} 个试听课的员工分配吗？\n\n注意：相关的正课和续课也将同时取消分配。`)) {
+        return;
+    }
+    
+    processBatchUpdate(null);
+}
+
+function closeBatchDialog() {
+    const overlay = document.getElementById('dialogOverlay');
+    const dialog = document.getElementById('batchAssignDialog');
+    if (overlay) overlay.remove();
+    if (dialog) dialog.remove();
+}
+
+function confirmBatchAssign() {
+    const employeeId = document.getElementById('batchEmployeeSelect').value;
+    if (!employeeId) {
+        alert('请选择员工');
+        return;
+    }
+    
+    closeBatchDialog();
+    processBatchUpdate(employeeId);
+}
+
+function processBatchUpdate(employeeId) {
+    const courseIds = Array.from(selectedCourses);
+    let completed = 0;
+    let failed = 0;
+    
+    // 显示进度
+    showAlert(`正在处理 ${courseIds.length} 个试听课...`, 'info');
+    
+    // 依次处理每个课程
+    courseIds.forEach((courseId, index) => {
+        setTimeout(() => {
+            fetch(`/api/trial-courses/${courseId}/assign`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({employee_id: employeeId || null})
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    completed++;
+                } else {
+                    failed++;
+                }
+                
+                // 处理完成
+                if (completed + failed === courseIds.length) {
+                    if (failed === 0) {
+                        showAlert(`成功处理 ${completed} 个试听课`, 'success');
+                    } else {
+                        showAlert(`处理完成：成功 ${completed} 个，失败 ${failed} 个`, 'warning');
+                    }
+                    
+                    // 刷新页面
+                    setTimeout(() => location.reload(), 1500);
+                }
+            })
+            .catch(error => {
+                failed++;
+                if (completed + failed === courseIds.length) {
+                    showAlert(`处理出错，请重试`, 'danger');
+                }
+            });
+        }, index * 100); // 每个请求间隔100ms，避免并发过多
+    });
 }
 </script>
 

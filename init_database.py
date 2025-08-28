@@ -41,10 +41,10 @@ def init_database():
         # 检查并创建必要的配置项
         print("\n检查配置项...")
         default_configs = [
-            ('new_course_shareholder_a', '50', '新课股东A分配比例'),
-            ('new_course_shareholder_b', '50', '新课股东B分配比例'),
-            ('renewal_shareholder_a', '40', '续课股东A分配比例'),
-            ('renewal_shareholder_b', '60', '续课股东B分配比例'),
+            ('shareholder_a_ratio', '50', '股东A分配比例'),
+            ('shareholder_b_ratio', '50', '股东B分配比例'),
+            ('shareholder_a_name', '股东A', '股东A名称'),
+            ('shareholder_b_name', '股东B', '股东B名称'),
             ('trial_cost', '30', '试听课成本'),
             ('course_cost', '30', '正课成本'),
             ('taobao_fee_rate', '0.6', '淘宝费率(百分比)'),
@@ -113,7 +113,7 @@ def check_database_health():
             print(f"✓ 配置表可访问，包含 {config_count} 条记录")
             
             # 测试关键配置
-            required_keys = ['new_course_shareholder_a', 'renewal_shareholder_a', 'trial_cost']
+            required_keys = ['shareholder_a_ratio', 'shareholder_b_ratio', 'trial_cost']
             missing_keys = []
             
             for key in required_keys:

@@ -1,0 +1,224 @@
+{% extends "base.html" %}
+
+{% block title %}示例仪表板{% endblock %}
+{% block page_title %}示例仪表板{% endblock %}
+
+{% block head %}
+<!-- Include tokens CSS -->
+<link rel="stylesheet" href="{{ url_for('static', filename='css/tokens.css') }}">
+<!-- Include Clusterize.js CSS -->
+<link rel="stylesheet" href="{{ url_for('static', filename='vendor/clusterize.css') }}">
+<style>
+    .dashboard-container {
+        padding: var(--space-lg);
+    }
+    
+    .dashboard-header {
+        margin-bottom: var(--space-2xl);
+    }
+    
+    .kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: var(--space-lg);
+        margin-bottom: var(--space-2xl);
+    }
+    
+    .chart-section {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: var(--space-lg);
+        margin-bottom: var(--space-2xl);
+    }
+    
+    .chart-container {
+        background-color: var(--color-card-bg);
+        border: 1px solid var(--color-border-light);
+        border-radius: var(--radius-lg);
+        padding: var(--space-lg);
+        box-shadow: var(--shadow-sm);
+    }
+    
+    .chart-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: var(--space-md);
+    }
+    
+    .chart-title {
+        font-size: var(--font-size-lg);
+        font-weight: var(--font-weight-semibold);
+        color: var(--color-text);
+    }
+    
+    .chart-canvas {
+        height: 300px;
+    }
+    
+    @media (max-width: 768px) {
+        .chart-section {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <!-- Dashboard Header -->
+    <div class="dashboard-header">
+        <h1>业务数据概览</h1>
+        <p class="text-muted">实时监控关键业务指标，数据每小时更新</p>
+    </div>
+
+    <!-- Filter Panel -->
+    {% include 'components/filter_panel.html' %}
+
+    <!-- KPI Cards -->
+    <div class="kpi-grid">
+        {% from 'components/kpi_card.html' import kpi_card %}
+        {{ kpi_card('12,345', '总客户数', 15.8, 'fa-users') }}
+        {{ kpi_card('¥567,890', '本月收入', 23.5, 'fa-dollar-sign') }}
+        {{ kpi_card('3,456', '活跃学员', -5.2, 'fa-graduation-cap') }}
+        {{ kpi_card('4.8/5.0', '满意度评分', 2.1, 'fa-star') }}
+    </div>
+
+    <!-- Charts Section -->
+    <div class="chart-section">
+        <!-- Trend Chart -->
+        <div class="chart-container">
+            <div class="chart-header">
+                <h3 class="chart-title">收入趋势</h3>
+                <button class="btn btn-sm" onclick="exportChartDataAsCSV(trendChart, 'revenue_trend')">
+                    <i class="fas fa-download"></i> 导出
+                </button>
+            </div>
+            <canvas id="trendChart" class="chart-canvas"></canvas>
+        </div>
+
+        <!-- Pie Chart -->
+        <div class="chart-container">
+            <div class="chart-header">
+                <h3 class="chart-title">渠道分布</h3>
+                <button class="btn btn-sm" onclick="exportChartDataAsCSV(pieChart, 'channel_distribution')">
+                    <i class="fas fa-download"></i> 导出
+                </button>
+            </div>
+            <canvas id="pieChart" class="chart-canvas"></canvas>
+        </div>
+    </div>
+
+    <!-- Virtual Scroll Table -->
+    <div class="data-table-section">
+        <h2 style="margin-bottom: var(--space-lg);">客户数据表 (5000条虚拟滚动示例)</h2>
+        {% from 'components/data_table.html' import data_table %}
+        {{ data_table(
+            columns=[
+                {'key': 'name', 'label': '客户姓名', 'width': '150px'},
+                {'key': 'phone', 'label': '联系电话', 'width': '150px'},
+                {'key': 'email', 'label': '邮箱地址', 'width': '200px'},
+                {'key': 'status', 'label': '状态', 'width': '100px', 'type': 'status'},
+                {'key': 'source', 'label': '来源', 'width': '100px'},
+                {'key': 'revenue', 'label': '收入', 'width': '120px', 'type': 'currency'},
+                {'key': 'created_at', 'label': '创建时间', 'width': '150px', 'type': 'date'}
+            ],
+            mode='virtual',
+            table_id='customerVirtualTable'
+        ) }}
+    </div>
+</div>
+
+<!-- Include required scripts -->
+<script src="{{ url_for('static', filename='vendor/clusterize.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/data-table.js') }}"></script>
+<script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+
+<script>
+// Initialize charts
+let trendChart, pieChart;
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize trend chart with mock data
+    const trendData = {
+        labels: generateDateLabels(30), // Last 30 days
+        datasets: [{
+            label: '每日收入',
+            data: generateRandomData(30, 10000, 50000),
+            isCurrency: true,
+            fill: true
+        }, {
+            label: '每日订单',
+            data: generateRandomData(30, 50, 200),
+            fill: false
+        }]
+    };
+    
+    trendChart = initTrendChart('trendChart', trendData, {
+        scales: {
+            y: {
+                beginAtZero: true
+            }
+        }
+    });
+
+    // Initialize pie chart with mock data
+    const pieData = {
+        labels: ['淘宝', '微信', '抖音', '小红书', '其他'],
+        datasets: [{
+            data: [35, 25, 20, 15, 5],
+            isCurrency: true
+        }]
+    };
+    
+    pieChart = initPieChart('pieChart', pieData, {
+        type: 'doughnut'
+    });
+
+    // Initialize virtual scroll table with mock data
+    const mockTableData = generateMockData(5000);
+    
+    // Define columns configuration
+    const columns = [
+        {key: 'name', label: '客户姓名', width: '150px'},
+        {key: 'phone', label: '联系电话', width: '150px'},
+        {key: 'email', label: '邮箱地址', width: '200px'},
+        {key: 'status', label: '状态', width: '100px', type: 'status'},
+        {key: 'source', label: '来源', width: '100px'},
+        {key: 'revenue', label: '收入', width: '120px', type: 'currency'},
+        {key: 'created_at', label: '创建时间', width: '150px', type: 'date'}
+    ];
+    
+    // Initialize virtual table
+    initVirtualTable('customerVirtualTable', mockTableData, { columns: columns });
+    
+    // Add row click handler
+    document.getElementById('customerVirtualTable').addEventListener('rowClick', function(e) {
+        console.log('Row clicked:', e.detail);
+        // Here you could show a modal or navigate to detail page
+    });
+});
+
+// Helper functions for generating mock data
+function generateDateLabels(days) {
+    const labels = [];
+    const today = new Date();
+    
+    for (let i = days - 1; i >= 0; i--) {
+        const date = new Date(today);
+        date.setDate(date.getDate() - i);
+        labels.push(date.toISOString().split('T')[0]);
+    }
+    
+    return labels;
+}
+
+function generateRandomData(count, min, max) {
+    const data = [];
+    for (let i = 0; i < count; i++) {
+        data.push(Math.floor(Math.random() * (max - min + 1)) + min);
+    }
+    return data;
+}
+</script>
+{% endblock %}

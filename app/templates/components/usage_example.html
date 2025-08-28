@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+
+{% block title %}组件使用示例{% endblock %}
+{% block page_title %}组件使用示例{% endblock %}
+
+{% block head %}
+<!-- 在 base.html 的 head 块中添加组件样式 -->
+<link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}">
+{% endblock %}
+
+{% block content %}
+<div style="padding: var(--space-lg);">
+    <!-- KPI 卡片示例 -->
+    <section style="margin-bottom: var(--space-2xl);">
+        <h2 style="margin-bottom: var(--space-lg);">KPI 卡片组件</h2>
+        
+        {% from 'components/kpi_card.html' import kpi_card %}
+        
+        <div class="kpi-grid">
+            <!-- 基础用法 -->
+            {{ kpi_card('1,234', '总客户数') }}
+            
+            <!-- 带图标和正增长 -->
+            {{ kpi_card('¥567,890', '本月收入', 23.5, 'fa-dollar-sign') }}
+            
+            <!-- 带图标和负增长 -->
+            {{ kpi_card('3,456', '活跃学员', -5.2, 'fa-graduation-cap') }}
+            
+            <!-- 无变化 -->
+            {{ kpi_card('89%', '完成率', 0, 'fa-check-circle') }}
+            
+            <!-- 不同颜色变体 -->
+            {{ kpi_card('4.8/5.0', '满意度', 2.1, 'fa-star', 'success') }}
+            {{ kpi_card('12', '待处理', 8.7, 'fa-clock', 'warning') }}
+            {{ kpi_card('3', '异常', -10.5, 'fa-exclamation-triangle', 'danger') }}
+            {{ kpi_card('156', '新增用户', 15.3, 'fa-user-plus', 'primary') }}
+        </div>
+    </section>
+
+    <!-- 筛选面板示例 -->
+    <section style="margin-bottom: var(--space-2xl);">
+        <h2 style="margin-bottom: var(--space-lg);">筛选面板组件</h2>
+        
+        <!-- 基础筛选面板 -->
+        <h3 style="font-size: var(--font-size-lg); margin-bottom: var(--space-md);">完整筛选面板</h3>
+        {% include 'components/filter_panel.html' %}
+        
+        <!-- 自定义筛选面板 -->
+        <h3 style="font-size: var(--font-size-lg); margin-bottom: var(--space-md); margin-top: var(--space-2xl);">自定义筛选面板</h3>
+        {% with 
+            show_status=false,
+            custom_filters=[
+                {
+                    'name': 'employee_id',
+                    'label': '负责员工',
+                    'type': 'select',
+                    'options': [
+                        {'id': '1', 'name': '张三'},
+                        {'id': '2', 'name': '李四'},
+                        {'id': '3', 'name': '王五'}
+                    ]
+                },
+                {
+                    'name': 'course_type',
+                    'label': '课程类型',
+                    'type': 'select',
+                    'options': [
+                        {'value': 'trial', 'label': '试听课'},
+                        {'value': 'formal', 'label': '正式课'},
+                        {'value': 'renewal', 'label': '续费课'}
+                    ]
+                }
+            ]
+        %}
+            {% include 'components/filter_panel.html' %}
+        {% endwith %}
+    </section>
+</div>
+
+<!-- 在 base.html 中集成组件的完整示例 -->
+<section style="background-color: var(--color-bg-secondary); padding: var(--space-2xl); margin-top: var(--space-2xl);">
+    <h2 style="margin-bottom: var(--space-lg);">在 base.html 中集成组件</h2>
+    
+    <pre style="background-color: var(--color-text); color: var(--color-bg); padding: var(--space-lg); border-radius: var(--radius-lg); overflow-x: auto;"><code>{# 1. 在 base.html 的 head 部分添加组件样式 #}
+&lt;head&gt;
+    ...
+    &lt;!-- 在 tokens.css 之后添加 --&gt;
+    &lt;link rel="stylesheet" href="{{ "{{ url_for('static', filename='css/components.css') }}" }}"&gt;
+    ...
+&lt;/head&gt;
+
+{# 2. 在需要使用组件的模板中 #}
+
+{# 导入 KPI 卡片宏 #}
+{{ "{% from 'components/kpi_card.html' import kpi_card %}" }}
+
+{# 使用 KPI 卡片 #}
+&lt;div class="kpi-grid"&gt;
+    {{ "{{ kpi_card('1,234', '总客户数', 12.5, 'fa-users') }}" }}
+    {{ "{{ kpi_card('¥89,456', '本月收入', -3.2, 'fa-dollar-sign', 'success') }}" }}
+&lt;/div&gt;
+
+{# 包含筛选面板 #}
+{{ "{% include 'components/filter_panel.html' %}" }}
+
+{# 或者带参数包含 #}
+{{ "{% with show_source=false, show_status=false %}" }}
+    {{ "{% include 'components/filter_panel.html' %}" }}
+{{ "{% endwith %}" }}
+
+{# 3. 后端处理筛选参数示例 #}
+@app.route('/customers')
+def customers():
+    # 获取筛选参数
+    search = request.args.get('search', '')
+    date_from = request.args.get('date_from')
+    date_to = request.args.get('date_to')
+    source = request.args.get('source')
+    status = request.args.get('status')
+    
+    # 应用筛选逻辑...
+    
+    return render_template('customers.html',
+        today=datetime.now().strftime('%Y-%m-%d')
+    )</code></pre>
+</section>
+{% endblock %}

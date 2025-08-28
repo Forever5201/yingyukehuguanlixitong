@@ -1,0 +1,336 @@
+{# Filter Panel Component - Jinja2 Include Template #}
+{# 
+使用示例：
+{% include 'components/filter_panel.html' %}
+
+或带自定义参数：
+{% with 
+    show_date_range=true,
+    show_status=true,
+    show_source=true,
+    custom_filters=[
+        {'name': 'employee_id', 'label': '负责员工', 'type': 'select', 'options': employees}
+    ]
+%}
+    {% include 'components/filter_panel.html' %}
+{% endwith %}
+#}
+
+<div class="filter-panel" id="filterPanel">
+    <form method="get" action="{{ request.path }}" class="filter-panel__form">
+        <!-- 保留其他查询参数 -->
+        {% for key, value in request.args.items() if key not in ['date_from', 'date_to', 'source', 'status', 'search'] %}
+        <input type="hidden" name="{{ key }}" value="{{ value }}">
+        {% endfor %}
+        
+        <div class="filter-panel__main">
+            {# 搜索框 #}
+            {% if show_search is not defined or show_search %}
+            <div class="filter-group filter-group--search">
+                <label for="search" class="filter-group__label">
+                    <i class="fas fa-search"></i>
+                    <span class="sr-only">搜索</span>
+                </label>
+                <input type="text" 
+                       id="search" 
+                       name="search" 
+                       class="filter-group__input" 
+                       placeholder="搜索客户、订单..."
+                       value="{{ request.args.get('search', '') }}">
+            </div>
+            {% endif %}
+            
+            {# 日期范围 #}
+            {% if show_date_range is not defined or show_date_range %}
+            <div class="filter-group filter-group--date">
+                <label for="date-from" class="filter-group__label">日期范围</label>
+                <div class="filter-group__date-inputs">
+                    <input type="date" 
+                           id="date-from" 
+                           name="date_from" 
+                           class="filter-group__input" 
+                           value="{{ request.args.get('date_from', '') }}"
+                           max="{{ today }}">
+                    <span class="filter-group__separator">至</span>
+                    <input type="date" 
+                           id="date-to" 
+                           name="date_to" 
+                           class="filter-group__input" 
+                           value="{{ request.args.get('date_to', '') }}"
+                           max="{{ today }}">
+                </div>
+            </div>
+            {% endif %}
+            
+            {# 来源筛选 #}
+            {% if show_source is not defined or show_source %}
+            <div class="filter-group">
+                <label for="source" class="filter-group__label">来源渠道</label>
+                <select id="source" name="source" class="filter-group__select">
+                    <option value="">全部来源</option>
+                    <option value="taobao" {% if request.args.get('source') == 'taobao' %}selected{% endif %}>淘宝</option>
+                    <option value="wechat" {% if request.args.get('source') == 'wechat' %}selected{% endif %}>微信</option>
+                    <option value="douyin" {% if request.args.get('source') == 'douyin' %}selected{% endif %}>抖音</option>
+                    <option value="xiaohongshu" {% if request.args.get('source') == 'xiaohongshu' %}selected{% endif %}>小红书</option>
+                    <option value="other" {% if request.args.get('source') == 'other' %}selected{% endif %}>其他</option>
+                </select>
+            </div>
+            {% endif %}
+            
+            {# 状态筛选 #}
+            {% if show_status is not defined or show_status %}
+            <div class="filter-group">
+                <label for="status" class="filter-group__label">状态</label>
+                <select id="status" name="status" class="filter-group__select">
+                    <option value="">全部状态</option>
+                    <option value="active" {% if request.args.get('status') == 'active' %}selected{% endif %}>活跃</option>
+                    <option value="pending" {% if request.args.get('status') == 'pending' %}selected{% endif %}>待处理</option>
+                    <option value="completed" {% if request.args.get('status') == 'completed' %}selected{% endif %}>已完成</option>
+                    <option value="cancelled" {% if request.args.get('status') == 'cancelled' %}selected{% endif %}>已取消</option>
+                </select>
+            </div>
+            {% endif %}
+            
+            {# 自定义筛选器 #}
+            {% if custom_filters %}
+                {% for filter in custom_filters %}
+                <div class="filter-group">
+                    <label for="{{ filter.name }}" class="filter-group__label">{{ filter.label }}</label>
+                    {% if filter.type == 'select' %}
+                    <select id="{{ filter.name }}" name="{{ filter.name }}" class="filter-group__select">
+                        <option value="">全部</option>
+                        {% for option in filter.options %}
+                        <option value="{{ option.value|default(option.id) }}" 
+                                {% if request.args.get(filter.name) == option.value|default(option.id)|string %}selected{% endif %}>
+                            {{ option.label|default(option.name) }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                    {% elif filter.type == 'text' %}
+                    <input type="text" 
+                           id="{{ filter.name }}" 
+                           name="{{ filter.name }}" 
+                           class="filter-group__input"
+                           placeholder="{{ filter.placeholder|default('') }}"
+                           value="{{ request.args.get(filter.name, '') }}">
+                    {% endif %}
+                </div>
+                {% endfor %}
+            {% endif %}
+            
+            {# 操作按钮 #}
+            <div class="filter-panel__actions">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-filter"></i>
+                    <span>应用筛选</span>
+                </button>
+                <a href="{{ request.path }}" class="btn btn-outline">
+                    <i class="fas fa-undo"></i>
+                    <span>重置</span>
+                </a>
+            </div>
+        </div>
+        
+        {# 快速日期选择 #}
+        {% if show_date_range is not defined or show_date_range %}
+        <div class="filter-panel__quick-dates">
+            <span class="filter-panel__quick-label">快速选择：</span>
+            <div class="filter-panel__quick-buttons">
+                <button type="button" class="btn-quick-date" data-range="today">今天</button>
+                <button type="button" class="btn-quick-date" data-range="yesterday">昨天</button>
+                <button type="button" class="btn-quick-date" data-range="week">本周</button>
+                <button type="button" class="btn-quick-date" data-range="month">本月</button>
+                <button type="button" class="btn-quick-date" data-range="quarter">本季度</button>
+                <button type="button" class="btn-quick-date" data-range="year">本年</button>
+            </div>
+        </div>
+        {% endif %}
+        
+        {# 活动筛选标签 #}
+        <div class="filter-panel__active-filters" id="activeFilters" style="display: none;">
+            <span class="filter-panel__active-label">当前筛选：</span>
+            <div class="filter-panel__tags" id="filterTags"></div>
+        </div>
+    </form>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const filterPanel = document.getElementById('filterPanel');
+    if (!filterPanel) return;
+    
+    // 快速日期选择
+    const quickDateButtons = filterPanel.querySelectorAll('.btn-quick-date');
+    const dateFromInput = filterPanel.querySelector('#date-from');
+    const dateToInput = filterPanel.querySelector('#date-to');
+    
+    quickDateButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const range = this.dataset.range;
+            const today = new Date();
+            let fromDate, toDate;
+            
+            switch(range) {
+                case 'today':
+                    fromDate = toDate = today;
+                    break;
+                case 'yesterday':
+                    fromDate = toDate = new Date(today.setDate(today.getDate() - 1));
+                    today.setDate(today.getDate() + 1); // Reset
+                    break;
+                case 'week':
+                    fromDate = new Date(today.setDate(today.getDate() - today.getDay()));
+                    toDate = new Date();
+                    break;
+                case 'month':
+                    fromDate = new Date(today.getFullYear(), today.getMonth(), 1);
+                    toDate = new Date();
+                    break;
+                case 'quarter':
+                    const quarter = Math.floor(today.getMonth() / 3);
+                    fromDate = new Date(today.getFullYear(), quarter * 3, 1);
+                    toDate = new Date();
+                    break;
+                case 'year':
+                    fromDate = new Date(today.getFullYear(), 0, 1);
+                    toDate = new Date();
+                    break;
+            }
+            
+            if (dateFromInput) dateFromInput.value = fromDate.toISOString().split('T')[0];
+            if (dateToInput) dateToInput.value = toDate.toISOString().split('T')[0];
+            
+            // 高亮选中的按钮
+            quickDateButtons.forEach(btn => btn.classList.remove('active'));
+            this.classList.add('active');
+        });
+    });
+    
+    // 显示活动筛选标签
+    function updateActiveFilters() {
+        const params = new URLSearchParams(window.location.search);
+        const activeFilters = document.getElementById('activeFilters');
+        const filterTags = document.getElementById('filterTags');
+        
+        if (!activeFilters || !filterTags) return;
+        
+        filterTags.innerHTML = '';
+        let hasFilters = false;
+        
+        const filterLabels = {
+            'search': '搜索',
+            'date_from': '开始日期',
+            'date_to': '结束日期',
+            'source': '来源',
+            'status': '状态'
+        };
+        
+        params.forEach((value, key) => {
+            if (value && filterLabels[key]) {
+                hasFilters = true;
+                const tag = document.createElement('span');
+                tag.className = 'filter-tag';
+                tag.innerHTML = `
+                    <span>${filterLabels[key]}: ${value}</span>
+                    <button type="button" class="filter-tag__remove" data-filter="${key}">
+                        <i class="fas fa-times"></i>
+                    </button>
+                `;
+                filterTags.appendChild(tag);
+            }
+        });
+        
+        activeFilters.style.display = hasFilters ? 'flex' : 'none';
+        
+        // 移除单个筛选
+        filterTags.querySelectorAll('.filter-tag__remove').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const filterKey = this.dataset.filter;
+                params.delete(filterKey);
+                window.location.search = params.toString();
+            });
+        });
+    }
+    
+    updateActiveFilters();
+});
+</script>
+
+{# 完整使用示例 #}
+{% if false %}
+<!-- 示例1：基础用法 -->
+{% include 'components/filter_panel.html' %}
+
+<!-- 示例2：只显示部分筛选器 -->
+{% with show_source=false, show_status=false %}
+    {% include 'components/filter_panel.html' %}
+{% endwith %}
+
+<!-- 示例3：添加自定义筛选器 -->
+{% with custom_filters=[
+    {
+        'name': 'employee_id',
+        'label': '负责员工',
+        'type': 'select',
+        'options': [
+            {'id': 1, 'name': '张三'},
+            {'id': 2, 'name': '李四'},
+            {'id': 3, 'name': '王五'}
+        ]
+    },
+    {
+        'name': 'keyword',
+        'label': '关键词',
+        'type': 'text',
+        'placeholder': '输入关键词...'
+    }
+] %}
+    {% include 'components/filter_panel.html' %}
+{% endwith %}
+
+<!-- 示例4：后端处理 GET 参数 -->
+<!--
+@app.route('/customers')
+def customers():
+    # 获取筛选参数
+    search = request.args.get('search', '')
+    date_from = request.args.get('date_from')
+    date_to = request.args.get('date_to')
+    source = request.args.get('source')
+    status = request.args.get('status')
+    
+    # 构建查询
+    query = Customer.query
+    
+    if search:
+        query = query.filter(
+            db.or_(
+                Customer.name.contains(search),
+                Customer.phone.contains(search),
+                Customer.email.contains(search)
+            )
+        )
+    
+    if date_from:
+        query = query.filter(Customer.created_at >= date_from)
+    
+    if date_to:
+        query = query.filter(Customer.created_at <= date_to + ' 23:59:59')
+    
+    if source:
+        query = query.filter(Customer.source == source)
+    
+    if status:
+        query = query.filter(Customer.status == status)
+    
+    # 分页
+    page = request.args.get('page', 1, type=int)
+    pagination = query.paginate(page=page, per_page=20)
+    
+    return render_template('customers.html',
+        customers=pagination.items,
+        pagination=pagination,
+        today=datetime.now().strftime('%Y-%m-%d')
+    )
+-->
+{% endif %}

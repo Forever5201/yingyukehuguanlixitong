@@ -1,0 +1,398 @@
+[
+  {
+    "id": "EPIC-001",
+    "title": "建立设计系统",
+    "estimate": "13",
+    "priority": "High",
+    "acceptance_criteria": [
+      "创建design-tokens.json文件，包含所有颜色、间距、字体定义",
+      "颜色系统包含主色#4A90E2、成功色#52C41A、危险色#F5222D、警告色#FAAD14",
+      "间距系统遵循8px基准（8, 16, 24, 32, 48, 64）",
+      "字体系统定义h1(32px/700)、h2(24px/600)、body(14px/400)、small(12px/400)",
+      "所有token在Figma和代码中保持一致",
+      "创建组件库文档站点"
+    ],
+    "tasks": [
+      {
+        "id": "TASK-001-1",
+        "title": "创建design-tokens.json基础结构",
+        "estimate": "3",
+        "assignee": "前端工程师"
+      },
+      {
+        "id": "TASK-001-2", 
+        "title": "Figma组件库搭建",
+        "estimate": "5",
+        "assignee": "UI设计师"
+      },
+      {
+        "id": "TASK-001-3",
+        "title": "CSS变量系统实现",
+        "estimate": "3",
+        "assignee": "前端工程师"
+      },
+      {
+        "id": "TASK-001-4",
+        "title": "Storybook组件文档",
+        "estimate": "2",
+        "assignee": "前端工程师"
+      }
+    ]
+  },
+  {
+    "id": "EPIC-002",
+    "title": "Dashboard页面开发",
+    "estimate": "21",
+    "priority": "High",
+    "acceptance_criteria": [
+      "实现4个KPI卡片组件，支持点击跳转",
+      "KPI主数值字号24px、行高32px、字重700",
+      "实现3个交互图表（趋势图、渠道分布、转化漏斗）",
+      "图表支持时间范围切换（今日/7天/30天/自定义）",
+      "页面首屏加载时间<2秒",
+      "支持WebSocket实时数据更新",
+      "响应式适配3个断点"
+    ],
+    "tasks": [
+      {
+        "id": "TASK-002-1",
+        "title": "KPI卡片组件开发",
+        "estimate": "5",
+        "assignee": "前端工程师"
+      },
+      {
+        "id": "TASK-002-2",
+        "title": "Chart.js图表集成",
+        "estimate": "5",
+        "assignee": "前端工程师"
+      },
+      {
+        "id": "TASK-002-3",
+        "title": "Dashboard API接口开发",
+        "estimate": "3",
+        "assignee": "后端工程师"
+      },
+      {
+        "id": "TASK-002-4",
+        "title": "WebSocket实时推送",
+        "estimate": "3",
+        "assignee": "后端工程师"
+      },
+      {
+        "id": "TASK-002-5",
+        "title": "响应式布局实现",
+        "estimate": "3",
+        "assignee": "前端工程师"
+      },
+      {
+        "id": "TASK-002-6",
+        "title": "性能优化（懒加载、缓存）",
+        "estimate": "2",
+        "assignee": "前端工程师"
+      }
+    ]
+  },
+  {
+    "id": "EPIC-003",
+    "title": "List页面虚拟滚动实现",
+    "estimate": "13",
+    "priority": "High",
+    "acceptance_criteria": [
+      "支持10,000+行数据流畅滚动",
+      "行高固定48px，支持展开详情",
+      "实现列宽调整、列隐藏显示功能",
+      "kebab menu包含编辑、删除、导出操作",
+      "移动端简化为4列（姓名、电话、状态、操作）",
+      "支持批量选择和批量操作"
+    ],
+    "tasks": [
+      {
+        "id": "TASK-003-1",
+        "title": "react-window集成",
+        "estimate": "3",
+        "assignee": "前端工程师"
+      },
+      {
+        "id": "TASK-003-2",
+        "title": "表格列配置功能",
+        "estimate": "3",
+        "assignee": "前端工程师"
+      },
+      {
+        "id": "TASK-003-3",
+        "title": "行内展开详情组件",
+        "estimate": "2",
+        "assignee": "前端工程师"
+      },
+      {
+        "id": "TASK-003-4",
+        "title": "批量操作功能",
+        "estimate": "3",
+        "assignee": "前端工程师"
+      },
+      {
+        "id": "TASK-003-5",
+        "title": "移动端手势支持",
+        "estimate": "2",
+        "assignee": "前端工程师"
+      }
+    ]
+  },
+  {
+    "id": "EPIC-004",
+    "title": "筛选器系统开发",
+    "estimate": "8",
+    "priority": "Medium",
+    "acceptance_criteria": [
+      "顶部快速筛选栏固定高度56px",
+      "侧边高级筛选抽屉宽度320px",
+      "筛选条件支持URL参数同步",
+      "筛选状态localStorage持久化",
+      "支持筛选条件组合和清除",
+      "移动端筛选器全屏显示"
+    ],
+    "tasks": [
+      {
+        "id": "TASK-004-1",
+        "title": "筛选器UI组件",
+        "estimate": "3",
+        "assignee": "前端工程师"
+      },
+      {
+        "id": "TASK-004-2",
+        "title": "URL参数管理",
+        "estimate": "2",
+        "assignee": "前端工程师"
+      },
+      {
+        "id": "TASK-004-3",
+        "title": "筛选状态持久化",
+        "estimate": "1",
+        "assignee": "前端工程师"
+      },
+      {
+        "id": "TASK-004-4",
+        "title": "移动端适配",
+        "estimate": "2",
+        "assignee": "前端工程师"
+      }
+    ]
+  },
+  {
+    "id": "EPIC-005",
+    "title": "数据导出功能",
+    "estimate": "5",
+    "priority": "Medium",
+    "acceptance_criteria": [
+      "支持Excel、CSV、PDF三种格式",
+      "可选择导出列",
+      "支持当前筛选条件导出",
+      "大数据量分片导出",
+      "导出进度条显示"
+    ],
+    "tasks": [
+      {
+        "id": "TASK-005-1",
+        "title": "导出API接口",
+        "estimate": "2",
+        "assignee": "后端工程师"
+      },
+      {
+        "id": "TASK-005-2",
+        "title": "导出配置UI",
+        "estimate": "2",
+        "assignee": "前端工程师"
+      },
+      {
+        "id": "TASK-005-3",
+        "title": "进度条组件",
+        "estimate": "1",
+        "assignee": "前端工程师"
+      }
+    ]
+  },
+  {
+    "id": "EPIC-006",
+    "title": "路由系统重构",
+    "estimate": "8",
+    "priority": "High",
+    "acceptance_criteria": [
+      "实现/customers/dashboard和/customers/list路由",
+      "支持路由参数和查询字符串",
+      "实现路由守卫和权限控制",
+      "支持浏览器前进后退",
+      "404页面设计实现"
+    ],
+    "tasks": [
+      {
+        "id": "TASK-006-1",
+        "title": "React Router配置",
+        "estimate": "2",
+        "assignee": "前端工程师"
+      },
+      {
+        "id": "TASK-006-2",
+        "title": "路由参数管理",
+        "estimate": "2",
+        "assignee": "前端工程师"
+      },
+      {
+        "id": "TASK-006-3",
+        "title": "权限守卫实现",
+        "estimate": "2",
+        "assignee": "前端工程师"
+      },
+      {
+        "id": "TASK-006-4",
+        "title": "404页面设计",
+        "estimate": "2",
+        "assignee": "UI设计师"
+      }
+    ]
+  },
+  {
+    "id": "EPIC-007",
+    "title": "性能优化",
+    "estimate": "8",
+    "priority": "Medium",
+    "acceptance_criteria": [
+      "Dashboard首屏加载<2秒",
+      "List页面初始加载<3秒",
+      "实现骨架屏loading",
+      "图表库按需加载",
+      "API响应缓存5分钟",
+      "图片懒加载实现"
+    ],
+    "tasks": [
+      {
+        "id": "TASK-007-1",
+        "title": "代码分割优化",
+        "estimate": "2",
+        "assignee": "前端工程师"
+      },
+      {
+        "id": "TASK-007-2",
+        "title": "骨架屏组件",
+        "estimate": "2",
+        "assignee": "前端工程师"
+      },
+      {
+        "id": "TASK-007-3",
+        "title": "缓存策略实现",
+        "estimate": "2",
+        "assignee": "前端工程师"
+      },
+      {
+        "id": "TASK-007-4",
+        "title": "CDN配置",
+        "estimate": "2",
+        "assignee": "运维工程师"
+      }
+    ]
+  },
+  {
+    "id": "EPIC-008",
+    "title": "无障碍支持",
+    "estimate": "5",
+    "priority": "Low",
+    "acceptance_criteria": [
+      "所有交互元素支持键盘导航",
+      "ARIA标签完整正确",
+      "颜色对比度符合WCAG AA标准",
+      "屏幕阅读器测试通过",
+      "焦点管理正确"
+    ],
+    "tasks": [
+      {
+        "id": "TASK-008-1",
+        "title": "ARIA标签添加",
+        "estimate": "2",
+        "assignee": "前端工程师"
+      },
+      {
+        "id": "TASK-008-2",
+        "title": "键盘导航实现",
+        "estimate": "2",
+        "assignee": "前端工程师"
+      },
+      {
+        "id": "TASK-008-3",
+        "title": "无障碍测试",
+        "estimate": "1",
+        "assignee": "QA工程师"
+      }
+    ]
+  },
+  {
+    "id": "EPIC-009",
+    "title": "测试覆盖",
+    "estimate": "13",
+    "priority": "Medium",
+    "acceptance_criteria": [
+      "单元测试覆盖率>80%",
+      "E2E测试覆盖关键流程",
+      "性能测试基准建立",
+      "可视化回归测试",
+      "API接口测试完整"
+    ],
+    "tasks": [
+      {
+        "id": "TASK-009-1",
+        "title": "单元测试编写",
+        "estimate": "5",
+        "assignee": "前端工程师"
+      },
+      {
+        "id": "TASK-009-2",
+        "title": "E2E测试脚本",
+        "estimate": "3",
+        "assignee": "QA工程师"
+      },
+      {
+        "id": "TASK-009-3",
+        "title": "性能测试",
+        "estimate": "2",
+        "assignee": "QA工程师"
+      },
+      {
+        "id": "TASK-009-4",
+        "title": "API测试",
+        "estimate": "3",
+        "assignee": "后端工程师"
+      }
+    ]
+  },
+  {
+    "id": "EPIC-010",
+    "title": "文档和部署",
+    "estimate": "5",
+    "priority": "Low",
+    "acceptance_criteria": [
+      "组件使用文档完整",
+      "API文档自动生成",
+      "部署流程文档",
+      "变更日志维护",
+      "用户操作手册"
+    ],
+    "tasks": [
+      {
+        "id": "TASK-010-1",
+        "title": "技术文档编写",
+        "estimate": "2",
+        "assignee": "技术文档工程师"
+      },
+      {
+        "id": "TASK-010-2",
+        "title": "用户手册",
+        "estimate": "2",
+        "assignee": "产品经理"
+      },
+      {
+        "id": "TASK-010-3",
+        "title": "CI/CD配置",
+        "estimate": "1",
+        "assignee": "运维工程师"
+      }
+    ]
+  }
+]
