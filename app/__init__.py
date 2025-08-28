@@ -6,12 +6,20 @@ try:
 except ImportError:
     migrate_available = False
     print("警告: Flask-Migrate 未安装，数据库迁移功能不可用")
+try:
+    from flask_login import LoginManager
+    login_available = True
+except ImportError:
+    login_available = False
+    print("警告: Flask-Login 未安装，用户认证功能不可用")
 from config import Config
 import os
 
 db = SQLAlchemy()
 if migrate_available:
     migrate = Migrate()
+if login_available:
+    login_manager = LoginManager()
 
 def create_app():
     app = Flask(__name__, instance_relative_config=True)
@@ -20,6 +28,18 @@ def create_app():
     db.init_app(app)
     if migrate_available:
         migrate.init_app(app, db)
+    
+    # 初始化Flask-Login
+    if login_available:
+        login_manager.init_app(app)
+        login_manager.login_view = 'main.login'
+        login_manager.login_message = '请先登录后再访问该页面'
+        login_manager.login_message_category = 'warning'
+        
+        @login_manager.user_loader
+        def load_user(user_id):
+            from .models import User
+            return User.query.get(int(user_id))
 
     # 注册传统路由蓝图
     from .routes import main_bp

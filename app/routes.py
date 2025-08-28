@@ -1,14 +1,18 @@
 from flask import render_template, request, redirect, url_for, jsonify, flash, make_response, send_from_directory, current_app, Blueprint, session
-from .models import db, Customer, Config, TaobaoOrder, Course, Employee, CommissionConfig, CourseRefund, OperationalCost
+from .models import db, Customer, Config, TaobaoOrder, Course, Employee, CommissionConfig, CourseRefund, OperationalCost, User
 from datetime import datetime, timedelta
 import csv
 from io import StringIO, BytesIO
 import pandas as pd
 import os
 import json
+from flask_login import login_user, logout_user, login_required, current_user
 
 # 导入服务层
 from .services import RefundService, ProfitService, PerformanceService, TransactionService, EnhancedProfitService, OperationalCostService
+from .services.auth_service import AuthService
+from .services.session_service import SessionService
+from .decorators import login_required_custom, admin_required
 
 # 创建主蓝图
 main_bp = Blueprint('main', __name__)
@@ -27,6 +31,55 @@ def safe_int(value, default=0):
         return int(value) if value is not None else default
     except (ValueError, TypeError):
         return default
+
+
+# ========== 认证相关路由 ==========
+@main_bp.route('/login', methods=['GET', 'POST'])
+def login():
+    """用户登录"""
+    # 如果用户已登录，重定向到首页
+    if current_user.is_authenticated:
+        return redirect(url_for('main.home'))
+    
+    if request.method == 'POST':
+        username = request.form.get('username', '').strip()
+        password = request.form.get('password', '')
+        
+        if not username or not password:
+            flash('请输入用户名和密码', 'error')
+            return render_template('login.html')
+        
+        # 验证用户登录
+        success, message, user = AuthService.authenticate_user(username, password)
+        
+        if success:
+            flash(message, 'success')
+            # 获取下一个页面URL
+            next_page = request.args.get('next')
+            if next_page and next_page.startswith('/'):
+                return redirect(next_page)
+            return redirect(url_for('main.home'))
+        else:
+            flash(message, 'error')
+    
+    return render_template('login.html')
+
+
+@main_bp.route('/logout')
+@login_required
+def logout():
+    """用户登出"""
+    AuthService.logout_user_service()
+    flash('您已成功登出', 'success')
+    return redirect(url_for('main.login'))
+
+
+@main_bp.route('/session-info')
+@login_required_custom
+def session_info():
+    """会话信息页面"""
+    session_info = SessionService.get_session_info()
+    return render_template('session_info.html', session_info=session_info)
 
 
 @main_bp.route('/test-js')
@@ -84,6 +137,7 @@ def test_excel_export():
         return jsonify({'error': str(e)}), 500
 
 @main_bp.route('/')
+@login_required_custom
 def home():
     # 批量获取配置值
     configs = {c.key: float(c.value) for c in Config.query.filter(Config.key.in_([

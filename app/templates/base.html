@@ -80,7 +80,17 @@
             <div class="header-right">
                 <span class="user-info">
                     <i class="fas fa-user-circle"></i>
-                    管理员
+                    {% if current_user.is_authenticated %}
+                        {{ current_user.username }}
+                        <a href="{{ url_for('main.session_info') }}" class="session-link" title="会话信息">
+                            <i class="fas fa-info-circle"></i>
+                        </a>
+                        <a href="{{ url_for('main.logout') }}" class="logout-link" title="登出">
+                            <i class="fas fa-sign-out-alt"></i>
+                        </a>
+                    {% else %}
+                        游客
+                    {% endif %}
                 </span>
             </div>
         </header>

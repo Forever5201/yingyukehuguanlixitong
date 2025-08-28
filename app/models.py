@@ -1,5 +1,7 @@
 from . import db
 from datetime import datetime, timezone
+from werkzeug.security import generate_password_hash, check_password_hash
+from flask_login import UserMixin
 
 class Employee(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -153,3 +155,27 @@ class OperationalCost(db.Model):
     
     def __repr__(self):
         return f'<OperationalCost {self.cost_type}:{self.cost_name} - ¥{self.amount}>'
+
+
+class User(db.Model, UserMixin):
+    """用户认证模型"""
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(80), unique=True, nullable=False)
+    password_hash = db.Column(db.String(120), nullable=False)
+    email = db.Column(db.String(120), unique=True)
+    role = db.Column(db.String(20), default='admin')  # admin, user
+    is_active = db.Column(db.Boolean, default=True)
+    last_login = db.Column(db.DateTime)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    
+    def set_password(self, password):
+        """设置密码"""
+        self.password_hash = generate_password_hash(password)
+    
+    def check_password(self, password):
+        """验证密码"""
+        return check_password_hash(self.password_hash, password)
+    
+    def __repr__(self):
+        return f'<User {self.username}>'
