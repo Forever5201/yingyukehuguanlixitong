@@ -454,7 +454,7 @@
             <button type="button" class="btn btn-outline" onclick="exportTrialData()">
                 <i class="fas fa-download"></i> 导出数据
             </button>
-            <button type="button" class="btn btn-warm" id="addTrialBtn">
+            <button type="button" class="btn btn-warm" id="addTrialBtn" onclick="window.openTrialModal && window.openTrialModal()">
                 <i class="fas fa-user-plus"></i> 录入新学员
             </button>
         </div>
@@ -971,6 +971,19 @@
 {% endwith %}
 
 <script>
+// 兜底：提供一个全局可调用的方法以打开“录入新学员”模态框，
+// 即便后续脚本因其他错误未能完成事件绑定，也能通过按钮的 onclick 正常打开。
+function getById(id){ return document.getElementById(id); }
+window.openTrialModal = function(){
+    const modal = getById('addTrialModal');
+    if (modal){
+        modal.style.display = 'block';
+        if (document && document.body) {
+            document.body.style.overflow = 'hidden';
+        }
+    }
+};
+
 // 删除试听课记录
 function deleteTrialCourse(courseId, userType = '试听课用户') {
     // 使用公共模块进行删除
