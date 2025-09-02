@@ -14,8 +14,8 @@ from .services.auth_service import AuthService
 from .services.session_service import SessionService
 from .decorators import login_required_custom, admin_required
 
-# 创建主蓝图
-main_bp = Blueprint('main', __name__)
+# 创建主蓝图（改为从共享模块导入，便于后续拆分路由到多个文件）
+from .blueprints.main import main_bp
 
 # ========== 安全转换函数 ==========
 def safe_float(value, default=0):
