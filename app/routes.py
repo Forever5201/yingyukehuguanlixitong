@@ -1072,9 +1072,16 @@ def export_formal_courses():
         for course in courses:
             customer = db.session.get(Customer, course.customer_id)
             price = float(course.price or 0)
-            base_cost = float(course.cost or 0)
+            sessions_val = int(course.sessions or 0)
+            revenue = sessions_val * price
+            fee = 0.0
+            # 仅淘宝渠道计手续费；费率优先使用快照，否则使用默认0.6%
+            if (course.payment_channel or '').strip() == '淘宝':
+                fee_rate = float(getattr(course, 'snapshot_fee_rate', 0) or 0) or 0.006
+                fee = revenue * fee_rate
+            base_cost = float(course.cost or 0)  # 已含课时成本与其他成本
             other_cost = float(course.other_cost or 0)
-            profit = price - base_cost - other_cost
+            profit = revenue - (base_cost + fee)
             data.append({
                 '课程ID': course.id,
                 '客户姓名': customer.name if customer else '',
@@ -1402,7 +1409,7 @@ def manage_trial_courses():
             revenue = course.trial_price or 0
             cost = course.cost or 0  # 使用成本
             fees = (revenue * channel_rate) if revenue else 0
-            profit = revenue - cost  # 修改为不扣除手续费
+            profit = revenue - (cost + fees)
         elif status == 'refunded':
             # 退费（MIGRATION_GUIDE）：收入=0；成本=基础成本C；不再从利润中扣除手续费
             revenue = 0
@@ -1425,13 +1432,13 @@ def manage_trial_courses():
             revenue = course.trial_price or 0
             cost = course.cost or 0  # 使用成本
             fees = (revenue * channel_rate) if revenue else 0
-            profit = revenue - cost  # 修改为不扣除手续费
+            profit = revenue - (cost + fees)
         elif status == 'no_action':
             # 视为已支付并完成试听：与已报名一致
             revenue = course.trial_price or 0
             cost = course.cost or 0  # 使用成本
             fees = (revenue * channel_rate) if revenue else 0
-            profit = revenue - cost  # 修改为不扣除手续费
+            profit = revenue - (cost + fees)
         else:
             # 未知状态保护
             revenue = 0
@@ -1601,18 +1608,16 @@ def api_trial_courses_stats():
             price = safe_float(getattr(course, 'trial_price', None), 0)
             revenue = price
             
-            # 计算手续费
+            # 计算手续费（仅淘宝渠道或来源）
             fee = 0
-            if course.payment_channel == '淘宝' or getattr(course, 'source', None) == '淘宝':
-                # 优先使用快照费率，否则使用默认费率
+            if (course.payment_channel or '').strip() == '淘宝' or (getattr(course, 'source', None) or '').strip() == '淘宝':
                 fee_rate = course.snapshot_fee_rate if course.snapshot_fee_rate else default_fee_rate
                 fee = revenue * fee_rate
             
-            # 计算成本（course.cost已包含课时成本和其他成本）
-            cost = safe_float(course.cost, 0)
-            cost = cost + fee  # 总成本包含手续费
+            # 计算成本（course.cost已包含课时成本和其他成本），总成本包含手续费
+            cost = safe_float(course.cost, 0) + fee
             
-            # 计算利润
+            # 计算利润（统一口径）
             profit = revenue - cost
             
             # 累加统计
@@ -2234,8 +2239,8 @@ def api_formal_courses_status_stats():
             # 总成本包含手续费
             cost = course_cost + fee
             
-            # 计算利润
-            profit = revenue - course_cost  # 利润不包含手续费
+            # 计算利润（统一口径：收入 - (课程成本 + 手续费)）
+            profit = revenue - (course_cost + fee)
             
             # 累加统计
             if course.status == 'paid':
