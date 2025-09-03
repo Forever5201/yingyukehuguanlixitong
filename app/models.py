@@ -2,11 +2,12 @@ from . import db
 from datetime import datetime, timezone
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import UserMixin
+from sqlalchemy import Index
 
 class Employee(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), unique=True, nullable=False)
-    phone = db.Column(db.String(20))  # 联系电话
+    phone = db.Column(db.String(20))  # 联系电话或微信号
     email = db.Column(db.String(100))  # 邮箱地址
 
 class Customer(db.Model):
@@ -15,7 +16,7 @@ class Customer(db.Model):
     gender = db.Column(db.String(10))
     grade = db.Column(db.String(50))
     region = db.Column(db.String(100))
-    phone = db.Column(db.String(20), unique=True, nullable=False)
+    phone = db.Column(db.String(20), unique=True, nullable=False)  # 联系电话或微信号
     source = db.Column(db.String(50)) # 渠道来源
     employee_id = db.Column(db.Integer, db.ForeignKey('employee.id'))
     has_tutoring_experience = db.Column(db.String(10)) # 是否参加过英语课外辅导
@@ -179,3 +180,115 @@ class User(db.Model, UserMixin):
     
     def __repr__(self):
         return f'<User {self.username}>'
+
+
+class DividendRecord(db.Model):
+    """股东分红记录表"""
+    __tablename__ = 'dividend_record'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    
+    # 基本信息
+    shareholder_name = db.Column(db.String(100), nullable=False)  # 股东名称
+    period_year = db.Column(db.Integer, nullable=False)           # 分红年份
+    period_month = db.Column(db.Integer, nullable=False)          # 分红月份
+    
+    # 分红金额信息
+    calculated_profit = db.Column(db.Float, nullable=False)       # 系统计算应分利润
+    actual_dividend = db.Column(db.Float, nullable=False)         # 实际分红金额
+    dividend_date = db.Column(db.Date, nullable=False)            # 分红日期
+    
+    # 分红状态
+    status = db.Column(db.String(20), default='pending')          # pending/paid/cancelled
+    payment_method = db.Column(db.String(50))                     # 支付方式
+    
+    # 备注信息
+    remarks = db.Column(db.Text)                                  # 分红备注
+    operator_name = db.Column(db.String(100))                     # 操作员
+    
+    # 快照信息（记录分红时的系统状态）
+    snapshot_total_profit = db.Column(db.Float)                   # 当期总利润快照
+    snapshot_profit_ratio = db.Column(db.Float)                   # 分红比例快照
+    
+    # 时间戳
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    
+    # 创建复合唯一约束
+    __table_args__ = (
+        db.UniqueConstraint('shareholder_name', 'period_year', 'period_month', 'dividend_date', 
+                           name='uq_dividend_record'),
+        Index('idx_dividend_date', 'dividend_date'),
+        Index('idx_dividend_period', 'period_year', 'period_month'),
+        Index('idx_dividend_shareholder', 'shareholder_name'),
+        Index('idx_dividend_status', 'status'),
+    )
+    
+    def __repr__(self):
+        return f'<DividendRecord {self.shareholder_name} {self.period_year}-{self.period_month:02d} ¥{self.actual_dividend}>'
+    
+    def to_dict(self):
+        """转换为字典格式"""
+        return {
+            'id': self.id,
+            'shareholder_name': self.shareholder_name,
+            'period_year': self.period_year,
+            'period_month': self.period_month,
+            'calculated_profit': self.calculated_profit,
+            'actual_dividend': self.actual_dividend,
+            'dividend_date': self.dividend_date.isoformat() if self.dividend_date else None,
+            'status': self.status,
+            'payment_method': self.payment_method,
+            'remarks': self.remarks,
+            'operator_name': self.operator_name,
+            'snapshot_total_profit': self.snapshot_total_profit,
+            'snapshot_profit_ratio': self.snapshot_profit_ratio,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }
+
+
+class DividendSummary(db.Model):
+    """股东分红汇总表"""
+    __tablename__ = 'dividend_summary'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    
+    # 股东信息
+    shareholder_name = db.Column(db.String(100), nullable=False, unique=True)
+    
+    # 汇总信息
+    total_calculated = db.Column(db.Float, default=0)              # 累计应分利润
+    total_paid = db.Column(db.Float, default=0)                    # 累计已分红
+    total_pending = db.Column(db.Float, default=0)                 # 累计待分红
+    
+    # 统计信息
+    record_count = db.Column(db.Integer, default=0)                # 分红记录数
+    last_dividend_date = db.Column(db.Date)                        # 最后分红日期
+    
+    # 时间戳
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    
+    def __repr__(self):
+        return f'<DividendSummary {self.shareholder_name} 已分红:¥{self.total_paid} 待分红:¥{self.total_pending}>'
+    
+    @property
+    def unpaid_amount(self):
+        """未分红金额"""
+        return self.total_calculated - self.total_paid
+    
+    def to_dict(self):
+        """转换为字典格式"""
+        return {
+            'id': self.id,
+            'shareholder_name': self.shareholder_name,
+            'total_calculated': self.total_calculated,
+            'total_paid': self.total_paid,
+            'total_pending': self.total_pending,
+            'unpaid_amount': self.unpaid_amount,
+            'record_count': self.record_count,
+            'last_dividend_date': self.last_dividend_date.isoformat() if self.last_dividend_date else None,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }

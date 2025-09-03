@@ -411,13 +411,35 @@
                 <div class="dist-card total-card">
                     <h3>股东净利润分配</h3>
                     <div class="shareholder-items">
-                        <div class="shareholder-item">
-                            <span class="name"><strong>股东A 净利润</strong></span>
-                            <span class="amount" id="shareholderAProfit">¥0</span>
+                        <div class="shareholder-item clickable-shareholder" onclick="showShareholderDetail('股东A')">
+                            <div class="shareholder-info">
+                                <span class="name"><strong>股东A 净利润</strong></span>
+                                <span class="amount" id="shareholderAProfit">¥0</span>
+                            </div>
+                            <div class="dividend-summary">
+                                <small>已分红: <span id="shareholderAPaid">¥0</span></small>
+                                <small>未分红: <span id="shareholderAUnpaid">¥0</span></small>
+                            </div>
+                            <div class="action-buttons">
+                                <button class="btn btn-sm btn-primary" onclick="event.stopPropagation(); addDividendRecord('股东A')">
+                                    <i class="fas fa-plus"></i> 记录分红
+                                </button>
+                            </div>
                         </div>
-                        <div class="shareholder-item">
-                            <span class="name"><strong>股东B 净利润</strong></span>
-                            <span class="amount" id="shareholderBProfit">¥0</span>
+                        <div class="shareholder-item clickable-shareholder" onclick="showShareholderDetail('股东B')">
+                            <div class="shareholder-info">
+                                <span class="name"><strong>股东B 净利润</strong></span>
+                                <span class="amount" id="shareholderBProfit">¥0</span>
+                            </div>
+                            <div class="dividend-summary">
+                                <small>已分红: <span id="shareholderBPaid">¥0</span></small>
+                                <small>未分红: <span id="shareholderBUnpaid">¥0</span></small>
+                            </div>
+                            <div class="action-buttons">
+                                <button class="btn btn-sm btn-primary" onclick="event.stopPropagation(); addDividendRecord('股东B')">
+                                    <i class="fas fa-plus"></i> 记录分红
+                                </button>
+                            </div>
                         </div>
                         <div class="shareholder-item total">
                             <span class="name">净利润总额</span>
@@ -640,11 +662,205 @@
 
 .shareholder-item {
     display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    padding: 15px;
+    background: white;
+    border-radius: 8px;
+    border: 1px solid #e9ecef;
+    transition: all 0.3s ease;
+}
+
+.shareholder-item.clickable-shareholder {
+    cursor: pointer;
+}
+
+.shareholder-item.clickable-shareholder:hover {
+    border-color: #007bff;
+    box-shadow: 0 4px 12px rgba(0, 123, 255, 0.15);
+    transform: translateY(-2px);
+}
+
+.shareholder-info {
+    display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 10px;
-    background: white;
+    margin-bottom: 8px;
+}
+
+.dividend-summary {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+.dividend-summary small {
+    color: #6c757d;
+    font-size: 12px;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+}
+
+.btn-sm {
+    padding: 6px 12px;
+    font-size: 12px;
     border-radius: 4px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-sm:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* 分红记录模态框样式 */
+.dividend-statistics {
+    margin-bottom: 20px;
+}
+
+.stat-card {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+    text-align: center;
+    border: 1px solid #e9ecef;
+}
+
+.stat-card h6 {
+    margin: 0 0 8px 0;
+    color: #6c757d;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.stat-value {
+    font-size: 18px;
+    font-weight: 700;
+    color: #495057;
+}
+
+.dividend-records-table {
+    margin-top: 20px;
+}
+
+.table-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.table-header h6 {
+    margin: 0;
+    color: #495057;
+    font-weight: 600;
+}
+
+.table-responsive {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.table {
+    margin-bottom: 0;
+}
+
+.table th {
+    background: #f8f9fa;
+    border-top: none;
+    font-weight: 600;
+    font-size: 12px;
+    color: #495057;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+.table td {
+    vertical-align: middle;
+    font-size: 13px;
+}
+
+.badge {
+    font-size: 10px;
+    padding: 4px 8px;
+    border-radius: 12px;
+}
+
+.btn-outline-primary, .btn-outline-danger {
+    padding: 4px 8px;
+    font-size: 11px;
+    border-width: 1px;
+}
+
+.btn-outline-primary:hover {
+    background-color: #007bff;
+    border-color: #007bff;
+}
+
+.btn-outline-danger:hover {
+    background-color: #dc3545;
+    border-color: #dc3545;
+}
+
+/* 表单样式优化 */
+.form-group label {
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 5px;
+}
+
+.form-control {
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    transition: border-color 0.3s ease;
+}
+
+.form-control:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+/* 响应式优化 */
+@media (max-width: 768px) {
+    .shareholder-info {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+    
+    .dividend-summary {
+        flex-direction: column;
+        gap: 4px;
+    }
+    
+    .action-buttons {
+        justify-content: flex-start;
+    }
+    
+    .modal-dialog {
+        margin: 10px;
+    }
+    
+    .table-responsive {
+        font-size: 12px;
+    }
+    
+    .btn-sm {
+        padding: 4px 8px;
+        font-size: 10px;
+    }
 }
 
 .shareholder-item .name {
@@ -701,6 +917,174 @@
     opacity: 0.9;
     transform: translateY(-1px);
 }
+
+/* 模态框样式 - 纯CSS实现 */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: none;
+    opacity: 0;
+    visibility: hidden;
+    z-index: 1050;
+    transition: all 0.3s ease;
+    justify-content: center;
+    align-items: center;
+}
+
+.modal.show {
+    display: flex;
+    opacity: 1;
+    visibility: visible;
+}
+
+.modal-dialog {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    max-width: 90vw;
+    max-height: 90vh;
+    overflow: auto;
+    margin: 20px;
+    transform: scale(0.9);
+    transition: transform 0.3s ease;
+}
+
+.modal.show .modal-dialog {
+    transform: scale(1);
+}
+
+.modal-dialog.modal-lg {
+    max-width: 800px;
+}
+
+.modal-content {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.modal-header {
+    padding: 20px;
+    border-bottom: 1px solid #eee;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #f8f9fa;
+    border-radius: 8px 8px 0 0;
+}
+
+.modal-title {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: #333;
+}
+
+.modal-body {
+    padding: 20px;
+    flex: 1;
+    overflow-y: auto;
+}
+
+.modal-footer {
+    padding: 15px 20px;
+    border-top: 1px solid #eee;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    background: #f8f9fa;
+    border-radius: 0 0 8px 8px;
+}
+
+.close {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: #999;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.2s ease;
+}
+
+.close:hover {
+    background: #f0f0f0;
+    color: #333;
+}
+
+/* 表单样式 */
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 500;
+    color: #333;
+}
+
+.form-control {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+    transition: border-color 0.2s ease;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+.row {
+    display: flex;
+    gap: 15px;
+}
+
+.col-md-6 {
+    flex: 1;
+}
+
+/* 按钮样式 */
+.btn-secondary {
+    background: #6c757d;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.btn-secondary:hover {
+    background: #5a6268;
+}
+
+.btn-primary {
+    background: #007bff;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.btn-primary:hover {
+    background: #0056b3;
+}
 </style>
 
 <script>
@@ -710,6 +1094,7 @@ let currentReport = null;
 // 页面加载完成后自动加载报表
 document.addEventListener('DOMContentLoaded', function() {
     loadReport();
+    loadDividendSummary(); // 加载分红汇总信息
     
     // 绑定时间选择按钮事件
     document.querySelectorAll('.btn-period').forEach(btn => {
@@ -830,6 +1215,7 @@ function formatCurrency(amount) {
 // 初始化图表
 let revenueChart = null;
 let costChart = null;
+let sparklineChart = null;
 
 function initCharts(data) {
     // 收入构成图表
@@ -944,8 +1330,12 @@ function initCharts(data) {
     });
     
     // 创建迷你图表
+    if (sparklineChart) {
+        sparklineChart.destroy();
+    }
+    
     const sparklineCtx = document.getElementById('revenueSparkline').getContext('2d');
-    new Chart(sparklineCtx, {
+    sparklineChart = new Chart(sparklineCtx, {
         type: 'line',
         data: {
             labels: ['', '', '', '', '', ''],
@@ -1022,6 +1412,477 @@ function exportReport() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+}
+
+
+// ========== 股东分红记录管理功能 ==========
+
+// 显示股东详情（分红记录）
+function showShareholderDetail(shareholderName) {
+    // 创建模态框显示股东分红记录
+    const modal = document.createElement('div');
+    modal.className = 'modal fade';
+    modal.innerHTML = `
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">${shareholderName} - 分红记录</h5>
+                    <button type="button" class="close" data-dismiss="modal">
+                        <span>&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="dividend-statistics" id="dividendStatistics">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="stat-card">
+                                    <h6>累计应分</h6>
+                                    <span class="stat-value" id="totalCalculated">¥0</span>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="stat-card">
+                                    <h6>已分红</h6>
+                                    <span class="stat-value text-success" id="totalPaid">¥0</span>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="stat-card">
+                                    <h6>待分红</h6>
+                                    <span class="stat-value text-warning" id="totalPending">¥0</span>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="stat-card">
+                                    <h6>未分红</h6>
+                                    <span class="stat-value text-danger" id="totalUnpaid">¥0</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="dividend-records-table">
+                        <div class="table-header">
+                            <h6>分红记录</h6>
+                            <button class="btn btn-primary btn-sm" onclick="addDividendRecord('${shareholderName}')">
+                                <i class="fas fa-plus"></i> 新增分红记录
+                            </button>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-striped" id="dividendRecordsTable">
+                                <thead>
+                                    <tr>
+                                        <th>期间</th>
+                                        <th>应分利润</th>
+                                        <th>实际分红</th>
+                                        <th>分红日期</th>
+                                        <th>状态</th>
+                                        <th>支付方式</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="dividendRecordsBody">
+                                    <!-- 分红记录将动态加载到这里 -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // 显示模态框
+    modal.style.display = 'flex';
+    modal.style.opacity = '1';
+    modal.style.visibility = 'visible';
+    modal.classList.add('show');
+    document.body.style.overflow = 'hidden';
+    
+    // 加载股东分红数据
+    loadShareholderDividendData(shareholderName);
+    
+    // 模态框关闭事件
+    const closeModal = () => {
+        modal.style.opacity = '0';
+        modal.style.visibility = 'hidden';
+        modal.classList.remove('show');
+        document.body.style.overflow = '';
+        setTimeout(() => {
+            if (modal.parentNode) {
+                document.body.removeChild(modal);
+            }
+        }, 300);
+    };
+    
+    // 绑定关闭事件
+    modal.querySelector('.close').addEventListener('click', closeModal);
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            closeModal();
+        }
+    });
+}
+
+// 加载股东分红数据
+function loadShareholderDividendData(shareholderName) {
+    // 加载统计信息
+    fetch(`/api/dividend-records/statistics?shareholder_name=${encodeURIComponent(shareholderName)}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const stats = data.statistics;
+                document.getElementById('totalCalculated').textContent = formatCurrency(stats.total_calculated || 0);
+                document.getElementById('totalPaid').textContent = formatCurrency(stats.total_paid || 0);
+                document.getElementById('totalPending').textContent = formatCurrency(stats.total_pending || 0);
+                document.getElementById('totalUnpaid').textContent = formatCurrency(stats.unpaid_amount || 0);
+            }
+        })
+        .catch(error => console.error('加载统计信息失败:', error));
+    
+    // 加载分红记录
+    fetch(`/api/dividend-records?shareholder_name=${encodeURIComponent(shareholderName)}&limit=20`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                renderDividendRecords(data.records);
+            }
+        })
+        .catch(error => console.error('加载分红记录失败:', error));
+}
+
+// 渲染分红记录表格
+function renderDividendRecords(records) {
+    const tbody = document.getElementById('dividendRecordsBody');
+    
+    if (!records || records.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">暂无分红记录</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = records.map(record => `
+        <tr>
+            <td>${record.period_year}-${String(record.period_month).padStart(2, '0')}</td>
+            <td>${formatCurrency(record.calculated_profit)}</td>
+            <td>${formatCurrency(record.actual_dividend)}</td>
+            <td>${record.dividend_date}</td>
+            <td>
+                <span class="badge badge-${getStatusBadgeClass(record.status)}">
+                    ${getStatusText(record.status)}
+                </span>
+            </td>
+            <td>${record.payment_method || '-'}</td>
+            <td>
+                <button class="btn btn-sm btn-outline-primary" onclick="editDividendRecord(${record.id})">
+                    <i class="fas fa-edit"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-danger" onclick="deleteDividendRecord(${record.id})">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+// 获取状态徽章样式
+function getStatusBadgeClass(status) {
+    const classes = {
+        'pending': 'warning',
+        'paid': 'success',
+        'cancelled': 'secondary'
+    };
+    return classes[status] || 'secondary';
+}
+
+// 获取状态文本
+function getStatusText(status) {
+    const texts = {
+        'pending': '待分红',
+        'paid': '已分红',
+        'cancelled': '已取消'
+    };
+    return texts[status] || status;
+}
+
+// 添加分红记录
+function addDividendRecord(shareholderName) {
+    // 首先计算当期利润
+    const currentDate = new Date();
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth() + 1;
+    
+    fetch(`/api/dividend-records/calculate-period?year=${year}&month=${month}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const profit = data.data.shareholder_distribution[shareholderName] || 0;
+                showDividendRecordForm(shareholderName, year, month, profit);
+            } else {
+                alert('获取当期利润失败');
+            }
+        })
+        .catch(error => {
+            console.error('计算当期利润失败:', error);
+            showDividendRecordForm(shareholderName, year, month, 0);
+        });
+}
+
+// 显示分红记录表单
+function showDividendRecordForm(shareholderName, year, month, calculatedProfit, recordData = null) {
+    const isEdit = recordData !== null;
+    const title = isEdit ? '编辑分红记录' : '新增分红记录';
+    
+    const formModal = document.createElement('div');
+    formModal.className = 'modal fade';
+    formModal.innerHTML = `
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">${title}</h5>
+                    <button type="button" class="close" data-dismiss="modal">
+                        <span>&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <form id="dividendRecordForm">
+                        <div class="form-group">
+                            <label>股东名称</label>
+                            <input type="text" class="form-control" value="${shareholderName}" readonly>
+                            <input type="hidden" name="shareholder_name" value="${shareholderName}">
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>年份</label>
+                                    <input type="number" class="form-control" name="period_year" value="${recordData?.period_year || year}" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>月份</label>
+                                    <input type="number" class="form-control" name="period_month" value="${recordData?.period_month || month}" min="1" max="12" required>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>应分利润（系统计算）</label>
+                                    <input type="number" class="form-control" name="calculated_profit" value="${recordData?.calculated_profit || calculatedProfit}" step="0.01" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>实际分红金额</label>
+                                    <input type="number" class="form-control" name="actual_dividend" value="${recordData?.actual_dividend || calculatedProfit}" step="0.01" required>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>分红日期</label>
+                            <input type="date" class="form-control" name="dividend_date" value="${recordData?.dividend_date || new Date().toISOString().split('T')[0]}" required>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>分红状态</label>
+                                    <select class="form-control" name="status" required>
+                                        <option value="pending" ${recordData?.status === 'pending' ? 'selected' : ''}>待分红</option>
+                                        <option value="paid" ${recordData?.status === 'paid' ? 'selected' : ''}>已分红</option>
+                                        <option value="cancelled" ${recordData?.status === 'cancelled' ? 'selected' : ''}>已取消</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>支付方式</label>
+                                    <select class="form-control" name="payment_method">
+                                        <option value="">请选择</option>
+                                        <option value="银行转账" ${recordData?.payment_method === '银行转账' ? 'selected' : ''}>银行转账</option>
+                                        <option value="微信转账" ${recordData?.payment_method === '微信转账' ? 'selected' : ''}>微信转账</option>
+                                        <option value="支付宝转账" ${recordData?.payment_method === '支付宝转账' ? 'selected' : ''}>支付宝转账</option>
+                                        <option value="现金" ${recordData?.payment_method === '现金' ? 'selected' : ''}>现金</option>
+                                        <option value="其他" ${recordData?.payment_method === '其他' ? 'selected' : ''}>其他</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>备注</label>
+                            <textarea class="form-control" name="remarks" rows="3">${recordData?.remarks || ''}</textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" onclick="saveDividendRecord(${isEdit ? recordData.id : 'null'})">
+                        ${isEdit ? '更新' : '保存'}
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(formModal);
+    // 显示模态框
+    formModal.style.display = 'flex';
+    formModal.style.opacity = '1';
+    formModal.style.visibility = 'visible';
+    formModal.classList.add('show');
+    document.body.style.overflow = 'hidden';
+    
+    // 模态框关闭事件
+    const closeFormModal = () => {
+        formModal.style.opacity = '0';
+        formModal.style.visibility = 'hidden';
+        formModal.classList.remove('show');
+        document.body.style.overflow = '';
+        setTimeout(() => {
+            if (formModal.parentNode) {
+                document.body.removeChild(formModal);
+            }
+        }, 300);
+    };
+    
+    // 绑定关闭事件
+    formModal.querySelector('.close').addEventListener('click', closeFormModal);
+    formModal.querySelectorAll('[data-dismiss="modal"]').forEach(btn => {
+        btn.addEventListener('click', closeFormModal);
+    });
+    formModal.addEventListener('click', (e) => {
+        if (e.target === formModal) {
+            closeFormModal();
+        }
+    });
+}
+
+// 保存分红记录
+function saveDividendRecord(recordId) {
+    const form = document.getElementById('dividendRecordForm');
+    const formData = new FormData(form);
+    
+    const url = recordId ? `/api/dividend-records/${recordId}` : '/api/dividend-records';
+    const method = recordId ? 'PUT' : 'POST';
+    
+    // 转换为JSON格式
+    const data = {};
+    formData.forEach((value, key) => {
+        data[key] = value;
+    });
+    
+    fetch(url, {
+        method: method,
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            alert(result.message);
+            // 关闭所有模态框
+            document.querySelectorAll('.modal.show').forEach(modal => {
+                modal.style.opacity = '0';
+                modal.style.visibility = 'hidden';
+                modal.classList.remove('show');
+                document.body.style.overflow = '';
+                setTimeout(() => {
+                    if (modal.parentNode) {
+                        document.body.removeChild(modal);
+                    }
+                }, 300);
+            });
+            // 重新加载数据
+            loadShareholderDividendData(data.shareholder_name);
+            loadDividendSummary(); // 刷新主页面的分红汇总
+        } else {
+            alert('保存失败：' + result.message);
+        }
+    })
+    .catch(error => {
+        console.error('保存分红记录失败:', error);
+        alert('保存失败，请重试');
+    });
+}
+
+// 编辑分红记录
+function editDividendRecord(recordId) {
+    fetch(`/api/dividend-records?limit=1`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const record = data.records.find(r => r.id === recordId);
+                if (record) {
+                    showDividendRecordForm(record.shareholder_name, record.period_year, record.period_month, record.calculated_profit, record);
+                }
+            }
+        })
+        .catch(error => console.error('获取分红记录失败:', error));
+}
+
+// 删除分红记录
+function deleteDividendRecord(recordId) {
+    if (!confirm('确定要删除这条分红记录吗？')) {
+        return;
+    }
+    
+    fetch(`/api/dividend-records/${recordId}`, {
+        method: 'DELETE'
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            alert(result.message);
+            // 重新加载数据
+            const shareholderName = getCurrentModalShareholderName();
+            if (shareholderName) {
+                loadShareholderDividendData(shareholderName);
+            }
+            loadDividendSummary(); // 刷新主页面的分红汇总
+        } else {
+            alert('删除失败：' + result.message);
+        }
+    })
+    .catch(error => {
+        console.error('删除分红记录失败:', error);
+        alert('删除失败，请重试');
+    });
+}
+
+// 获取当前模态框的股东名称
+function getCurrentModalShareholderName() {
+    const modal = document.querySelector('.modal.show');
+    if (modal) {
+        const title = modal.querySelector('.modal-title').textContent;
+        return title.split(' - ')[0];
+    }
+    return null;
+}
+
+// 加载分红汇总信息（更新主页面显示）
+function loadDividendSummary() {
+    fetch('/api/shareholders')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                data.shareholders.forEach(shareholder => {
+                    const summary = shareholder.summary;
+                    const name = shareholder.name;
+                    
+                    if (name.includes('A')) {
+                        document.getElementById('shareholderAPaid').textContent = formatCurrency(summary.total_paid || 0);
+                        document.getElementById('shareholderAUnpaid').textContent = formatCurrency(summary.unpaid_amount || 0);
+                    } else if (name.includes('B')) {
+                        document.getElementById('shareholderBPaid').textContent = formatCurrency(summary.total_paid || 0);
+                        document.getElementById('shareholderBUnpaid').textContent = formatCurrency(summary.unpaid_amount || 0);
+                    }
+                });
+            }
+        })
+        .catch(error => console.error('加载分红汇总失败:', error));
 }
 </script>
 {% endblock %}

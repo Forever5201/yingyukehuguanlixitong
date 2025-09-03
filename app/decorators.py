@@ -12,6 +12,7 @@ from .services.auth_service import AuthService
 def login_required_custom(f):
     """
     自定义登录验证装饰器
+    支持API和页面请求的不同处理方式
     
     Args:
         f: 被装饰的函数
@@ -22,11 +23,21 @@ def login_required_custom(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if not current_user.is_authenticated:
-            # 保存原始请求URL，登录后跳转回来
-            next_page = request.args.get('next')
-            if next_page:
-                flash('请先登录后再访问该页面', 'warning')
-            return redirect(url_for('main.login', next=next_page))
+            # 判断是否为API请求
+            if request.path.startswith('/api/'):
+                # API请求返回JSON错误
+                from flask import jsonify
+                return jsonify({
+                    'success': False,
+                    'message': '请先登录后再访问',
+                    'error_code': 'UNAUTHORIZED'
+                }), 401
+            else:
+                # 页面请求重定向到登录页
+                next_page = request.args.get('next')
+                if next_page:
+                    flash('请先登录后再访问该页面', 'warning')
+                return redirect(url_for('main.login', next=next_page))
         return f(*args, **kwargs)
     return decorated_function
 
