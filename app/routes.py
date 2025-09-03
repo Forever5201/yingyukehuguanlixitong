@@ -456,6 +456,244 @@ def calculate_course_profit_with_refund(course, include_refund=True):
             'has_refund': False
         }
 
+@main_bp.route('/api/employees/<int:employee_id>/students')
+def get_employee_students(employee_id):
+    """获取员工负责的学员列表 - 以学员为中心的数据展示"""
+    try:
+        employee = Employee.query.get(employee_id)
+        if not employee:
+            return jsonify({'success': False, 'message': '员工不存在'}), 404
+
+        # 获取该员工分配的所有课程，按客户分组
+        courses = Course.query.filter_by(assigned_employee_id=employee_id).all()
+        
+        # 按客户分组课程数据
+        customer_courses = {}
+        for course in courses:
+            customer_id = course.customer_id
+            if customer_id not in customer_courses:
+                customer_courses[customer_id] = {
+                    'customer': course.customer,
+                    'trial_courses': [],
+                    'formal_courses': [],
+                    'renewal_courses': [],
+                    'refund_records': []
+                }
+            
+            # 分类课程
+            if course.is_trial:
+                customer_courses[customer_id]['trial_courses'].append(course)
+            elif course.is_renewal:
+                customer_courses[customer_id]['renewal_courses'].append(course)
+            else:
+                customer_courses[customer_id]['formal_courses'].append(course)
+        
+        # 构建学员列表数据
+        students_data = []
+        for customer_id, data in customer_courses.items():
+            customer = data['customer']
+            trial_courses = data['trial_courses']
+            formal_courses = data['formal_courses']
+            renewal_courses = data['renewal_courses']
+            
+            # 计算总购买节数（正课 + 续课，不包括试听课）
+            total_sessions = sum(c.sessions or 0 for c in formal_courses) + \
+                           sum(c.sessions or 0 for c in renewal_courses)
+            
+            # 计算该学员的总提成
+            from .services import ProfitService
+            total_commission = 0
+            all_courses = trial_courses + formal_courses + renewal_courses
+            if all_courses:
+                commission_info = ProfitService.calculate_employee_commission(
+                    employee_id, all_courses
+                )
+                total_commission = commission_info.get('total_commission', 0)
+            
+            # 生成状态标签
+            status_tags = []
+            if trial_courses:
+                status_tags.append('试听课')
+            if formal_courses:
+                status_tags.append('正课')
+            if renewal_courses:
+                status_tags.append('续课')
+            
+            # 检查退课记录
+            from .models import CourseRefund
+            refund_records = CourseRefund.query.filter(
+                CourseRefund.course_id.in_([c.id for c in all_courses])
+            ).all()
+            if refund_records:
+                status_tags.append('退课')
+            
+            # 找到首次报名时间（可能是试听课）
+            all_course_dates = [c.created_at for c in all_courses if c.created_at]
+            first_registration = min(all_course_dates) if all_course_dates else None
+            
+            student_data = {
+                'customer_id': customer_id,
+                'customer_name': customer.name if customer else '未知',
+                'total_sessions': total_sessions,
+                'total_commission': total_commission,
+                'status_tags': status_tags,
+                'first_registration': first_registration.strftime('%Y-%m-%d') if first_registration else ''
+            }
+            students_data.append(student_data)
+        
+        # 按首次报名时间排序
+        students_data.sort(key=lambda x: x['first_registration'], reverse=True)
+        
+        return jsonify({
+            'success': True,
+            'students': students_data,
+            'employee_name': employee.name
+        })
+        
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@main_bp.route('/api/employees/<int:employee_id>/students/<int:customer_id>')
+def get_student_detail(employee_id, customer_id):
+    """获取特定学员的详情信息 - 四个业务板块详情"""
+    try:
+        employee = Employee.query.get(employee_id)
+        if not employee:
+            return jsonify({'success': False, 'message': '员工不存在'}), 404
+        
+        customer = Customer.query.get(customer_id)
+        if not customer:
+            return jsonify({'success': False, 'message': '学员不存在'}), 404
+        
+        # 获取该学员在该员工名下的所有课程
+        courses = Course.query.filter_by(
+            assigned_employee_id=employee_id,
+            customer_id=customer_id
+        ).all()
+        
+        # 分类课程数据
+        trial_courses = [c for c in courses if c.is_trial]
+        formal_courses = [c for c in courses if not c.is_trial and not c.is_renewal]
+        renewal_courses = [c for c in courses if c.is_renewal]
+        
+        # 获取退课记录
+        from .models import CourseRefund
+        refund_records = CourseRefund.query.filter(
+            CourseRefund.course_id.in_([c.id for c in courses])
+        ).all()
+        
+        # 格式化试听课数据
+        trial_data = []
+        for course in trial_courses:
+            trial_data.append({
+                'course_id': course.id,
+                'trial_price': safe_float(course.trial_price, 0),
+                'trial_status': course.trial_status or 'registered',
+                'trial_time': course.created_at.strftime('%Y-%m-%d') if course.created_at else '',
+                'is_converted': bool(course.converted_to_course),
+                'notes': course.notes or ''
+            })
+        
+        # 格式化正课数据
+        formal_data = []
+        for course in formal_courses:
+            formal_data.append({
+                'course_id': course.id,
+                'course_type': course.course_type or '',
+                'sessions': safe_int(course.sessions, 0),
+                'price_per_session': safe_float(course.price, 0),
+                'total_amount': safe_int(course.sessions, 0) * safe_float(course.price, 0),
+                'registration_time': course.created_at.strftime('%Y-%m-%d') if course.created_at else '',
+                'course_info': course.name or ''
+            })
+        
+        # 格式化续课数据
+        renewal_data = []
+        for course in renewal_courses:
+            renewal_data.append({
+                'course_id': course.id,
+                'renewal_type': course.course_type or '',
+                'renewal_sessions': safe_int(course.sessions, 0),
+                'renewal_amount': safe_int(course.sessions, 0) * safe_float(course.price, 0),
+                'renewal_time': course.created_at.strftime('%Y-%m-%d') if course.created_at else '',
+                'renewal_source': course.converted_from_trial or ''
+            })
+        
+        # 格式化退课数据
+        refund_data = []
+        for refund in refund_records:
+            refund_data.append({
+                'refund_id': refund.id,
+                'refund_sessions': safe_int(refund.refund_sessions, 0),
+                'refund_amount': safe_float(refund.refund_amount, 0),
+                'refund_reason': refund.refund_reason or '',
+                'refund_time': refund.created_at.strftime('%Y-%m-%d') if refund.created_at else '',
+                'refund_status': refund.refund_status or '',
+                'refund_channel': refund.refund_channel or ''
+            })
+        
+        # 计算提成汇总
+        from .services import ProfitService
+        
+        # 试听课提成
+        trial_commission = 0
+        if trial_courses:
+            trial_commission_info = ProfitService.calculate_employee_commission(
+                employee_id, trial_courses
+            )
+            trial_commission = trial_commission_info.get('trial_commission', 0)
+        
+        # 正课提成
+        formal_commission = 0
+        if formal_courses:
+            formal_commission_info = ProfitService.calculate_employee_commission(
+                employee_id, formal_courses
+            )
+            formal_commission = formal_commission_info.get('new_commission', 0)
+        
+        # 续课提成
+        renewal_commission = 0
+        if renewal_courses:
+            renewal_commission_info = ProfitService.calculate_employee_commission(
+                employee_id, renewal_courses
+            )
+            renewal_commission = renewal_commission_info.get('renewal_commission', 0)
+        
+        # 总提成
+        total_commission = trial_commission + formal_commission + renewal_commission
+        
+        result = {
+            'success': True,
+            'data': {
+                'customer': {
+                    'id': customer.id,
+                    'name': customer.name,
+                    'phone': customer.phone,
+                    'grade': customer.grade or '',
+                    'region': customer.region or ''
+                },
+                'trial_courses': trial_data,
+                'formal_courses': formal_data,
+                'renewal_courses': renewal_data,
+                'refund_records': refund_data,
+                'commission_summary': {
+                    'trial_commission': trial_commission,
+                    'formal_commission': formal_commission,
+                    'renewal_commission': renewal_commission,
+                    'total_commission': total_commission
+                }
+            }
+        }
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
 @main_bp.route('/api/employees/<int:employee_id>/commission-config', methods=['GET'])
 def get_commission_config(employee_id):
     """获取员工提成配置"""
