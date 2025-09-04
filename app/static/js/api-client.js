@@ -174,7 +174,7 @@ const FormValidator = {
     rules: {
         required: (value) => value !== '' && value !== null && value !== undefined,
         email: (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value),
-        phone: (value) => /^1[3-9]\d{9}$/.test(value),
+        phone: (value) => /^[a-zA-Z0-9_\u4e00-\u9fa5-]{3,50}$/.test(value),  // 支持手机号或微信号等各种联系方式
         number: (value) => !isNaN(value) && isFinite(value),
         minLength: (min) => (value) => value.length >= min,
         maxLength: (max) => (value) => value.length <= max,

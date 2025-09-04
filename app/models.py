@@ -248,6 +248,70 @@ class DividendRecord(db.Model):
         }
 
 
+class SalaryPayment(db.Model):
+    """员工工资支付记录表"""
+    __tablename__ = 'salary_payment'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    
+    # 基本信息
+    employee_id = db.Column(db.Integer, db.ForeignKey('employee.id'), nullable=False)
+    payment_month = db.Column(db.String(7), nullable=False)  # 格式: 2025-09
+    
+    # 工资组成
+    base_salary = db.Column(db.Float, default=0)        # 基本工资
+    commission_amount = db.Column(db.Float, default=0)  # 提成金额
+    bonus = db.Column(db.Float, default=0)              # 奖金
+    deduction = db.Column(db.Float, default=0)          # 扣款
+    total_amount = db.Column(db.Float, nullable=False)  # 实发金额
+    
+    # 发放信息
+    payment_date = db.Column(db.Date)                   # 发放日期
+    payment_method = db.Column(db.String(50))           # 发放方式
+    notes = db.Column(db.Text)                          # 备注
+    
+    # 状态
+    status = db.Column(db.String(20), default='pending')  # pending/paid/cancelled
+    
+    # 时间戳
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    
+    # 关系
+    employee = db.relationship('Employee', backref='salary_payments', lazy=True)
+    
+    # 索引和约束
+    __table_args__ = (
+        db.UniqueConstraint('employee_id', 'payment_month', name='uq_salary_payment'),
+        Index('idx_salary_payment_employee', 'employee_id'),
+        Index('idx_salary_payment_month', 'payment_month'),
+        Index('idx_salary_payment_status', 'status'),
+    )
+    
+    def __repr__(self):
+        return f'<SalaryPayment {self.employee.name if self.employee else "Unknown"} {self.payment_month} ￥{self.total_amount}>'
+    
+    def to_dict(self):
+        """转换为字典格式"""
+        return {
+            'id': self.id,
+            'employee_id': self.employee_id,
+            'employee_name': self.employee.name if self.employee else None,
+            'payment_month': self.payment_month,
+            'base_salary': self.base_salary,
+            'commission_amount': self.commission_amount,
+            'bonus': self.bonus,
+            'deduction': self.deduction,
+            'total_amount': self.total_amount,
+            'payment_date': self.payment_date.isoformat() if self.payment_date else None,
+            'payment_method': self.payment_method,
+            'notes': self.notes,
+            'status': self.status,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }
+
+
 class DividendSummary(db.Model):
     """股东分红汇总表"""
     __tablename__ = 'dividend_summary'

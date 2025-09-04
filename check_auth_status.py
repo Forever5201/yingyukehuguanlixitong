@@ -1,88 +1,153 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-检查用户认证状态的脚本
+检查用户认证状态和API访问权限
 """
 
-import os
-os.environ['FLASK_ENV'] = 'development'
+import requests
+from urllib.parse import urljoin
+import json
 
-from app import create_app
-from app.models import User
-from flask import session
-from flask_login import current_user
+BASE_URL = "http://localhost:5000"
 
-def check_auth_status():
-    """检查认证状态"""
-    print("🔍 检查用户认证状态...")
-    
-    app = create_app()
-    
-    with app.test_request_context():
-        print("\n=== Flask应用配置检查 ===")
-        print(f"SECRET_KEY 是否设置: {bool(app.secret_key)}")
-        print(f"SECRET_KEY 长度: {len(app.secret_key) if app.secret_key else 0}")
-        print(f"SESSION_COOKIE_HTTPONLY: {app.config.get('SESSION_COOKIE_HTTPONLY', '未设置')}")
-        print(f"Login Manager view: {app.login_manager.login_view}")
+def check_login_page():
+    """检查登录页面是否可访问"""
+    try:
+        url = urljoin(BASE_URL, '/login')
+        response = requests.get(url, timeout=10)
         
-        print("\n=== 数据库用户检查 ===")
-        users = User.query.all()
-        if users:
-            for user in users:
-                print(f"用户: {user.username}, ID: {user.id}, 活跃: {user.is_active}")
+        if response.status_code == 200:
+            print("✅ 登录页面可访问")
+            print(f"📍 登录地址: {url}")
+            return True
         else:
-            print("❌ 数据库中没有用户")
-        
-        print("\n=== 当前认证状态 ===")
-        print(f"current_user.is_authenticated: {current_user.is_authenticated}")
-        print(f"current_user 类型: {type(current_user)}")
-        print(f"session 内容: {dict(session)}")
+            print(f"❌ 登录页面访问失败，状态码: {response.status_code}")
+            return False
+            
+    except requests.exceptions.RequestException as e:
+        print(f"❌ 登录页面请求失败: {e}")
+        return False
+
+def check_api_without_auth():
+    """检查API在未认证状态下的响应"""
+    apis_to_check = [
+        '/api/shareholders',
+        '/api/dividend-records/calculate-period?year=2025&month=9'
+    ]
     
-    # 模拟登录状态检查
-    with app.test_request_context():
-        # 模拟有session的情况
-        with app.test_client() as client:
-            print("\n=== 模拟登录检查 ===")
-            
-            # 尝试访问登录页面
-            response = client.get('/login')
-            print(f"登录页面状态码: {response.status_code}")
-            
-            # 尝试直接访问需要认证的API
-            response = client.get('/api/shareholders')
-            print(f"API shareholders 状态码: {response.status_code}")
+    print("\n🔍 检查API未认证访问:")
+    
+    for api_path in apis_to_check:
+        try:
+            url = urljoin(BASE_URL, api_path)
+            response = requests.get(url, timeout=10)
             
             if response.status_code == 401:
-                print("✓ API正确返回401未授权状态")
-                try:
-                    data = response.get_json()
-                    print(f"API响应: {data}")
-                except:
-                    print("API响应不是JSON格式")
+                print(f"✅ {api_path} - 正确返回401未授权（符合预期）")
+            elif response.status_code == 200:
+                print(f"⚠️ {api_path} - 返回200（可能存在认证绕过问题）")
+            else:
+                print(f"❓ {api_path} - 状态码: {response.status_code}")
+                
+        except requests.exceptions.RequestException as e:
+            print(f"❌ {api_path} - 请求失败: {e}")
+
+def test_login():
+    """测试登录功能"""
+    print("\n🔐 测试登录功能:")
+    
+    # 创建session以保持cookie
+    session = requests.Session()
+    
+    try:
+        # 1. 获取登录页面
+        login_url = urljoin(BASE_URL, '/login')
+        response = session.get(login_url, timeout=10)
+        
+        if response.status_code != 200:
+            print(f"❌ 无法访问登录页面，状态码: {response.status_code}")
+            return False
+        
+        # 2. 尝试登录（使用默认凭据）
+        login_data = {
+            'username': 'admin',
+            'password': 'admin123'  # 常见的默认密码
+        }
+        
+        response = session.post(login_url, data=login_data, timeout=10)
+        
+        if response.status_code == 200:
+            # 检查是否重定向到主页或包含成功信息
+            if 'dashboard' in response.url or 'index' in response.url or response.url.endswith('/'):
+                print("✅ 登录成功！")
+                
+                # 3. 测试受保护的API
+                api_url = urljoin(BASE_URL, '/api/shareholders')
+                api_response = session.get(api_url, timeout=10)
+                
+                if api_response.status_code == 200:
+                    print("✅ API访问成功，认证有效")
+                    return True
+                else:
+                    print(f"❌ API访问失败，状态码: {api_response.status_code}")
+                    return False
+            else:
+                print("❌ 登录失败，可能是用户名或密码错误")
+                return False
+        else:
+            print(f"❌ 登录请求失败，状态码: {response.status_code}")
+            return False
             
-    print("\n=== 问题诊断 ===")
+    except requests.exceptions.RequestException as e:
+        print(f"❌ 登录测试失败: {e}")
+        return False
+
+def provide_login_instructions():
+    """提供登录说明"""
+    print("\n📋 登录说明:")
+    print("1. 在浏览器中访问: http://localhost:5000/login")
+    print("2. 输入您的用户名和密码")
+    print("3. 如果忘记密码，可以尝试以下常见组合:")
+    print("   - 用户名: admin, 密码: admin123")
+    print("   - 用户名: admin, 密码: 123456")
+    print("   - 用户名: admin, 密码: admin")
+    print("4. 登录成功后，返回股东利润分配页面")
+    print("5. 页面应该能正常加载数据")
+
+def main():
+    """主函数"""
+    print("=" * 60)
+    print("🔧 用户认证状态检查工具")
+    print("=" * 60)
     
-    # 检查问题可能的原因
-    issues = []
+    # 1. 检查登录页面
+    print("1️⃣ 检查登录页面:")
+    login_available = check_login_page()
     
-    if not app.secret_key:
-        issues.append("❌ SECRET_KEY 未设置")
+    if not login_available:
+        print("❌ 登录页面不可访问，请检查服务器状态")
+        return False
     
-    if not users:
-        issues.append("❌ 数据库中没有用户账户")
+    # 2. 检查API未认证访问
+    check_api_without_auth()
     
-    if issues:
-        print("发现的问题:")
-        for issue in issues:
-            print(f"  {issue}")
+    # 3. 测试登录功能
+    login_success = test_login()
+    
+    # 4. 提供说明
+    provide_login_instructions()
+    
+    print("\n" + "=" * 60)
+    print("📊 检查结果:")
+    print(f"登录页面可访问: {'✅' if login_available else '❌'}")
+    print(f"自动登录测试: {'✅' if login_success else '❌'}")
+    
+    if login_success:
+        print("\n🎉 系统认证功能正常！您可以直接登录使用。")
     else:
-        print("✓ 基本配置正常")
+        print("\n⚠️ 需要手动登录，请按照上述说明操作。")
     
-    print("\n💡 解决方案:")
-    print("1. 确保用户已登录到系统")
-    print("2. 检查浏览器是否保存了有效的session cookie")
-    print("3. 如果在不同设备上，需要重新登录")
-    print("4. 访问 http://localhost:5000/login 进行登录")
+    return login_success
 
 if __name__ == '__main__':
-    check_auth_status()
+    main()

@@ -1,6 +1,6 @@
 from flask import render_template, request, redirect, url_for, jsonify, flash, make_response, send_from_directory, current_app, Blueprint, session
 from flask import request, render_template, redirect, url_for, flash, jsonify, make_response, current_app, send_from_directory
-from .models import db, Customer, Config, TaobaoOrder, Course, Employee, CommissionConfig, CourseRefund, OperationalCost, User, DividendRecord, DividendSummary
+from .models import db, Customer, Config, TaobaoOrder, Course, Employee, CommissionConfig, CourseRefund, OperationalCost, User, DividendRecord, DividendSummary, SalaryPayment
 from datetime import datetime, timedelta
 import csv
 from io import StringIO, BytesIO
@@ -184,6 +184,7 @@ def home():
                          recent_customers=recent_customers)
 
 @main_bp.route('/customers', methods=['GET', 'POST'])
+@login_required_custom
 def manage_customers():
     if request.method == 'POST':
         name = request.form['name'].strip()
@@ -226,6 +227,7 @@ def manage_customers():
     return render_template('customers.html', customers=customers)
 
 @main_bp.route('/employee-performance')
+@login_required_custom
 def employee_performance():
     """员工业绩管理页面"""
     employees = Employee.query.all()
@@ -748,6 +750,7 @@ def save_commission_config(employee_id):
         return jsonify({'success': False, 'message': str(e)})
 
 @main_bp.route('/profit-distribution')
+@login_required_custom
 def profit_distribution():
     """股东利润分配页面"""
     # 获取利润分配配置
@@ -895,6 +898,7 @@ def get_comprehensive_profit_report():
         })
 
 @main_bp.route('/config', methods=['GET', 'POST'])
+@login_required_custom
 def manage_config():
     if request.method == 'POST':
         config_type = request.form.get('config_type', 'basic')
@@ -988,6 +992,7 @@ def manage_config():
     return render_template('config.html', config=config)
 
 @main_bp.route('/taobao-orders', methods=['GET', 'POST'])
+@login_required_custom
 def manage_taobao_orders():
     if request.method == 'POST':
         order_id = request.form.get('order_id')
@@ -1447,6 +1452,7 @@ def get_config(config_key):
 
 # 试听课管理路由
 @main_bp.route('/trial-courses', methods=['GET', 'POST'])
+@login_required_custom
 def manage_trial_courses():
     """试听课管理页面"""
     if request.method == 'POST':
@@ -4162,4 +4168,259 @@ def get_dividend_statistics():
         return jsonify({
             'success': False,
             'message': f'获取分红统计失败: {str(e)}'
+        }), 500
+
+
+# ========== 员工工资管理 API ==========
+
+@main_bp.route('/api/employees/<int:employee_id>/monthly-summary')
+@login_required_custom
+def get_employee_monthly_summary(employee_id):
+    """获取员工月度统计信息"""
+    try:
+        # 验证员工是否存在
+        employee = Employee.query.get(employee_id)
+        if not employee:
+            return jsonify({'success': False, 'message': '员工不存在'}), 404
+        
+        # 获取查询参数
+        year = request.args.get('year', type=int)
+        month = request.args.get('month', type=int)
+        
+        if not year or not month:
+            # 默认为当前月份
+            now = datetime.now()
+            year = year or now.year
+            month = month or now.month
+        
+        # 计算月份范围
+        from calendar import monthrange
+        start_date = datetime(year, month, 1)
+        _, last_day = monthrange(year, month)
+        end_date = datetime(year, month, last_day, 23, 59, 59)
+        
+        # 获取该员工该月的所有课程
+        courses = Course.query.filter(
+            Course.assigned_employee_id == employee_id,
+            Course.created_at >= start_date,
+            Course.created_at <= end_date
+        ).all()
+        
+        # 计算提成
+        from .services import ProfitService
+        commission_info = ProfitService.calculate_employee_commission(
+            employee_id, courses
+        )
+        
+        # 统计学员数量（去重）
+        customer_ids = set(course.customer_id for course in courses if course.customer_id)
+        
+        return jsonify({
+            'success': True,
+            'summary': {
+                'year': year,
+                'month': month,
+                'student_count': len(customer_ids),
+                'course_count': len(courses),
+                'total_commission': commission_info.get('total_commission', 0),
+                'trial_commission': commission_info.get('trial_commission', 0),
+                'formal_commission': commission_info.get('new_commission', 0) + commission_info.get('renewal_commission', 0)
+            }
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'获取月度统计失败: {str(e)}'
+        }), 500
+
+
+@main_bp.route('/api/employees/<int:employee_id>/salary-records')
+@login_required_custom
+def get_employee_salary_records(employee_id):
+    """获取员工工资记录列表"""
+    try:
+        # 验证员工是否存在
+        employee = Employee.query.get(employee_id)
+        if not employee:
+            return jsonify({'success': False, 'message': '员工不存在'}), 404
+        
+        # 获取工资记录，按发放月份倒序
+        records = SalaryPayment.query.filter_by(
+            employee_id=employee_id
+        ).order_by(SalaryPayment.payment_month.desc()).all()
+        
+        return jsonify({
+            'success': True,
+            'records': [record.to_dict() for record in records]
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'获取工资记录失败: {str(e)}'
+        }), 500
+
+
+@main_bp.route('/api/salary-records', methods=['POST'])
+@login_required_custom
+def create_salary_record():
+    """创建工资记录"""
+    try:
+        # 获取表单数据
+        data = request.form.to_dict()
+        
+        # 验证必填字段
+        employee_id = data.get('employee_id')
+        payment_month = data.get('payment_month')
+        
+        if not employee_id or not payment_month:
+            return jsonify({
+                'success': False,
+                'message': '员工ID和发放月份不能为空'
+            }), 400
+        
+        # 验证员工是否存在
+        employee = Employee.query.get(employee_id)
+        if not employee:
+            return jsonify({'success': False, 'message': '员工不存在'}), 404
+        
+        # 检查该员工该月是否已有记录
+        existing = SalaryPayment.query.filter_by(
+            employee_id=employee_id,
+            payment_month=payment_month
+        ).first()
+        
+        if existing:
+            return jsonify({
+                'success': False,
+                'message': f'该员工{payment_month}月份的工资记录已存在'
+            }), 400
+        
+        # 创建工资记录
+        salary_record = SalaryPayment(
+            employee_id=int(employee_id),
+            payment_month=payment_month,
+            base_salary=safe_float(data.get('base_salary'), 0),
+            commission_amount=safe_float(data.get('commission_amount'), 0),
+            bonus=safe_float(data.get('bonus'), 0),
+            deduction=safe_float(data.get('deduction'), 0),
+            total_amount=safe_float(data.get('total_amount'), 0),
+            payment_date=datetime.strptime(data.get('payment_date'), '%Y-%m-%d').date() if data.get('payment_date') else None,
+            payment_method=data.get('payment_method'),
+            notes=data.get('notes'),
+            status='pending'  # 默认状态为待发放
+        )
+        
+        db.session.add(salary_record)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': '工资记录创建成功',
+            'record': salary_record.to_dict()
+        }), 201
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'message': f'创建工资记录失败: {str(e)}'
+        }), 500
+
+
+@main_bp.route('/api/salary-records/<int:record_id>')
+@login_required_custom
+def get_salary_record(record_id):
+    """获取单个工资记录"""
+    try:
+        record = SalaryPayment.query.get(record_id)
+        if not record:
+            return jsonify({'success': False, 'message': '工资记录不存在'}), 404
+        
+        return jsonify({
+            'success': True,
+            'record': record.to_dict()
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'获取工资记录失败: {str(e)}'
+        }), 500
+
+
+@main_bp.route('/api/salary-records/<int:record_id>', methods=['PUT'])
+@login_required_custom
+def update_salary_record(record_id):
+    """更新工资记录"""
+    try:
+        record = SalaryPayment.query.get(record_id)
+        if not record:
+            return jsonify({'success': False, 'message': '工资记录不存在'}), 404
+        
+        # 获取表单数据
+        data = request.form.to_dict()
+        
+        # 更新字段
+        if 'base_salary' in data:
+            record.base_salary = safe_float(data['base_salary'], 0)
+        if 'commission_amount' in data:
+            record.commission_amount = safe_float(data['commission_amount'], 0)
+        if 'bonus' in data:
+            record.bonus = safe_float(data['bonus'], 0)
+        if 'deduction' in data:
+            record.deduction = safe_float(data['deduction'], 0)
+        if 'total_amount' in data:
+            record.total_amount = safe_float(data['total_amount'], 0)
+        if 'payment_date' in data and data['payment_date']:
+            record.payment_date = datetime.strptime(data['payment_date'], '%Y-%m-%d').date()
+        if 'payment_method' in data:
+            record.payment_method = data['payment_method']
+        if 'notes' in data:
+            record.notes = data['notes']
+        if 'status' in data:
+            record.status = data['status']
+        
+        # 更新时间戳
+        record.updated_at = datetime.now(timezone.utc)
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': '工资记录更新成功',
+            'record': record.to_dict()
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'message': f'更新工资记录失败: {str(e)}'
+        }), 500
+
+
+@main_bp.route('/api/salary-records/<int:record_id>', methods=['DELETE'])
+@login_required_custom
+def delete_salary_record(record_id):
+    """删除工资记录"""
+    try:
+        record = SalaryPayment.query.get(record_id)
+        if not record:
+            return jsonify({'success': False, 'message': '工资记录不存在'}), 404
+        
+        db.session.delete(record)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': '工资记录删除成功'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'message': f'删除工资记录失败: {str(e)}'
         }), 500

@@ -317,7 +317,7 @@
 </div>
 
 <!-- 添加/编辑刷单记录模态框 -->
-<div class="modal" id="orderModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.5); z-index: 2000; justify-content: center; align-items: center;">
+<div class="modal modal-hidden" id="orderModal" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.5); z-index: 2000; justify-content: center; align-items: center;">
     <div class="modal-content" style="background: white; border-radius: 8px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15); max-width: 500px; width: 90%; max-height: 90vh; overflow-y: auto; margin: 0;">
         <div class="modal-header">
             <h3 id="modalTitle">添加刷单记录</h3>
@@ -493,6 +493,48 @@
 </div>
 
 <style>
+/* 模态框显示隐藏样式 - 增强优先级 */
+.modal-hidden {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
+
+.modal-show {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+}
+
+/* 模态框基础样式 - 确保正确的flexbox布局 */
+.modal {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    background-color: rgba(0, 0, 0, 0.5) !important;
+    z-index: 2000 !important;
+    justify-content: center !important;
+    align-items: center !important;
+    overflow-y: auto !important;
+}
+
+/* 确保模态框内容正确显示 */
+.modal .modal-content {
+    background: white !important;
+    border-radius: 8px !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15) !important;
+    max-width: 500px !important;
+    width: 90% !important;
+    max-height: 90vh !important;
+    overflow-y: auto !important;
+    margin: auto !important;
+    position: relative !important;
+}
+
 /* 统计面板样式 */
 .stats-panel {
     margin-bottom: 2rem;
@@ -861,15 +903,101 @@
 
 <script>
 function showAddModal() {
-    document.getElementById('modalTitle').textContent = '添加刷单记录';
-    document.getElementById('orderForm').reset();
-    document.getElementById('orderId').value = '';
-    document.getElementById('orderModal').style.display = 'flex';
-    document.getElementById('order_time').value = new Date().toISOString().slice(0, 16);
+    console.log('🚀 showAddModal被调用');
+    
+    // 确保DOM已完全加载
+    if (document.readyState !== 'complete') {
+        console.log('⏳ DOM未完全加载，延迟执行');
+        setTimeout(showAddModal, 100);
+        return;
+    }
+    
+    const modal = document.getElementById('orderModal');
+    if (!modal) {
+        console.error('❌ 找不到orderModal元素');
+        return;
+    }
+    
+    console.log('📋 准备显示模态框...');
+    
+    // 重置表单和模态框状态
+    try {
+        document.getElementById('modalTitle').textContent = '添加刷单记录';
+        document.getElementById('orderForm').reset();
+        document.getElementById('orderId').value = '';
+        document.getElementById('order_time').value = new Date().toISOString().slice(0, 16);
+    } catch (e) {
+        console.error('❌ 表单重置失败:', e);
+    }
+    
+    // 多重方式确保模态框显示
+    console.log('🎨 应用显示样式...');
+    
+    // 方法1: 移除隐藏类并添加显示类
+    modal.classList.remove('modal-hidden');
+    modal.classList.add('modal-show');
+    
+    // 方法2: 强制设置内联样式（高优先级）
+    modal.style.display = 'flex !important';
+    modal.style.visibility = 'visible';
+    modal.style.opacity = '1';
+    modal.style.pointerEvents = 'auto';
+    
+    // 方法3: 确保z-index层级
+    modal.style.zIndex = '9999';
+    
+    // 防止页面滚动
+    document.body.style.overflow = 'hidden';
+    
+    // 验证显示效果
+    setTimeout(() => {
+        const computedStyle = window.getComputedStyle(modal);
+        const isVisible = computedStyle.display !== 'none' && 
+                         computedStyle.visibility !== 'hidden' && 
+                         computedStyle.opacity !== '0';
+        
+        if (isVisible) {
+            console.log('✅ 模态框已成功显示');
+            console.log('📊 当前样式:', {
+                display: computedStyle.display,
+                visibility: computedStyle.visibility,
+                opacity: computedStyle.opacity,
+                zIndex: computedStyle.zIndex
+            });
+        } else {
+            console.error('❌ 模态框显示失败');
+            console.error('📊 当前样式:', {
+                display: computedStyle.display,
+                visibility: computedStyle.visibility,
+                opacity: computedStyle.opacity,
+                classList: Array.from(modal.classList),
+                inlineStyle: modal.style.cssText
+            });
+            
+            // 强制显示的备用方案
+            console.log('🔧 尝试备用显示方案...');
+            modal.style.cssText = 'position: fixed !important; top: 0 !important; left: 0 !important; width: 100% !important; height: 100% !important; background-color: rgba(0, 0, 0, 0.5) !important; z-index: 9999 !important; display: flex !important; justify-content: center !important; align-items: center !important; visibility: visible !important; opacity: 1 !important;';
+        }
+    }, 100);
 }
 
 function closeModal() {
-    document.getElementById('orderModal').style.display = 'none';
+    console.log('🔒 关闭模态框');
+    const modal = document.getElementById('orderModal');
+    if (modal) {
+        // 多重方式确保模态框隐藏
+        modal.classList.remove('modal-show');
+        modal.classList.add('modal-hidden');
+        modal.style.display = 'none';
+        modal.style.visibility = 'hidden';
+        modal.style.opacity = '0';
+        modal.style.pointerEvents = 'none';
+        
+        // 恢复页面滚动
+        document.body.style.overflow = '';
+        
+        console.log('✅ 模态框已关闭');
+    }
 }
 
 function editOrder(orderId) {
@@ -906,7 +1034,11 @@ function editOrder(orderId) {
                 document.getElementById('order_time').value = '';
             }
             
-            document.getElementById('orderModal').style.display = 'flex';
+            // 显示编辑模态框
+            const modal = document.getElementById('orderModal');
+            modal.classList.remove('modal-hidden');
+            modal.classList.add('modal-show');
+            modal.style.display = 'flex';
         })
         .catch(error => {
             alert('获取订单数据失败: ' + error.message);

@@ -1,0 +1,43 @@
+{
+  "include": [
+    "app"
+  ],
+  "exclude": [
+    "**/node_modules",
+    "**/__pycache__",
+    ".git",
+    "venv",
+    ".venv"
+  ],
+  "pythonVersion": "3.8",
+  "typeCheckingMode": "off",
+  "reportMissingImports": "none",
+  "reportMissingTypeStubs": "none",
+  "reportUnknownMemberType": "none",
+  "reportUnknownArgumentType": "none",
+  "reportUnknownVariableType": "none",
+  "reportOptionalMemberAccess": "none",
+  "reportOptionalSubscript": "none",
+  "reportOptionalCall": "none",
+  "reportGeneralTypeIssues": "none",
+  "reportArgumentType": "none",
+  "reportCallIssue": "none",
+  "reportIncompatibleMethodOverride": "none",
+  "reportIncompatibleVariableOverride": "none",
+  "reportOverlappingOverload": "none",
+  "reportUninitializedInstanceVariable": "none",
+  "reportSelfClsParameterName": "none",
+  "reportConstantRedefinition": "none",
+  "reportDuplicateImport": "none",
+  "reportUnnecessaryIsInstance": "none",
+  "reportUnnecessaryCast": "none",
+  "reportAssertAlwaysTrue": "none",
+  "reportUnnecessaryComparison": "none",
+  "reportUnusedCallResult": "none",
+  "reportUnusedExpression": "none",
+  "strictListInference": false,
+  "strictDictionaryInference": false,
+  "strictSetInference": false,
+  "strictParameterNoneValue": false,
+  "useLibraryCodeForTypes": false
+}

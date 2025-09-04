@@ -440,8 +440,8 @@
                         <input type="text" id="edit_formal_customer_name" name="customer_name" required>
                     </div>
                     <div class="form-group">
-                        <label for="edit_formal_customer_phone">联系电话 *</label>
-                        <input type="tel" id="edit_formal_customer_phone" name="customer_phone" required>
+                        <label for="edit_formal_customer_phone">联系电话/微信号 *</label>
+                        <input type="text" id="edit_formal_customer_phone" name="customer_phone" placeholder="请输入手机号或微信号" required>
                     </div>
                     <div class="form-group">
                         <label for="edit_formal_customer_gender">性别</label>
@@ -571,7 +571,12 @@ function deleteFormalCourse(courseId) {
 
 // 编辑正课记录
 function editFormalCourse(courseId) {
-    console.log('正课编辑按钮被点击，课程ID:', courseId);
+    // 优先委托给全局模态管理器，避免覆盖全局实现
+    if (window.GlobalModalManager && typeof window.GlobalModalManager.editFormalCourse === 'function') {
+        return window.GlobalModalManager.editFormalCourse(courseId);
+    }
+    // 兜底逻辑：沿用原本的本地实现，避免全局不可用时功能丢失
+    console.log('正课编辑按钮被点击（fallback），课程ID:', courseId);
     
     // 通过API获取课程详细信息
     fetch(`/api/formal-courses/${courseId}`)
@@ -1333,9 +1338,12 @@ let currentRefundCourse = null;
 
 // 显示退费模态框
 function showRefundModal(courseId) {
-    let courseData = null; // 声明在函数顶部
-    
-    // 首先获取课程基本信息
+    // 优先委托给全局模态管理器，避免覆盖全局实现
+    if (window.GlobalModalManager && typeof window.GlobalModalManager.showRefundModal === 'function') {
+        return window.GlobalModalManager.showRefundModal(courseId);
+    }
+    // 兜底逻辑：沿用原本的本地实现，避免全局不可用时功能丢失
+    let courseData = null;
     fetch(`/api/formal-courses/${courseId}`)
         .then(response => response.json())
         .then(data => {
@@ -1343,10 +1351,7 @@ function showRefundModal(courseId) {
                 alert('获取课程信息失败：' + data.message);
                 return Promise.reject('获取课程信息失败');
             }
-            
-            courseData = data; // 保存课程数据
-            
-            // 然后获取退费信息
+            courseData = data;
             return fetch(`/api/courses/${courseId}/refund-info`);
         })
         .then(response => response.json())
@@ -1355,15 +1360,11 @@ function showRefundModal(courseId) {
                 alert('获取退费信息失败：' + refundData.message);
                 return Promise.reject('获取退费信息失败');
             }
-            
-            // 合并课程信息和退费信息
             currentRefundCourse = {
                 ...courseData,
                 ...refundData.refund_summary,
                 refund_history: refundData.refund_history || []
             };
-            
-            // 填充课程信息
             document.getElementById('refund_course_id').value = courseId;
             document.getElementById('refund_customer_name').textContent = courseData.customer_name || '未知';
             document.getElementById('refund_course_type').textContent = courseData.course_type || '未知';
@@ -1371,24 +1372,14 @@ function showRefundModal(courseId) {
             document.getElementById('refund_refunded_sessions').textContent = refundData.refund_summary.total_refunded_sessions || 0;
             document.getElementById('refund_refundable_sessions').textContent = refundData.refund_summary.refundable_sessions || 0;
             document.getElementById('refund_unit_price').textContent = `¥${(refundData.refund_summary.unit_price || 0).toFixed(2)}`;
-            
-            // 设置最大可退费节数
             document.getElementById('refund_sessions').max = refundData.refund_summary.refundable_sessions || 0;
-            
-            // 显示退费历史
             if (refundData.refund_history && refundData.refund_history.length > 0) {
                 showRefundHistory(refundData.refund_history);
             }
-            
-            // 显示模态框
             document.getElementById('refundModal').style.display = 'flex';
         })
         .catch(error => {
-            console.error('Error:', error);
-            if (typeof error === 'string') {
-                // 这是我们的自定义错误，不需要再次显示alert
-                return;
-            }
+            if (typeof error === 'string') return;
             alert('获取信息失败，请重试');
         });
 }

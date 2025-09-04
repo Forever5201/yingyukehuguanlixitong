@@ -120,19 +120,3 @@ document.addEventListener('DOMContentLoaded', () => {
     optimizer.optimizeEventListeners();
     optimizer.optimizeScroll();
 });
-
-// 全局错误处理
-window.addEventListener('error', (e) => {
-    console.error('JavaScript错误:', e.error);
-});
-
-// 网络状态监控
-window.addEventListener('online', () => {
-    console.log('网络已连接');
-});
-
-window.addEventListener('offline', () => {
-    console.log('网络已断开');
-});
-
-console.log('客户管理系统已加载');
