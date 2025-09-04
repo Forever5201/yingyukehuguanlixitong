@@ -1009,17 +1009,25 @@ function editOrder(orderId) {
             return response.json();
         })
         .then(order => {
-            
+            // API 返回结构为 { success: true, order: {...} }
+            var data = order && order.order ? order.order : order;
+
             document.getElementById('modalTitle').textContent = '编辑刷单记录';
-            document.getElementById('orderId').value = order.id;
-            document.getElementById('customer_name').value = order.customer_name || '';
-            document.getElementById('level').value = order.level || '';
-            document.getElementById('amount').value = order.amount || '';
-            document.getElementById('commission').value = order.commission || '';
-            document.getElementById('evaluated').checked = order.evaluated || false;
+            document.getElementById('orderId').value = data.id || '';
+            // 后端字段为 name，这里兼容 customer_name
+            document.getElementById('customer_name').value = (data.customer_name || data.name || '');
+            document.getElementById('level').value = data.level || '';
+            // 刷单商品（如果存在下拉/输入框）
+            var productInput = document.getElementById('product_name');
+            if (productInput) {
+                productInput.value = data.product_name || '';
+            }
+            document.getElementById('amount').value = (data.amount ?? '');
+            document.getElementById('commission').value = (data.commission ?? '');
+            document.getElementById('evaluated').checked = !!data.evaluated;
             
             // 处理时间格式
-            let orderTime = order.order_time;
+            let orderTime = data.order_time;
             if (orderTime) {
                 // 如果时间包含 'T'，说明已经是正确格式
                 if (orderTime.includes('T')) {

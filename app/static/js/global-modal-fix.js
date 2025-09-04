@@ -444,6 +444,68 @@
             log(`✅ 已设置全局editTrialCourse函数`);
         }
         
+        // 刷单订单详情查看：始终包一层全局委托，兼容本地函数与兜底显示
+        (function(){
+            const originalShowOrderDetail = (typeof window.showOrderDetail === 'function') ? window.showOrderDetail : null;
+            window.showOrderDetail = function(orderId){
+                log(`🛒 全局委托 showOrderDetail`, { orderId });
+                // 如果有本地实现，先调用本地（完成数据填充）
+                if (originalShowOrderDetail) {
+                    try {
+                        originalShowOrderDetail(orderId);
+                    } catch (e) {
+                        log(`⚠️ 本地showOrderDetail执行异常: ${e.message}`);
+                    }
+                    // 无论本地执行是否成功，都强制确保模态显示
+                    ensureDOMReady(() => {
+                        safeShowModal('taobaoOrderDetailModal');
+                    });
+                    return;
+                }
+                // 无本地实现时，走兜底：请求、填充、显示
+                ensureDOMReady(() => {
+                    const modalId = 'taobaoOrderDetailModal';
+                    apiCall(`/api/taobao-orders/${orderId}`)
+                        .then(data => {
+                            if (!data.success) {
+                                throw new Error(data.message || '获取订单信息失败');
+                            }
+                            const order = data.order || {};
+                            setValueByIds(['order_detail_id'], order.id);
+                            setValueByIds(['order_detail_name'], order.name);
+                            setValueByIds(['order_detail_level'], order.level);
+                            setValueByIds(['order_detail_amount'], order.amount);
+                            setValueByIds(['order_detail_commission'], order.commission);
+                            setValueByIds(['order_detail_taobao_fee'], order.taobao_fee || 0);
+                            setValueByIds(['order_detail_evaluated'], order.evaluated ? '1' : '0');
+                            setValueByIds(['order_detail_settled'], order.settled ? '1' : '0');
+                            if (order.order_time) {
+                                const t = new Date(order.order_time);
+                                setValueByIds(['order_detail_order_time'], t.toISOString().slice(0, 16));
+                            }
+                            const settlementInfo = document.getElementById('settlementInfo');
+                            if (settlementInfo) {
+                                settlementInfo.style.display = order.settled ? 'flex' : 'none';
+                            }
+                            if (order.settled && order.settled_at) {
+                                const st = new Date(order.settled_at);
+                                setValueByIds(['order_detail_settled_at'], st.toISOString().slice(0, 16));
+                            }
+                            if (typeof window.updateOrderCostPreview === 'function') {
+                                window.updateOrderCostPreview();
+                            }
+                        })
+                        .catch(err => {
+                            alert(`获取订单信息失败：${err.message}`);
+                        })
+                        .finally(() => {
+                            safeShowModal(modalId);
+                        });
+                });
+            };
+            log(`✅ 已设置全局showOrderDetail函数（包装本地并兜底显示）`);
+        })();
+        
         log(`🎉 全局模态框管理器初始化完成！`);
     });
     

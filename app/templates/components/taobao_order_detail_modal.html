@@ -1,19 +1,33 @@
 <!-- 淘宝订单详情模态框 -->
 <div id="taobaoOrderDetailModal" class="modal fade" tabindex="-1" role="dialog">
-    <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">
-                    <i class="fas fa-shopping-cart"></i> 刷单详情
+                <h5 class="modal-title" style="display:flex;align-items:center;gap:.5rem;">
+                    <i class="fas fa-shopping-cart"></i>
+                    <span>刷单详情</span>
                 </h5>
-                <button type="button" class="close" onclick="closeTaobaoOrderDetailModal()" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
+                <button type="button" class="btn-close" onclick="closeTaobaoOrderDetailModal()" aria-label="Close"></button>
             </div>
             <div class="modal-body">
                 <form id="taobaoOrderDetailForm">
                     <input type="hidden" id="order_detail_id" name="order_id">
-                    
+
+                    <div class="summary-strip">
+                        <div class="summary-item">
+                            <div class="summary-label">订单金额</div>
+                            <div class="summary-value" id="summary_amount">¥0.00</div>
+                        </div>
+                        <div class="summary-item">
+                            <div class="summary-label">佣金金额</div>
+                            <div class="summary-value" id="summary_commission">¥0.00</div>
+                        </div>
+                        <div class="summary-item highlight">
+                            <div class="summary-label">总成本</div>
+                            <div class="summary-value" id="summary_total">¥0.00</div>
+                        </div>
+                    </div>
+
                     <div class="section-card">
                         <h6 class="section-title">
                             <i class="fas fa-info-circle"></i> 订单信息
@@ -37,61 +51,62 @@
                         <div class="form-row">
                             <div class="form-group col-md-4">
                                 <label>订单金额 <span class="required">*</span></label>
-                                <div class="input-group">
-                                    <div class="input-group-prepend">
-                                        <span class="input-group-text">¥</span>
-                                    </div>
-                                    <input type="number" class="form-control" id="order_detail_amount" 
-                                           name="amount" step="0.01" required>
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text">¥</span>
+                                    <input type="number" class="form-control text-end" id="order_detail_amount" 
+                                           name="amount" step="0.01" min="0" required>
                                 </div>
                             </div>
                             <div class="form-group col-md-4">
                                 <label>佣金金额 <span class="required">*</span></label>
-                                <div class="input-group">
-                                    <div class="input-group-prepend">
-                                        <span class="input-group-text">¥</span>
-                                    </div>
-                                    <input type="number" class="form-control" id="order_detail_commission" 
-                                           name="commission" step="0.01" required>
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text">¥</span>
+                                    <input type="number" class="form-control text-end" id="order_detail_commission" 
+                                           name="commission" step="0.01" min="0" required>
                                 </div>
                             </div>
                             <div class="form-group col-md-4">
                                 <label>淘宝手续费</label>
-                                <div class="input-group">
-                                    <div class="input-group-prepend">
-                                        <span class="input-group-text">¥</span>
-                                    </div>
-                                    <input type="number" class="form-control" id="order_detail_taobao_fee" 
-                                           name="taobao_fee" step="0.01" value="0">
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text">¥</span>
+                                    <input type="number" class="form-control text-end" id="order_detail_taobao_fee" 
+                                           name="taobao_fee" step="0.01" min="0" value="0">
                                 </div>
                             </div>
                         </div>
                         <div class="form-row">
                             <div class="form-group col-md-4">
-                                <label>是否评价</label>
-                                <select class="form-control" id="order_detail_evaluated" name="evaluated">
+                                <label class="form-label">是否评价</label>
+                                <div class="chip-group" role="group" aria-label="是否评价">
+                                    <button type="button" class="chip" id="chip_eval_no" onclick="setEvaluated(0)">否</button>
+                                    <button type="button" class="chip" id="chip_eval_yes" onclick="setEvaluated(1)">是</button>
+                                </div>
+                                <select class="form-control d-none" id="order_detail_evaluated" name="evaluated">
                                     <option value="0">否</option>
                                     <option value="1">是</option>
                                 </select>
                             </div>
-                            <div class="form-group col-md-4">
+                            <div class="form-group col-md-6">
                                 <label>刷单时间 <span class="required">*</span></label>
                                 <input type="datetime-local" class="form-control" id="order_detail_order_time" 
                                        name="order_time" required>
                             </div>
-                            <div class="form-group col-md-4">
-                                <label>结算状态</label>
-                                <select class="form-control" id="order_detail_settled" name="settled">
-                                    <option value="0">未结算</option>
-                                    <option value="1">已结算</option>
+                            <div class="form-group col-md-6">
+                                <label class="form-label">结算状态</label>
+                                <div class="chip-group" role="group" aria-label="结算状态">
+                                    <button type="button" class="chip" id="chip_settle_no" onclick="setSettled(0)">未结</button>
+                                    <button type="button" class="chip" id="chip_settle_yes" onclick="setSettled(1)">已结</button>
+                                </div>
+                                <select class="form-control d-none" id="order_detail_settled" name="settled">
+                                    <option value="0">未结</option>
+                                    <option value="1">已结</option>
                                 </select>
                             </div>
                         </div>
                         <div class="form-row" id="settlementInfo" style="display: none;">
                             <div class="form-group col-md-12">
                                 <label>结算时间</label>
-                                <input type="datetime-local" class="form-control" id="order_detail_settled_at" 
-                                       name="settled_at">
+                                <input type="datetime-local" class="form-control" id="order_detail_settled_at" name="settled_at">
                             </div>
                         </div>
                     </div>
@@ -128,12 +143,14 @@
                     </div>
                 </form>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal">
-                    <i class="fas fa-times"></i> 取消
+            <div class="modal-footer" style="display:flex;justify-content:flex-end;gap:.5rem;">
+                <button type="button" class="btn btn-outline-secondary" onclick="closeTaobaoOrderDetailModal()">
+                    <i class="fas fa-times"></i>
+                    <span style="margin-left:.25rem;">取消</span>
                 </button>
                 <button type="button" class="btn btn-primary" onclick="saveTaobaoOrderDetail()">
-                    <i class="fas fa-save"></i> 保存
+                    <i class="fas fa-save"></i>
+                    <span style="margin-left:.25rem;">保存</span>
                 </button>
             </div>
         </div>
@@ -141,6 +158,98 @@
 </div>
 
 <style>
+/* 统一模态头部与底部的视觉效果，与站点其它页面保持一致 */
+.modal-header {
+    border-bottom: 1px solid #e9ecef;
+}
+.modal-footer {
+    border-top: 1px solid #e9ecef;
+}
+.btn-close {
+    box-shadow: none;
+}
+
+/* 仅作用于该详情模态：增大宽度、限制内容高度并内部滚动 */
+#taobaoOrderDetailModal .modal-dialog { max-width: 920px; }
+#taobaoOrderDetailModal .modal-body {
+    max-height: 72vh;
+    overflow: auto;
+    padding-top: 0.75rem;
+}
+/* 极简专业风：圆角与阴影、字体与留白 */
+#taobaoOrderDetailModal .modal-content { border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,.12); }
+#taobaoOrderDetailModal .modal-title { font-size: 1rem; font-weight: 700; }
+#taobaoOrderDetailModal .form-label { font-weight: 600; color: #495057; }
+#taobaoOrderDetailModal .form-control { border-radius: 10px; }
+#taobaoOrderDetailModal .input-group-text { border-radius: 10px 0 0 10px; }
+
+/* 表单小尺寸统一与金额右对齐已通过类名实现，这里补充对齐一致性 */
+.form-control.text-end { text-align: right; }
+
+/* 优化整体观感：内容卡片化与网格排版 */
+#taobaoOrderDetailModal .section-card {
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin-bottom: 12px;
+    background: #fff;
+}
+#taobaoOrderDetailModal .section-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 10px;
+}
+#taobaoOrderDetailModal .form-row {
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    gap: 12px 16px;
+}
+#taobaoOrderDetailModal .form-group.col-md-6 { grid-column: span 6; }
+#taobaoOrderDetailModal .form-group.col-md-4 { grid-column: span 4; }
+#taobaoOrderDetailModal .form-group.col-md-12 { grid-column: span 12; }
+
+@media (max-width: 768px) {
+  #taobaoOrderDetailModal .form-group.col-md-6,
+  #taobaoOrderDetailModal .form-group.col-md-4,
+  #taobaoOrderDetailModal .form-group.col-md-12 {
+      grid-column: span 12;
+  }
+}
+
+/* Input group尺寸与对齐统一 */
+#taobaoOrderDetailModal .input-group.input-group-sm .input-group-text {
+    font-weight: 600;
+}
+#taobaoOrderDetailModal .input-group .form-control {
+    min-width: 0;
+}
+
+/* 芯片按钮 */
+.chip-group { display:flex; gap:8px; }
+.chip {
+    background:#f1f3f5;
+    border:1px solid #dee2e6;
+    color:#495057;
+    padding:6px 12px;
+    border-radius:999px;
+    cursor:pointer;
+}
+.chip.active { background:#0d6efd; border-color:#0d6efd; color:#fff; }
+
+/* 顶部概要条 */
+.summary-strip{
+    display:grid; grid-template-columns: repeat(3,1fr); gap:12px; margin-bottom:12px;
+}
+.summary-item{ background:#f8f9fa; border:1px solid #e9ecef; border-radius:10px; padding:10px 12px; }
+.summary-item.highlight{ background:#e7f1ff; border-color:#b6d4fe; }
+.summary-label{ font-size:.8rem; color:#6c757d; }
+.summary-value{ font-size:1.1rem; font-weight:700; color:#212529; }
+
+/* 费用预览强调 */
+#taobaoOrderDetailModal #orderCostPreview .cost-item span:first-child { color: #6c757d; }
+#taobaoOrderDetailModal #preview_total { font-weight: 700; }
+
 .cost-item {
     display: flex;
     justify-content: space-between;
@@ -164,7 +273,16 @@
 function closeTaobaoOrderDetailModal() {
     const modal = document.getElementById('taobaoOrderDetailModal');
     if (modal) {
+        // 同步还原展示时添加的多种样式/类，避免遮罩或滚动被锁定
+        modal.classList.remove('modal-show', 'show');
+        modal.classList.add('modal-hidden', 'hidden');
         modal.style.display = 'none';
+        modal.style.visibility = 'hidden';
+        modal.style.opacity = '0';
+        modal.style.pointerEvents = 'none';
+        if (document && document.body) {
+            document.body.style.overflow = '';
+        }
     }
 }
 
@@ -202,6 +320,10 @@ function showOrderDetail(orderId) {
                         settledTime.toISOString().slice(0, 16);
                 }
                 
+                // 同步芯片选中态
+                setEvaluated(order.evaluated ? 1 : 0, true);
+                setSettled(order.settled ? 1 : 0, true);
+
                 updateOrderCostPreview();
             }
         });
@@ -231,6 +353,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 this.value === '1' ? 'flex' : 'none';
         });
     }
+
+    // 初始化芯片与下拉同步
+    setEvaluated(parseInt(document.getElementById('order_detail_evaluated').value || '0', 10), true);
+    setSettled(parseInt(document.getElementById('order_detail_settled').value || '0', 10), true);
 });
 
 // 更新费用预览
@@ -244,6 +370,40 @@ function updateOrderCostPreview() {
     document.getElementById('preview_commission').textContent = `¥${commission.toFixed(2)}`;
     document.getElementById('preview_fee').textContent = `¥${fee.toFixed(2)}`;
     document.getElementById('preview_total').textContent = `¥${total.toFixed(2)}`;
+
+    // 同步顶部概要
+    const sa = document.getElementById('summary_amount');
+    const sc = document.getElementById('summary_commission');
+    const st = document.getElementById('summary_total');
+    if (sa) sa.textContent = `¥${amount.toFixed(2)}`;
+    if (sc) sc.textContent = `¥${commission.toFixed(2)}`;
+    if (st) st.textContent = `¥${total.toFixed(2)}`;
+}
+
+// 芯片交互：是否评价
+function setEvaluated(val, silent=false){
+    const sel = document.getElementById('order_detail_evaluated');
+    if (sel) sel.value = String(val);
+    const yes = document.getElementById('chip_eval_yes');
+    const no = document.getElementById('chip_eval_no');
+    if (yes && no){
+        yes.classList.toggle('active', val === 1);
+        no.classList.toggle('active', val === 0);
+    }
+}
+
+// 芯片交互：结算状态
+function setSettled(val, silent=false){
+    const sel = document.getElementById('order_detail_settled');
+    if (sel) sel.value = String(val);
+    const yes = document.getElementById('chip_settle_yes');
+    const no = document.getElementById('chip_settle_no');
+    if (yes && no){
+        yes.classList.toggle('active', val === 1);
+        no.classList.toggle('active', val === 0);
+    }
+    const info = document.getElementById('settlementInfo');
+    if (info) info.style.display = val === 1 ? 'flex' : 'none';
 }
 
 // 保存订单详情
