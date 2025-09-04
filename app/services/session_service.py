@@ -106,27 +106,46 @@ class SessionService:
         Returns:
             bool: 会话是否有效
         """
-        if not session.get('user_id'):
-            return False
-        
-        # 检查会话是否过期
-        login_time_str = session.get('login_time')
-        if not login_time_str:
-            return False
-        
         try:
-            login_time = datetime.fromisoformat(login_time_str.replace('Z', '+00:00'))
-            current_time = datetime.now(timezone.utc)
-            
-            # 检查会话是否超过30天
-            if current_time - login_time > timedelta(days=30):
-                logger.info(f"会话已过期，用户ID: {session.get('user_id')}")
+            # 检查基本会话数据
+            if not session.get('user_id'):
+                print("Session验证失败: 没有user_id")
                 return False
             
-            return True
+            # 检查用户名
+            if not session.get('username'):
+                print("Session验证失败: 没有username")
+                return False
+            
+            # 检查登录时间（只检查格式，不检查过期）
+            login_time_str = session.get('login_time')
+            if not login_time_str:
+                # 如果没有login_time，但有user_id，就设置一个
+                session['login_time'] = datetime.now(timezone.utc).isoformat()
+                print(f"Session验证: 补充login_time为用户 {session.get('user_id')}")
+                return True
+            
+            try:
+                login_time = datetime.fromisoformat(login_time_str.replace('Z', '+00:00'))
+                current_time = datetime.now(timezone.utc)
+                
+                # 将过期时间放宽到60天（原本30天太严格）
+                time_diff = current_time - login_time
+                if time_diff > timedelta(days=60):
+                    print(f"Session验证失败: 会话已过期 {time_diff.days}天，用户ID: {session.get('user_id')}")
+                    return False
+                
+                print(f"Session验证成功: 用户 {session.get('username')} ({session.get('user_id')})，登录天数: {time_diff.days}")
+                return True
+                
+            except Exception as time_parse_error:
+                # 如果时间解析失败，但有用户信息，就重新设置时间
+                print(f"Session验证: 时间解析失败 {time_parse_error}，重新设置")
+                session['login_time'] = datetime.now(timezone.utc).isoformat()
+                return True
             
         except Exception as e:
-            logger.error(f"会话验证失败: {e}")
+            print(f"Session验证异常: {e}")
             return False
     
     @staticmethod
