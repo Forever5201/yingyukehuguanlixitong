@@ -42,7 +42,9 @@ def create_app():
             return User.query.get(int(user_id))
 
     # 注册传统路由蓝图
-    from .routes import main_bp
+    # 为保持兼容性：导入 routes 以完成所有路由在 main_bp 上的注册，然后注册 main_bp
+    from .blueprints import main_bp
+    from . import routes  # noqa: F401  导入以执行路由注册的副作用
     app.register_blueprint(main_bp)
     
     # 注册新的统一API蓝图

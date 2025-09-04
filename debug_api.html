@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>API调试页面</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .result { border: 1px solid #ccc; padding: 10px; margin: 10px 0; }
+        .error { color: red; }
+        .success { color: green; }
+    </style>
+</head>
+<body>
+    <h1>股东利润API调试</h1>
+    
+    <button onclick="testAPI()">测试API调用</button>
+    
+    <div id="result"></div>
+    
+    <script>
+        function formatCurrency(amount) {
+            return '¥' + Number(amount).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+        }
+        
+        function testAPI() {
+            console.log('开始API测试...');
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '<p>正在加载...</p>';
+            
+            fetch('/api/comprehensive-profit-report?period=month')
+                .then(response => {
+                    console.log('响应状态:', response.status);
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('API响应数据:', data);
+                    
+                    if (data.success) {
+                        const report = data.data;
+                        const shareholder_dist = report.shareholder_distribution || {};
+                        
+                        resultDiv.innerHTML = `
+                            <div class="result success">
+                                <h3>API调用成功</h3>
+                                <p><strong>收入总计:</strong> ${formatCurrency(report.revenue?.total_revenue || 0)}</p>
+                                <p><strong>成本总计:</strong> ${formatCurrency(report.cost?.total_cost || 0)}</p>
+                                <p><strong>净利润:</strong> ${formatCurrency(report.profit?.net_profit || 0)}</p>
+                                <hr>
+                                <p><strong>股东A净利润:</strong> ${formatCurrency(shareholder_dist.shareholder_a_net_profit || 0)}</p>
+                                <p><strong>股东B净利润:</strong> ${formatCurrency(shareholder_dist.shareholder_b_net_profit || 0)}</p>
+                                <hr>
+                                <h4>原始数据:</h4>
+                                <pre>${JSON.stringify(data, null, 2)}</pre>
+                            </div>
+                        `;
+                    } else {
+                        resultDiv.innerHTML = `
+                            <div class="result error">
+                                <h3>API调用失败</h3>
+                                <p>错误信息: ${data.message}</p>
+                            </div>
+                        `;
+                    }
+                })
+                .catch(error => {
+                    console.error('API调用错误:', error);
+                    resultDiv.innerHTML = `
+                        <div class="result error">
+                            <h3>网络错误</h3>
+                            <p>错误详情: ${error.message}</p>
+                        </div>
+                    `;
+                });
+        }
+        
+        // 页面加载后自动测试
+        window.onload = function() {
+            testAPI();
+        };
+    </script>
+</body>
+</html>

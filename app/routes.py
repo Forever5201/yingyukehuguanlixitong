@@ -1,5 +1,6 @@
 from flask import render_template, request, redirect, url_for, jsonify, flash, make_response, send_from_directory, current_app, Blueprint, session
-from .models import db, Customer, Config, TaobaoOrder, Course, Employee, CommissionConfig, CourseRefund, OperationalCost, User
+from flask import request, render_template, redirect, url_for, flash, jsonify, make_response, current_app, send_from_directory
+from .models import db, Customer, Config, TaobaoOrder, Course, Employee, CommissionConfig, CourseRefund, OperationalCost, User, DividendRecord, DividendSummary, SalaryPayment
 from datetime import datetime, timedelta
 import csv
 from io import StringIO, BytesIO
@@ -10,12 +11,13 @@ from flask_login import login_user, logout_user, login_required, current_user
 
 # 导入服务层
 from .services import RefundService, ProfitService, PerformanceService, TransactionService, EnhancedProfitService, OperationalCostService
+from .services.dividend_service import DividendService
 from .services.auth_service import AuthService
 from .services.session_service import SessionService
 from .decorators import login_required_custom, admin_required
 
-# 创建主蓝图
-main_bp = Blueprint('main', __name__)
+# 创建主蓝图（改为从共享模块导入，便于后续拆分路由到多个文件）
+from .blueprints.main import main_bp
 
 # ========== 安全转换函数 ==========
 def safe_float(value, default=0):
@@ -182,6 +184,7 @@ def home():
                          recent_customers=recent_customers)
 
 @main_bp.route('/customers', methods=['GET', 'POST'])
+@login_required_custom
 def manage_customers():
     if request.method == 'POST':
         name = request.form['name'].strip()
@@ -224,6 +227,7 @@ def manage_customers():
     return render_template('customers.html', customers=customers)
 
 @main_bp.route('/employee-performance')
+@login_required_custom
 def employee_performance():
     """员工业绩管理页面"""
     employees = Employee.query.all()
@@ -251,8 +255,8 @@ def employee_performance():
         start_of_month = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         
         # 本月的正课（所有分配给该员工的）
-        monthly_courses = [c for c in formal_courses if c.created_at >= start_of_month]
-        monthly_revenue = sum(c.sessions * c.price for c in monthly_courses)
+        monthly_courses = [c for c in formal_courses if c.created_at and c.created_at >= start_of_month]
+        monthly_revenue = sum(safe_int(c.sessions, 0) * safe_float(c.price, 0) for c in monthly_courses)
         
         # 统计信息中增加正课总数
         employee.stats = {
@@ -320,7 +324,7 @@ def get_employee_performance(employee_id):
         conversion_rate = (converted_count / trial_count * 100) if trial_count > 0 else 0
         
         # 计算总业绩
-        total_revenue = sum(c.sessions * c.price for c in formal_courses)
+        total_revenue = sum(safe_int(c.sessions, 0) * safe_float(c.price, 0) for c in formal_courses)
         
         # 使用ProfitService计算提成
         from .services import ProfitService
@@ -456,6 +460,242 @@ def calculate_course_profit_with_refund(course, include_refund=True):
             'has_refund': False
         }
 
+@main_bp.route('/api/employees/<int:employee_id>/students')
+def get_employee_students(employee_id):
+    """获取员工负责的学员列表 - 以学员为中心的数据展示"""
+    try:
+        employee = Employee.query.get(employee_id)
+        if not employee:
+            return jsonify({'success': False, 'message': '员工不存在'}), 404
+
+        # 获取该员工分配的所有课程，按客户分组
+        courses = Course.query.filter_by(assigned_employee_id=employee_id).all()
+        
+        # 按客户分组课程数据
+        customer_courses = {}
+        for course in courses:
+            customer_id = course.customer_id
+            if customer_id not in customer_courses:
+                customer_courses[customer_id] = {
+                    'customer': course.customer,
+                    'trial_courses': [],
+                    'formal_courses': [],
+                    'renewal_courses': [],
+                    'refund_records': []
+                }
+            
+            # 分类课程
+            if course.is_trial:
+                customer_courses[customer_id]['trial_courses'].append(course)
+            elif course.is_renewal:
+                customer_courses[customer_id]['renewal_courses'].append(course)
+            else:
+                customer_courses[customer_id]['formal_courses'].append(course)
+        
+        # 构建学员列表数据
+        students_data = []
+        for customer_id, data in customer_courses.items():
+            customer = data['customer']
+            trial_courses = data['trial_courses']
+            formal_courses = data['formal_courses']
+            renewal_courses = data['renewal_courses']
+            
+            # 计算总购买节数（正课 + 续课，不包括试听课）
+            total_sessions = sum(safe_int(c.sessions, 0) for c in formal_courses) + \
+                           sum(safe_int(c.sessions, 0) for c in renewal_courses)
+            
+            # 计算该学员的总提成 - 优化批量计算
+            total_commission = 0
+            all_courses = trial_courses + formal_courses + renewal_courses
+            if all_courses:
+                try:
+                    commission_info = ProfitService.calculate_employee_commission(
+                        employee_id, all_courses
+                    )
+                    total_commission = safe_float(commission_info.get('total_commission', 0), 0)
+                except Exception as e:
+                    print(f"计算提成失败: {e}")
+                    total_commission = 0
+            
+            # 生成状态标签
+            status_tags = []
+            if trial_courses:
+                status_tags.append('试听课')
+            if formal_courses:
+                status_tags.append('正课')
+            if renewal_courses:
+                status_tags.append('续课')
+            
+            # 检查退课记录 - 优化查询
+            course_ids = [c.id for c in all_courses] if all_courses else []
+            has_refund = False
+            if course_ids:
+                refund_count = CourseRefund.query.filter(
+                    CourseRefund.course_id.in_(course_ids),
+                    CourseRefund.status == 'completed'
+                ).count()
+                has_refund = refund_count > 0
+            
+            if has_refund:
+                status_tags.append('退课')
+            
+            # 找到首次报名时间（可能是试听课）
+            all_course_dates = [c.created_at for c in all_courses if c.created_at]
+            first_registration = min(all_course_dates) if all_course_dates else None
+            
+            student_data = {
+                'customer_id': customer_id,
+                'customer_name': customer.name if customer else '未知',
+                'total_sessions': total_sessions,
+                'total_commission': round(total_commission, 2),  # 保留两位小数
+                'status_tags': status_tags,
+                'first_registration': first_registration.strftime('%Y-%m-%d') if first_registration else '',
+                'phone': customer.phone if customer else '',
+                'grade': customer.grade if customer else '',
+                'region': customer.region if customer else ''
+            }
+            students_data.append(student_data)
+        
+        # 按首次报名时间排序
+        students_data.sort(key=lambda x: x['first_registration'], reverse=True)
+        
+        return jsonify({
+            'success': True,
+            'students': students_data,
+            'employee_name': employee.name
+        })
+        
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@main_bp.route('/api/employees/<int:employee_id>/students/<int:customer_id>')
+def get_student_detail(employee_id, customer_id):
+    """获取特定学员的详情信息 - 四个业务板块详情"""
+    try:
+        employee = Employee.query.get(employee_id)
+        if not employee:
+            return jsonify({'success': False, 'message': '员工不存在'}), 404
+        
+        customer = Customer.query.get(customer_id)
+        if not customer:
+            return jsonify({'success': False, 'message': '学员不存在'}), 404
+        
+        # 获取该学员在该员工名下的所有课程
+        courses = Course.query.filter_by(
+            assigned_employee_id=employee_id,
+            customer_id=customer_id
+        ).all()
+        
+        # 分类课程数据
+        trial_courses = [c for c in courses if c.is_trial]
+        formal_courses = [c for c in courses if not c.is_trial and not c.is_renewal]
+        renewal_courses = [c for c in courses if c.is_renewal]
+        
+        # 获取退课记录
+        from .models import CourseRefund
+        refund_records = CourseRefund.query.filter(
+            CourseRefund.course_id.in_([c.id for c in courses])
+        ).all()
+        
+        # 格式化试听课数据
+        trial_data = []
+        for course in trial_courses:
+            trial_data.append({
+                'course_id': course.id,
+                'trial_price': safe_float(course.trial_price, 0),
+                'trial_status': course.trial_status or 'registered',
+                'trial_time': course.created_at.strftime('%Y-%m-%d') if course.created_at else '',
+                'is_converted': bool(course.converted_to_course),
+                'notes': course.meta or ''  # 使用meta字段作为备注
+            })
+        
+        # 格式化正课数据
+        formal_data = []
+        for course in formal_courses:
+            formal_data.append({
+                'course_id': course.id,
+                'course_type': course.course_type or '',
+                'sessions': safe_int(course.sessions, 0),
+                'price_per_session': safe_float(course.price, 0),
+                'total_amount': safe_int(course.sessions, 0) * safe_float(course.price, 0),
+                'registration_time': course.created_at.strftime('%Y-%m-%d') if course.created_at else '',
+                'course_info': course.name or ''
+            })
+        
+        # 格式化续课数据
+        renewal_data = []
+        for course in renewal_courses:
+            renewal_data.append({
+                'course_id': course.id,
+                'renewal_type': course.course_type or '',
+                'renewal_sessions': safe_int(course.sessions, 0),
+                'renewal_amount': safe_int(course.sessions, 0) * safe_float(course.price, 0),
+                'renewal_time': course.created_at.strftime('%Y-%m-%d') if course.created_at else '',
+                'renewal_source': str(course.converted_from_trial) if course.converted_from_trial else ''  # 安全转换为字符串
+            })
+        
+        # 格式化退课数据
+        refund_data = []
+        for refund in refund_records:
+            refund_data.append({
+                'refund_id': refund.id,
+                'refund_sessions': safe_int(refund.refund_sessions, 0),
+                'refund_amount': safe_float(refund.refund_amount, 0),
+                'refund_reason': refund.refund_reason or '',
+                'refund_time': refund.created_at.strftime('%Y-%m-%d') if refund.created_at else '',
+                'refund_status': refund.status or '',  # 使用status字段
+                'refund_channel': refund.refund_channel or ''
+            })
+        
+        # 计算提成汇总 - 优化为一次性计算所有提成
+        commission_summary = {'trial_commission': 0, 'formal_commission': 0, 'renewal_commission': 0, 'total_commission': 0}
+        
+        # 如果有课程，一次性计算所有提成
+        if courses:
+            try:
+                # 使用统一的提成计算服务
+                commission_info = ProfitService.calculate_employee_commission(
+                    employee_id, courses
+                )
+                
+                # 提取各类提成
+                commission_summary = {
+                    'trial_commission': safe_float(commission_info.get('trial_commission', 0), 0),
+                    'formal_commission': safe_float(commission_info.get('new_commission', 0), 0),
+                    'renewal_commission': safe_float(commission_info.get('renewal_commission', 0), 0),
+                    'total_commission': safe_float(commission_info.get('total_commission', 0), 0)
+                }
+            except Exception as e:
+                print(f"计算提成汇总失败: {e}")
+                # 保持默认值
+        
+        result = {
+            'success': True,
+            'data': {
+                'customer': {
+                    'id': customer.id,
+                    'name': customer.name,
+                    'phone': customer.phone,
+                    'grade': customer.grade or '',
+                    'region': customer.region or ''
+                },
+                'trial_courses': trial_data,
+                'formal_courses': formal_data,
+                'renewal_courses': renewal_data,
+                'refund_records': refund_data,
+                'commission_summary': commission_summary
+            }
+        }
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
 @main_bp.route('/api/employees/<int:employee_id>/commission-config', methods=['GET'])
 def get_commission_config(employee_id):
     """获取员工提成配置"""
@@ -510,6 +750,7 @@ def save_commission_config(employee_id):
         return jsonify({'success': False, 'message': str(e)})
 
 @main_bp.route('/profit-distribution')
+@login_required_custom
 def profit_distribution():
     """股东利润分配页面"""
     # 获取利润分配配置
@@ -657,6 +898,7 @@ def get_comprehensive_profit_report():
         })
 
 @main_bp.route('/config', methods=['GET', 'POST'])
+@login_required_custom
 def manage_config():
     if request.method == 'POST':
         config_type = request.form.get('config_type', 'basic')
@@ -718,7 +960,7 @@ def manage_config():
                 if not config_item:
                     config_item = Config(key=key)
                     db.session.add(config_item)
-                config_item.value = request[key]
+                config_item.value = request.form[key]
             db.session.commit()
             flash('基础配置已更新', 'success')
             
@@ -750,6 +992,7 @@ def manage_config():
     return render_template('config.html', config=config)
 
 @main_bp.route('/taobao-orders', methods=['GET', 'POST'])
+@login_required_custom
 def manage_taobao_orders():
     if request.method == 'POST':
         order_id = request.form.get('order_id')
@@ -762,7 +1005,7 @@ def manage_taobao_orders():
         
         # 自动计算淘宝手续费
         taobao_fee_rate_config = Config.query.filter_by(key='taobao_fee_rate').first()
-        taobao_fee_rate = float(taobao_fee_rate_config.value) if taobao_fee_rate_config else 0.6
+        taobao_fee_rate = float(taobao_fee_rate_config.value) if taobao_fee_rate_config and taobao_fee_rate_config.value else 0.6
         taobao_fee = amount * (taobao_fee_rate / 100)
         
         # 处理时间格式
@@ -903,7 +1146,7 @@ def update_taobao_order(order_id):
         order.amount = float(value)
         # 当修改刷单金额时，自动重新计算淘宝手续费
         taobao_fee_rate_config = Config.query.filter_by(key='taobao_fee_rate').first()
-        taobao_fee_rate = float(taobao_fee_rate_config.value) if taobao_fee_rate_config else 0.6
+        taobao_fee_rate = float(taobao_fee_rate_config.value) if taobao_fee_rate_config and taobao_fee_rate_config.value else 0.6
         order.taobao_fee = order.amount * taobao_fee_rate / 100
     elif field == 'commission':
         order.commission = float(value)
@@ -1072,9 +1315,16 @@ def export_formal_courses():
         for course in courses:
             customer = db.session.get(Customer, course.customer_id)
             price = float(course.price or 0)
-            base_cost = float(course.cost or 0)
+            sessions_val = int(course.sessions or 0)
+            revenue = sessions_val * price
+            fee = 0.0
+            # 仅淘宝渠道计手续费；费率优先使用快照，否则使用默认0.6%
+            if (course.payment_channel or '').strip() == '淘宝':
+                fee_rate = float(getattr(course, 'snapshot_fee_rate', 0) or 0) or 0.006
+                fee = revenue * fee_rate
+            base_cost = float(course.cost or 0)  # 已含课时成本与其他成本
             other_cost = float(course.other_cost or 0)
-            profit = price - base_cost - other_cost
+            profit = revenue - (base_cost + fee)
             data.append({
                 '课程ID': course.id,
                 '客户姓名': customer.name if customer else '',
@@ -1202,6 +1452,7 @@ def get_config(config_key):
 
 # 试听课管理路由
 @main_bp.route('/trial-courses', methods=['GET', 'POST'])
+@login_required_custom
 def manage_trial_courses():
     """试听课管理页面"""
     if request.method == 'POST':
@@ -1219,19 +1470,28 @@ def manage_trial_courses():
             new_customer_grade = request.form.get('new_customer_grade', '').strip()
             new_customer_region = request.form.get('new_customer_region', '').strip()
             
-            # 验证必填字段（只验证联系电话）
+            # 验证必填字段（只验证联系方式）
             if not new_customer_phone:
-                flash('请填写联系电话！', 'error')
+                flash('请填写联系电话或微信号！', 'error')
                 return redirect(url_for('main.manage_trial_courses'))
             
-            # 如果姓名为空，使用手机号作为临时姓名
-            if not new_customer_name:
-                new_customer_name = f"学员{new_customer_phone[-4:]}"  # 使用手机号后4位作为临时姓名
+            # 验证联系方式长度
+            if len(new_customer_phone.strip()) < 3 or len(new_customer_phone.strip()) > 50:
+                flash('联系方式长度应在3-50个字符之间！', 'error')
+                return redirect(url_for('main.manage_trial_courses'))
             
-            # 检查手机号是否已存在
+            # 使用联系方式后几位作为临时姓名
+            if not new_customer_name:
+                # 如果是手机号格式，使用后4位；否则使用后4个字符
+                if len(new_customer_phone) >= 4:
+                    new_customer_name = f"学员{new_customer_phone[-4:]}"
+                else:
+                    new_customer_name = f"学员{new_customer_phone}"  # 使用手机号后4位作为临时姓名
+            
+            # 检查联系方式是否已存在
             existing_customer = Customer.query.filter_by(phone=new_customer_phone).first()
             if existing_customer:
-                flash(f'手机号 {new_customer_phone} 已存在，学员：{existing_customer.name}', 'error')
+                flash(f'联系方式 {new_customer_phone} 已存在，学员：{existing_customer.name}', 'error')
                 return redirect(url_for('main.manage_trial_courses'))
             
             # 创建新客户
@@ -1251,13 +1511,14 @@ def manage_trial_courses():
         existing_trial = Course.query.filter_by(customer_id=customer_id, is_trial=True).first()
         if existing_trial:
             customer = Customer.query.get(customer_id)
-            flash(f'学员 {customer.name} 已有试听课记录，无法重复添加！', 'error')
+            customer_name = customer.name if customer else '未知客户'
+            flash(f'学员 {customer_name} 已有试听课记录，无法重复添加！', 'error')
             db.session.rollback()  # 回滚事务，避免新客户被创建
             return redirect(url_for('main.manage_trial_courses'))
         
         # 获取试听课成本配置
         trial_cost_config = Config.query.filter_by(key='trial_cost').first()
-        base_trial_cost = float(trial_cost_config.value) if trial_cost_config else 0
+        base_trial_cost = float(trial_cost_config.value) if trial_cost_config and trial_cost_config.value else 0
         
         # 统一规则：试听课成本仅为基础成本，不包含任何渠道手续费
         total_trial_cost = base_trial_cost
@@ -1402,7 +1663,7 @@ def manage_trial_courses():
             revenue = course.trial_price or 0
             cost = course.cost or 0  # 使用成本
             fees = (revenue * channel_rate) if revenue else 0
-            profit = revenue - cost  # 修改为不扣除手续费
+            profit = revenue - (cost + fees)
         elif status == 'refunded':
             # 退费（MIGRATION_GUIDE）：收入=0；成本=基础成本C；不再从利润中扣除手续费
             revenue = 0
@@ -1425,13 +1686,13 @@ def manage_trial_courses():
             revenue = course.trial_price or 0
             cost = course.cost or 0  # 使用成本
             fees = (revenue * channel_rate) if revenue else 0
-            profit = revenue - cost  # 修改为不扣除手续费
+            profit = revenue - (cost + fees)
         elif status == 'no_action':
             # 视为已支付并完成试听：与已报名一致
             revenue = course.trial_price or 0
             cost = course.cost or 0  # 使用成本
             fees = (revenue * channel_rate) if revenue else 0
-            profit = revenue - cost  # 修改为不扣除手续费
+            profit = revenue - (cost + fees)
         else:
             # 未知状态保护
             revenue = 0
@@ -1601,18 +1862,16 @@ def api_trial_courses_stats():
             price = safe_float(getattr(course, 'trial_price', None), 0)
             revenue = price
             
-            # 计算手续费
+            # 计算手续费（仅淘宝渠道或来源）
             fee = 0
-            if course.payment_channel == '淘宝' or getattr(course, 'source', None) == '淘宝':
-                # 优先使用快照费率，否则使用默认费率
+            if (course.payment_channel or '').strip() == '淘宝' or (getattr(course, 'source', None) or '').strip() == '淘宝':
                 fee_rate = course.snapshot_fee_rate if course.snapshot_fee_rate else default_fee_rate
                 fee = revenue * fee_rate
             
-            # 计算成本（course.cost已包含课时成本和其他成本）
-            cost = safe_float(course.cost, 0)
-            cost = cost + fee  # 总成本包含手续费
+            # 计算成本（course.cost已包含课时成本和其他成本），总成本包含手续费
+            cost = safe_float(course.cost, 0) + fee
             
-            # 计算利润
+            # 计算利润（统一口径）
             profit = revenue - cost
             
             # 累加统计
@@ -2234,8 +2493,8 @@ def api_formal_courses_status_stats():
             # 总成本包含手续费
             cost = course_cost + fee
             
-            # 计算利润
-            profit = revenue - course_cost  # 利润不包含手续费
+            # 计算利润（统一口径：收入 - (课程成本 + 手续费)）
+            profit = revenue - (course_cost + fee)
             
             # 累加统计
             if course.status == 'paid':
@@ -3718,4 +3977,450 @@ def get_operational_cost_options():
         return jsonify({
             'success': False,
             'message': f'获取选项失败: {str(e)}'
+        }), 500
+
+
+# ========== 股东分红记录管理 API ==========
+
+@main_bp.route('/api/shareholders')
+@login_required_custom
+def get_shareholders():
+    """获取所有股东信息"""
+    try:
+        shareholders = DividendService.get_shareholders()
+        return jsonify({
+            'success': True,
+            'shareholders': shareholders
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'获取股东信息失败: {str(e)}'
+        }), 500
+
+
+@main_bp.route('/api/dividend-records')
+@login_required_custom
+def get_dividend_records():
+    """获取分红记录列表"""
+    try:
+        # 获取查询参数
+        shareholder_name = request.args.get('shareholder_name')
+        year = request.args.get('year', type=int)
+        month = request.args.get('month', type=int)
+        status = request.args.get('status')
+        limit = request.args.get('limit', default=50, type=int)
+        
+        # 调用服务层
+        records = DividendService.get_dividend_records(
+            shareholder_name=shareholder_name,
+            year=year,
+            month=month,
+            status=status,
+            limit=limit
+        )
+        
+        return jsonify({
+            'success': True,
+            'records': records,
+            'count': len(records)
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'获取分红记录失败: {str(e)}'
+        }), 500
+
+
+@main_bp.route('/api/dividend-records', methods=['POST'])
+@login_required_custom
+def create_dividend_record():
+    """创建分红记录"""
+    try:
+        # 获取请求数据
+        data = request.get_json() if request.is_json else request.form.to_dict()
+        
+        # 添加操作员信息
+        if current_user.is_authenticated:
+            data['operator_name'] = current_user.username
+        
+        # 调用服务层创建记录
+        success, message, record = DividendService.create_dividend_record(data)
+        
+        if success:
+            return jsonify({
+                'success': True,
+                'message': message,
+                'record': record.to_dict() if record else None
+            }), 201
+        else:
+            return jsonify({
+                'success': False,
+                'message': message
+            }), 400
+            
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'创建分红记录失败: {str(e)}'
+        }), 500
+
+
+@main_bp.route('/api/dividend-records/<int:record_id>', methods=['PUT'])
+@login_required_custom
+def update_dividend_record(record_id):
+    """更新分红记录"""
+    try:
+        # 获取请求数据
+        data = request.get_json() if request.is_json else request.form.to_dict()
+        
+        # 添加操作员信息
+        if current_user.is_authenticated:
+            data['operator_name'] = current_user.username
+        
+        # 调用服务层更新记录
+        success, message = DividendService.update_dividend_record(record_id, data)
+        
+        if success:
+            # 获取更新后的记录
+            updated_record = DividendRecord.query.get(record_id)
+            return jsonify({
+                'success': True,
+                'message': message,
+                'record': updated_record.to_dict() if updated_record else None
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': message
+            }), 400
+            
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'更新分红记录失败: {str(e)}'
+        }), 500
+
+
+@main_bp.route('/api/dividend-records/<int:record_id>', methods=['DELETE'])
+@login_required_custom
+def delete_dividend_record(record_id):
+    """删除分红记录"""
+    try:
+        success, message = DividendService.delete_dividend_record(record_id)
+        
+        if success:
+            return jsonify({
+                'success': True,
+                'message': message
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': message
+            }), 400
+            
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'删除分红记录失败: {str(e)}'
+        }), 500
+
+
+@main_bp.route('/api/dividend-records/calculate-period')
+@login_required_custom
+def calculate_period_profit():
+    """计算指定期间的利润分配"""
+    try:
+        year = request.args.get('year', default=datetime.now().year, type=int)
+        month = request.args.get('month', default=datetime.now().month, type=int)
+        
+        result = DividendService.calculate_current_period_profit(year, month)
+        
+        return jsonify({
+            'success': True,
+            'data': result
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'计算期间利润失败: {str(e)}'
+        }), 500
+
+
+@main_bp.route('/api/dividend-records/statistics')
+@login_required_custom
+def get_dividend_statistics():
+    """获取分红统计信息"""
+    try:
+        shareholder_name = request.args.get('shareholder_name')
+        
+        statistics = DividendService.get_dividend_statistics(shareholder_name)
+        
+        return jsonify({
+            'success': True,
+            'statistics': statistics
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'获取分红统计失败: {str(e)}'
+        }), 500
+
+
+# ========== 员工工资管理 API ==========
+
+@main_bp.route('/api/employees/<int:employee_id>/monthly-summary')
+@login_required_custom
+def get_employee_monthly_summary(employee_id):
+    """获取员工月度统计信息"""
+    try:
+        # 验证员工是否存在
+        employee = Employee.query.get(employee_id)
+        if not employee:
+            return jsonify({'success': False, 'message': '员工不存在'}), 404
+        
+        # 获取查询参数
+        year = request.args.get('year', type=int)
+        month = request.args.get('month', type=int)
+        
+        if not year or not month:
+            # 默认为当前月份
+            now = datetime.now()
+            year = year or now.year
+            month = month or now.month
+        
+        # 计算月份范围
+        from calendar import monthrange
+        start_date = datetime(year, month, 1)
+        _, last_day = monthrange(year, month)
+        end_date = datetime(year, month, last_day, 23, 59, 59)
+        
+        # 获取该员工该月的所有课程
+        courses = Course.query.filter(
+            Course.assigned_employee_id == employee_id,
+            Course.created_at >= start_date,
+            Course.created_at <= end_date
+        ).all()
+        
+        # 计算提成
+        from .services import ProfitService
+        commission_info = ProfitService.calculate_employee_commission(
+            employee_id, courses
+        )
+        
+        # 统计学员数量（去重）
+        customer_ids = set(course.customer_id for course in courses if course.customer_id)
+        
+        return jsonify({
+            'success': True,
+            'summary': {
+                'year': year,
+                'month': month,
+                'student_count': len(customer_ids),
+                'course_count': len(courses),
+                'total_commission': commission_info.get('total_commission', 0),
+                'trial_commission': commission_info.get('trial_commission', 0),
+                'formal_commission': commission_info.get('new_commission', 0) + commission_info.get('renewal_commission', 0)
+            }
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'获取月度统计失败: {str(e)}'
+        }), 500
+
+
+@main_bp.route('/api/employees/<int:employee_id>/salary-records')
+@login_required_custom
+def get_employee_salary_records(employee_id):
+    """获取员工工资记录列表"""
+    try:
+        # 验证员工是否存在
+        employee = Employee.query.get(employee_id)
+        if not employee:
+            return jsonify({'success': False, 'message': '员工不存在'}), 404
+        
+        # 获取工资记录，按发放月份倒序
+        records = SalaryPayment.query.filter_by(
+            employee_id=employee_id
+        ).order_by(SalaryPayment.payment_month.desc()).all()
+        
+        return jsonify({
+            'success': True,
+            'records': [record.to_dict() for record in records]
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'获取工资记录失败: {str(e)}'
+        }), 500
+
+
+@main_bp.route('/api/salary-records', methods=['POST'])
+@login_required_custom
+def create_salary_record():
+    """创建工资记录"""
+    try:
+        # 获取表单数据
+        data = request.form.to_dict()
+        
+        # 验证必填字段
+        employee_id = data.get('employee_id')
+        payment_month = data.get('payment_month')
+        
+        if not employee_id or not payment_month:
+            return jsonify({
+                'success': False,
+                'message': '员工ID和发放月份不能为空'
+            }), 400
+        
+        # 验证员工是否存在
+        employee = Employee.query.get(employee_id)
+        if not employee:
+            return jsonify({'success': False, 'message': '员工不存在'}), 404
+        
+        # 检查该员工该月是否已有记录
+        existing = SalaryPayment.query.filter_by(
+            employee_id=employee_id,
+            payment_month=payment_month
+        ).first()
+        
+        if existing:
+            return jsonify({
+                'success': False,
+                'message': f'该员工{payment_month}月份的工资记录已存在'
+            }), 400
+        
+        # 创建工资记录
+        salary_record = SalaryPayment(
+            employee_id=int(employee_id),
+            payment_month=payment_month,
+            base_salary=safe_float(data.get('base_salary'), 0),
+            commission_amount=safe_float(data.get('commission_amount'), 0),
+            bonus=safe_float(data.get('bonus'), 0),
+            deduction=safe_float(data.get('deduction'), 0),
+            total_amount=safe_float(data.get('total_amount'), 0),
+            payment_date=datetime.strptime(data.get('payment_date'), '%Y-%m-%d').date() if data.get('payment_date') else None,
+            payment_method=data.get('payment_method'),
+            notes=data.get('notes'),
+            status='pending'  # 默认状态为待发放
+        )
+        
+        db.session.add(salary_record)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': '工资记录创建成功',
+            'record': salary_record.to_dict()
+        }), 201
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'message': f'创建工资记录失败: {str(e)}'
+        }), 500
+
+
+@main_bp.route('/api/salary-records/<int:record_id>')
+@login_required_custom
+def get_salary_record(record_id):
+    """获取单个工资记录"""
+    try:
+        record = SalaryPayment.query.get(record_id)
+        if not record:
+            return jsonify({'success': False, 'message': '工资记录不存在'}), 404
+        
+        return jsonify({
+            'success': True,
+            'record': record.to_dict()
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'获取工资记录失败: {str(e)}'
+        }), 500
+
+
+@main_bp.route('/api/salary-records/<int:record_id>', methods=['PUT'])
+@login_required_custom
+def update_salary_record(record_id):
+    """更新工资记录"""
+    try:
+        record = SalaryPayment.query.get(record_id)
+        if not record:
+            return jsonify({'success': False, 'message': '工资记录不存在'}), 404
+        
+        # 获取表单数据
+        data = request.form.to_dict()
+        
+        # 更新字段
+        if 'base_salary' in data:
+            record.base_salary = safe_float(data['base_salary'], 0)
+        if 'commission_amount' in data:
+            record.commission_amount = safe_float(data['commission_amount'], 0)
+        if 'bonus' in data:
+            record.bonus = safe_float(data['bonus'], 0)
+        if 'deduction' in data:
+            record.deduction = safe_float(data['deduction'], 0)
+        if 'total_amount' in data:
+            record.total_amount = safe_float(data['total_amount'], 0)
+        if 'payment_date' in data and data['payment_date']:
+            record.payment_date = datetime.strptime(data['payment_date'], '%Y-%m-%d').date()
+        if 'payment_method' in data:
+            record.payment_method = data['payment_method']
+        if 'notes' in data:
+            record.notes = data['notes']
+        if 'status' in data:
+            record.status = data['status']
+        
+        # 更新时间戳
+        record.updated_at = datetime.now(timezone.utc)
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': '工资记录更新成功',
+            'record': record.to_dict()
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'message': f'更新工资记录失败: {str(e)}'
+        }), 500
+
+
+@main_bp.route('/api/salary-records/<int:record_id>', methods=['DELETE'])
+@login_required_custom
+def delete_salary_record(record_id):
+    """删除工资记录"""
+    try:
+        record = SalaryPayment.query.get(record_id)
+        if not record:
+            return jsonify({'success': False, 'message': '工资记录不存在'}), 404
+        
+        db.session.delete(record)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': '工资记录删除成功'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'message': f'删除工资记录失败: {str(e)}'
         }), 500

@@ -197,7 +197,7 @@ class ProfitService:
     @classmethod
     def calculate_employee_commission(cls, employee_id: int, courses: List[Course]) -> Dict:
         """
-        计算员工提成
+        计算员工提成（优化版）
         
         Args:
             employee_id: 员工ID
@@ -210,49 +210,71 @@ class ProfitService:
             # 获取员工提成配置
             commission_config = CommissionConfig.query.filter_by(employee_id=employee_id).first()
             if not commission_config:
+                logger.warning(f"员工 {employee_id} 没有提成配置，返回零提成")
                 return {
-                    'trial_commission': 0,
-                    'new_commission': 0,
-                    'renewal_commission': 0,
-                    'total_commission': 0,
-                    'base_salary': 0
+                    'trial_commission': 0.0,
+                    'new_commission': 0.0,
+                    'renewal_commission': 0.0,
+                    'total_commission': 0.0,
+                    'base_salary': 0.0,
+                    'commission_type': 'profit'
                 }
             
-            trial_commission = 0
-            new_commission = 0
-            renewal_commission = 0
+            trial_commission = 0.0
+            new_commission = 0.0
+            renewal_commission = 0.0
             
+            # 按课程类型分组处理
             for course in courses:
-                profit_info = cls.calculate_course_profit(course)
+                if not course:
+                    continue
                 
+                # 计算课程利润（包含退费处理）
+                profit_info = cls.calculate_course_profit(course, include_refund=True)
+                
+                # 根据提成类型选择基数
                 if commission_config.commission_type == 'profit':
-                    base_amount = profit_info['profit']
+                    base_amount = cls.safe_float(profit_info['profit'], 0)
                 else:  # sales
-                    base_amount = profit_info['actual_revenue']
+                    base_amount = cls.safe_float(profit_info['actual_revenue'], 0)
                 
+                # 确保基数为正数（避免负提成）
+                if base_amount <= 0:
+                    continue
+                
+                # 按课程类型计算提成
                 if course.is_trial:
-                    trial_commission += base_amount * (commission_config.trial_rate / 100)
+                    rate = cls.safe_float(commission_config.trial_rate, 0) / 100
+                    trial_commission += base_amount * rate
                 elif course.is_renewal:
-                    renewal_commission += base_amount * (commission_config.renewal_rate / 100)
+                    rate = cls.safe_float(commission_config.renewal_rate, 0) / 100
+                    renewal_commission += base_amount * rate
                 else:
-                    new_commission += base_amount * (commission_config.new_course_rate / 100)
+                    rate = cls.safe_float(commission_config.new_course_rate, 0) / 100
+                    new_commission += base_amount * rate
+            
+            total_commission = trial_commission + new_commission + renewal_commission
             
             return {
-                'trial_commission': trial_commission,
-                'new_commission': new_commission,
-                'renewal_commission': renewal_commission,
-                'total_commission': trial_commission + new_commission + renewal_commission,
-                'base_salary': cls.safe_float(commission_config.base_salary)
+                'trial_commission': round(trial_commission, 2),
+                'new_commission': round(new_commission, 2),
+                'renewal_commission': round(renewal_commission, 2),
+                'total_commission': round(total_commission, 2),
+                'base_salary': cls.safe_float(commission_config.base_salary, 0),
+                'commission_type': commission_config.commission_type or 'profit'
             }
             
         except Exception as e:
             logger.error(f"计算员工提成失败 (employee_id={employee_id}): {str(e)}")
+            import traceback
+            logger.error(traceback.format_exc())
             return {
-                'trial_commission': 0,
-                'new_commission': 0,
-                'renewal_commission': 0,
-                'total_commission': 0,
-                'base_salary': 0
+                'trial_commission': 0.0,
+                'new_commission': 0.0,
+                'renewal_commission': 0.0,
+                'total_commission': 0.0,
+                'base_salary': 0.0,
+                'commission_type': 'profit'
             }
     
     @classmethod

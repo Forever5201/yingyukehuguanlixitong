@@ -454,7 +454,7 @@
             <button type="button" class="btn btn-outline" onclick="exportTrialData()">
                 <i class="fas fa-download"></i> 导出数据
             </button>
-            <button type="button" class="btn btn-warm" id="addTrialBtn" onclick="window.openTrialModal && window.openTrialModal()">
+            <button type="button" class="btn btn-warm" id="addTrialBtn" onclick="(function(){var m=document.getElementById('addTrialModal');if(m){m.style.display='flex';m.style.opacity='1';m.style.visibility='visible';m.classList.add('show');document.body.style.overflow='hidden';}})()">
                 <i class="fas fa-user-plus"></i> 录入新学员
             </button>
         </div>
@@ -473,7 +473,7 @@
                     <div class="form-section-modal">
                         <h5><i class="fas fa-magic"></i> 智能识别 <small style="color: #6c757d;">(可选)</small></h5>
                         <div class="smart-input-container">
-                            <textarea id="smartInput" placeholder="智能识别学员信息，系统将自动识别并填入表单...&#10;&#10;支持格式：&#10;1. 完整信息：张三 男 初中 成都 13812345678&#10;2. 单独输入：手机号、姓名、地区、年级、性别等任意信息&#10;3. 组合输入：张三 13812345678、成都 初中、李四 女等&#10;4. 年级支持：小学、初中、高中、大学&#10;5. 地区支持：全国主要城市自动识别&#10;&#10;注：只有联系方式是必填项，其他信息可选" rows="6"></textarea>
+                            <textarea id="smartInput" placeholder="智能识别学员信息，系统将自动识别并填入表单...&#10;&#10;支持格式：&#10;1. 完整信息：张三 男 初中 成都 13812345678&#10;2. 单独输入：手机号、姓名、地区、年级、性别等任意信息&#10;3. 组合输入：张三 13812345678、成都 初中、李四 女等&#10;4. 年级支持：小学、初中、高中、大学&#10;5. 地区支持：全国主要城市自动识别&#10;&#10;注：只有联系方式（手机号或微信号）是必填项，其他信息可选" rows="6"></textarea>
                             <button type="button" id="parseBtn" class="btn btn-info">
                                 <i class="fas fa-wand-magic-sparkles"></i> 智能解析
                             </button>
@@ -489,8 +489,8 @@
                                 <input type="text" name="new_customer_name" id="new_customer_name" placeholder="请输入学员姓名">
                             </div>
                             <div class="form-group">
-                                <label for="new_customer_phone">联系电话 *</label>
-                                <input type="tel" name="new_customer_phone" id="new_customer_phone" placeholder="请输入联系电话" required>
+                                <label for="new_customer_phone">联系电话/微信号 *</label>
+                                <input type="text" name="new_customer_phone" id="new_customer_phone" placeholder="请输入手机号或微信号" required>
                             </div>
                         </div>
                         <div class="form-row">
@@ -607,8 +607,8 @@
                                 <input type="text" name="customer_name" id="edit_trial_customer_name" placeholder="请输入学员姓名" required>
                             </div>
                             <div class="form-group">
-                                <label for="edit_trial_customer_phone">联系电话 *</label>
-                                <input type="tel" name="customer_phone" id="edit_trial_customer_phone" placeholder="请输入联系电话" required>
+                                <label for="edit_trial_customer_phone">联系电话/微信号 *</label>
+                                <input type="text" name="customer_phone" id="edit_trial_customer_phone" placeholder="请输入手机号或微信号" required>
                             </div>
                         </div>
                         <div class="form-row">
@@ -977,7 +977,10 @@ function getById(id){ return document.getElementById(id); }
 window.openTrialModal = function(){
     const modal = getById('addTrialModal');
     if (modal){
-        modal.style.display = 'block';
+        modal.style.display = 'flex';
+        modal.style.opacity = '1';
+        modal.style.visibility = 'visible';
+        modal.classList.add('show');
         if (document && document.body) {
             document.body.style.overflow = 'hidden';
         }
@@ -1004,6 +1007,11 @@ function updateTrialStatus(courseId, newStatus) {
 
 // 显示退费信息模态框
 function showRefundModal(courseId) {
+    // 委托给全局模态管理器，避免与全局实现冲突
+    if (window.GlobalModalManager && typeof window.GlobalModalManager.showRefundModal === 'function') {
+        return window.GlobalModalManager.showRefundModal(courseId);
+    }
+    // 兜底逻辑：保持原有行为，避免在全局管理器不可用时功能丢失
     document.getElementById('refund_course_id').value = courseId;
 
     // 从当前行的状态下拉读取试听售价，自动填入退费金额；手续费固定为0
@@ -1097,37 +1105,25 @@ function updateStatusAPI(courseId, status, extraData = {}) {
 
 // 编辑试听课记录 - 参考刷单管理的简化实现
 function editTrialCourse(courseId) {
-    console.log('=== 试听课编辑函数被调用 ===');
-    console.log('courseId:', courseId);
-    
-    // 直接通过API获取最新数据，而不是使用传递的参数
+    // 委托给全局模态管理器，避免与全局实现冲突
+    if (window.GlobalModalManager && typeof window.GlobalModalManager.editTrialCourse === 'function') {
+        return window.GlobalModalManager.editTrialCourse(courseId);
+    }
+    // 兜底逻辑：保留原有编辑实现，防止全局管理器不可用时功能丢失
+    console.log('=== 试听课编辑函数（fallback）被调用 ===');
     fetch(`/api/trial-courses/${encodeURIComponent(courseId)}`)
         .then(response => {
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
+            if (!response.ok) { throw new Error(`HTTP error! status: ${response.status}`); }
             return response.json();
         })
         .then(data => {
-            console.log('获取到的试听课数据:', data);
-            
             if (data.success && data.course) {
                 const course = data.course;
                 const customer = data.customer || {};
-                
-                // 显示编辑模态框标题
                 const modalTitle = document.querySelector('#editTrialModal .modal-header h4');
-                if (modalTitle) {
-                    modalTitle.textContent = '编辑试听课记录';
-                }
-                
-                // 设置隐藏的课程ID
+                if (modalTitle) modalTitle.textContent = '编辑试听课记录';
                 const courseIdField = document.getElementById('edit_trial_course_id');
-                if (courseIdField) {
-                    courseIdField.value = course.id;
-                }
-                
-                // 填充表单字段
+                if (courseIdField) courseIdField.value = course.id;
                 const fields = {
                     'edit_trial_customer_name': customer.name || '',
                     'edit_trial_customer_phone': customer.phone || '',
@@ -1138,34 +1134,20 @@ function editTrialCourse(courseId) {
                     'edit_trial_source': course.source || '',
                     'edit_trial_has_tutoring_experience': customer.has_tutoring_experience || ''
                 };
-                
-                // 逐个填充字段
                 for (const [fieldId, value] of Object.entries(fields)) {
                     const field = document.getElementById(fieldId);
-                    if (field) {
-                        field.value = value;
-                        console.log(`填充字段 ${fieldId}:`, value);
-                    } else {
-                        console.warn(`字段 ${fieldId} 未找到`);
-                    }
+                    if (field) field.value = value;
                 }
-                
-                // 显示模态框
                 const modal = document.getElementById('editTrialModal');
                 if (modal) {
                     modal.style.display = 'flex';
                     document.body.style.overflow = 'hidden';
-                    console.log('编辑模态框已显示');
-                } else {
-                    console.error('编辑模态框未找到');
                 }
             } else {
-                console.error('API返回失败:', data);
                 alert('获取课程信息失败: ' + (data.message || '未知错误'));
             }
         })
         .catch(error => {
-            console.error('获取试听课数据失败:', error);
             alert('获取课程信息失败: ' + error.message);
         });
 }
@@ -1184,7 +1166,10 @@ document.addEventListener('DOMContentLoaded', function() {
      // 打开模态框
      if (addTrialBtn) {
          addTrialBtn.addEventListener('click', function() {
-             trialModal.style.display = 'block';
+             trialModal.style.display = 'flex';
+             trialModal.style.opacity = '1';
+             trialModal.style.visibility = 'visible';
+             trialModal.classList.add('show');
              document.body.style.overflow = 'hidden'; // 防止背景滚动
          });
      }
@@ -1192,6 +1177,9 @@ document.addEventListener('DOMContentLoaded', function() {
      // 关闭模态框
      function closeTrialModal() {
          trialModal.style.display = 'none';
+         trialModal.style.opacity = '0';
+         trialModal.style.visibility = 'hidden';
+         trialModal.classList.remove('show');
          document.body.style.overflow = 'auto';
          trialForm.reset(); // 重置表单
      }
@@ -1305,10 +1293,11 @@ document.addEventListener('DOMContentLoaded', function() {
                  /城市[：:]\s*([^\n\r]+)/i
              ],
              phone: [
-                 /联系方式[：:]\s*([1][3-9]\d{9})/i,
-                 /电话[：:]\s*([1][3-9]\d{9})/i,
-                 /手机[：:]\s*([1][3-9]\d{9})/i,
-                 /([1][3-9]\d{9})/g
+                 /联系方式[：:]\s*([^\n\r]+)/i,
+                 /电话[：:]\s*([^\n\r]+)/i,
+                 /手机[：:]\s*([^\n\r]+)/i,
+                 /微信[：:]\s*([^\n\r]+)/i,
+                 /([1][3-9]\d{9})/g  // 保留手机号识别
              ],
              englishFullScore: [
                  /英语试卷满分[：:]\s*(\d+)/i,
@@ -1352,11 +1341,21 @@ document.addEventListener('DOMContentLoaded', function() {
              const grades = ['小学', '初中', '高中', '大学', '幼儿园'];
              const genders = ['男', '女'];
              
-             // 检查是否只是手机号
+             // 检查是否只是手机号或其他联系方式
              const phoneMatch = cleanText.match(/^([1][3-9]\d{9})$/);
+             const contactMatch = cleanText.match(/^[a-zA-Z0-9_\u4e00-\u9fa5-]{3,50}$/);
              if (phoneMatch) {
                  results.phone = phoneMatch[1];
-                 console.log('识别为纯手机号:', results.phone);
+                 console.log('识别为手机号:', results.phone);
+             }
+             // 其他可能的联系方式（微信号等）
+             else if (contactMatch && cleanText.length >= 3 && cleanText.length <= 50 && 
+                      !grades.includes(cleanText) && !regions.includes(cleanText) && !genders.includes(cleanText)) {
+                 // 如果不是手机号，但符合联系方式的通用格式，作为联系方式处理
+                 if (!/^[\u4e00-\u9fa5]{2,4}$/.test(cleanText)) {  // 确保不是纯中文姓名
+                     results.phone = cleanText;
+                     console.log('识别为联系方式:', results.phone);
+                 }
              }
              // 检查是否是年级
              else if (grades.includes(cleanText)) {
@@ -1513,18 +1512,17 @@ document.addEventListener('DOMContentLoaded', function() {
              const price = document.getElementById('trial_price').value.trim();
              const source = document.getElementById('source').value;
             
-            // 只验证联系电话为必填项
+            // 只验证联系电话/微信号为必填项
             if (!phone) {
                 e.preventDefault();
-                alert('请输入联系电话');
+                alert('请输入联系电话或微信号');
                 return;
             }
             
-            // 验证手机号格式
-            const phoneRegex = /^1[3-9]\d{9}$/;
-            if (!phoneRegex.test(phone)) {
+            // 验证联系方式格式：手机号或微信号（长度3-50个字符）
+            if (phone.length < 3 || phone.length > 50) {
                 e.preventDefault();
-                alert('请输入正确的手机号码');
+                alert('联系方式长度应在3-50个字符之间');
                 return;
             }
             
@@ -3271,7 +3269,7 @@ function forceAssignEmployeeFromDialog() {
             showAlert(data.message || '分配成功', 'success');
             // 显示更新详情
             if (data.details && data.details.updated_courses_count > 1) {
-                showAlert(`共更新了 ${data.details.updated_courses_count} 个相关课程`, 'info');
+                showAlert('共更新了 ' + data.details.updated_courses_count + ' 个相关课程', 'info');
             }
             // 刷新页面
             setTimeout(() => location.reload(), 1500);
@@ -3289,14 +3287,13 @@ function forceAssignEmployeeFromDialog() {
 // 显示提示信息
 function showAlert(message, type) {
     const alertDiv = document.createElement('div');
-    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.className = 'alert alert-' + type + ' alert-dismissible fade show';
     alertDiv.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 9999;';
-    alertDiv.innerHTML = `
-        ${message}
-        <button type="button" class="close" data-dismiss="alert">
-            <span>&times;</span>
-        </button>
-    `;
+    alertDiv.innerHTML = 
+        message +
+        '<button type="button" class="close" data-dismiss="alert">' +
+            '<span>&times;</span>' +
+        '</button>';
     document.body.appendChild(alertDiv);
     
     setTimeout(() => alertDiv.remove(), 3000);
@@ -3352,35 +3349,25 @@ function clearSelection() {
 function batchAssignEmployee() {
     if (selectedCourses.size === 0) return;
     
-    // 创建员工选择对话框
-    const employees = [
-        {% for employee in employees %}
-        {id: {{ employee.id }}, name: '{{ employee.name }}'},
-        {% endfor %}
-    ];
+    // 获取员工列表数据
+    const employeeOptions = document.querySelector('select[name="employee_id"]').innerHTML;
     
-    let options = employees.map(emp => 
-        `<option value="${emp.id}">${emp.name}</option>`
-    ).join('');
-    
-    const dialog = `
-        <div id="batchAssignDialog" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); 
-                    background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-                    z-index: 1000; min-width: 300px;">
-            <h4>批量分配员工</h4>
-            <p>将选中的 ${selectedCourses.size} 个试听课分配给：</p>
-            <select id="batchEmployeeSelect" class="form-control">
-                <option value="">选择员工</option>
-                ${options}
-            </select>
-            <div style="margin-top: 15px; text-align: right;">
-                <button onclick="closeBatchDialog()" class="btn btn-secondary" style="margin-right: 10px;">取消</button>
-                <button onclick="confirmBatchAssign()" class="btn btn-primary">确认分配</button>
-            </div>
-        </div>
-        <div id="dialogOverlay" onclick="closeBatchDialog()" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; 
-                                       background: rgba(0,0,0,0.5); z-index: 999;"></div>
-    `;
+    const dialog = 
+        '<div id="batchAssignDialog" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); ' +
+                    'background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);' +
+                    'z-index: 1000; min-width: 300px;">' +
+            '<h4>批量分配员工</h4>' +
+            '<p>将选中的 ' + selectedCourses.size + ' 个试听课分配给：</p>' +
+            '<select id="batchEmployeeSelect" class="form-control">' +
+                employeeOptions +
+            '</select>' +
+            '<div style="margin-top: 15px; text-align: right;">' +
+                '<button onclick="closeBatchDialog()" class="btn btn-secondary" style="margin-right: 10px;">取消</button>' +
+                '<button onclick="confirmBatchAssign()" class="btn btn-primary">确认分配</button>' +
+            '</div>' +
+        '</div>' +
+        '<div id="dialogOverlay" onclick="closeBatchDialog()" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; ' +
+                                       'background: rgba(0,0,0,0.5); z-index: 999;"></div>';
     
     document.body.insertAdjacentHTML('beforeend', dialog);
 }
@@ -3388,7 +3375,7 @@ function batchAssignEmployee() {
 function batchUnassign() {
     if (selectedCourses.size === 0) return;
     
-    if (!confirm(`确定要取消这 ${selectedCourses.size} 个试听课的员工分配吗？\n\n注意：相关的正课和续课也将同时取消分配。`)) {
+    if (!confirm('确定要取消这 ' + selectedCourses.size + ' 个试听课的员工分配吗？\n\n注意：相关的正课和续课也将同时取消分配。')) {
         return;
     }
     
@@ -3419,12 +3406,12 @@ function processBatchUpdate(employeeId) {
     let failed = 0;
     
     // 显示进度
-    showAlert(`正在处理 ${courseIds.length} 个试听课...`, 'info');
+    showAlert('正在处理 ' + courseIds.length + ' 个试听课...', 'info');
     
     // 依次处理每个课程
     courseIds.forEach((courseId, index) => {
         setTimeout(() => {
-            fetch(`/api/trial-courses/${courseId}/assign`, {
+            fetch('/api/trial-courses/' + courseId + '/assign', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({employee_id: employeeId || null})
@@ -3440,9 +3427,9 @@ function processBatchUpdate(employeeId) {
                 // 处理完成
                 if (completed + failed === courseIds.length) {
                     if (failed === 0) {
-                        showAlert(`成功处理 ${completed} 个试听课`, 'success');
+                        showAlert('成功处理 ' + completed + ' 个试听课', 'success');
                     } else {
-                        showAlert(`处理完成：成功 ${completed} 个，失败 ${failed} 个`, 'warning');
+                        showAlert('处理完成：成功 ' + completed + ' 个，失败 ' + failed + ' 个', 'warning');
                     }
                     
                     // 刷新页面
@@ -3452,7 +3439,7 @@ function processBatchUpdate(employeeId) {
             .catch(error => {
                 failed++;
                 if (completed + failed === courseIds.length) {
-                    showAlert(`处理出错，请重试`, 'danger');
+                    showAlert('处理出错，请重试', 'danger');
                 }
             });
         }, index * 100); // 每个请求间隔100ms，避免并发过多

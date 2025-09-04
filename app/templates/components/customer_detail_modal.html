@@ -26,8 +26,8 @@
                                 <input type="text" class="form-control" id="detail_name" name="name" required>
                             </div>
                             <div class="form-group col-md-6">
-                                <label>电话 <span class="required">*</span></label>
-                                <input type="text" class="form-control" id="detail_phone" name="phone" required>
+                                <label>联系电话/微信号 <span class="required">*</span></label>
+                                <input type="text" class="form-control" id="detail_phone" name="phone" placeholder="请输入手机号或微信号" required>
                             </div>
                         </div>
                         <div class="form-row">
@@ -370,17 +370,32 @@ function closeCustomerDetailModal() {
 
 // 显示学员详情模态框
 function showCustomerDetail(customerId, courseId = null, courseType = null) {
+    // 优先委托给全局模态管理器，避免覆盖全局实现
+    if (window.GlobalModalManager && typeof window.GlobalModalManager.showCustomerDetail === 'function') {
+        return window.GlobalModalManager.showCustomerDetail(customerId, courseId, courseType);
+    }
+
+    // 兜底逻辑：沿用原本的本地实现，避免全局不可用时功能丢失
     // 重置表单
-    document.getElementById('customerDetailForm').reset();
+    const formEl = document.getElementById('customerDetailForm');
+    if (formEl) {
+        formEl.reset();
+    }
     currentDetailData = { customerId, courseId, courseType };
     
     // 根据类型显示不同的区块
-    document.getElementById('trialCourseSection').style.display = 'none';
-    document.getElementById('formalCourseSection').style.display = 'none';
-    document.getElementById('profitPreviewSection').style.display = 'none';
-    document.getElementById('refundSection').style.display = 'none';
-    document.getElementById('refundInfoSection').style.display = 'none'; // 隐藏退课信息模块
-    document.getElementById('renewalInfoSection').style.display = 'none'; // 隐藏续课信息模块
+    const trialSec = document.getElementById('trialCourseSection');
+    const formalSec = document.getElementById('formalCourseSection');
+    const profitSec = document.getElementById('profitPreviewSection');
+    const refundSec = document.getElementById('refundSection');
+    const refundInfoSec = document.getElementById('refundInfoSection');
+    const renewalInfoSec = document.getElementById('renewalInfoSection');
+    if (trialSec) trialSec.style.display = 'none';
+    if (formalSec) formalSec.style.display = 'none';
+    if (profitSec) profitSec.style.display = 'none';
+    if (refundSec) refundSec.style.display = 'none';
+    if (refundInfoSec) refundInfoSec.style.display = 'none'; // 隐藏退课信息模块
+    if (renewalInfoSec) renewalInfoSec.style.display = 'none'; // 隐藏续课信息模块
     
     // 加载数据
     if (courseType === 'trial' && courseId) {

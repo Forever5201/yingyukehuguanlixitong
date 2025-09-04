@@ -1,0 +1,18 @@
+# Ignore files and directories for Pyright type checking
+**/__pycache__
+**/node_modules
+.git
+venv
+.venv
+migrations/
+backups/
+*.pyc
+*.pyo
+*.pyd
+*.bat
+*.ps1
+*.sh
+*.md
+*.txt
+*.xlsx
+*.csv
