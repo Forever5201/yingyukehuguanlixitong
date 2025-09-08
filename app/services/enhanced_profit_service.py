@@ -114,6 +114,9 @@ class EnhancedProfitService(ProfitService):
             # 6. 计算试听课收入和正课收入的详细分类
             revenue_detail = cls.calculate_revenue_detail(start_date, end_date)
             
+            # 6.5. 计算课程成本明细（按课程类型分类）
+            course_cost_detail = cls.calculate_course_cost_detail(start_date, end_date)
+            
             # 7. 总成本 = 课程成本（不含手续费） + 所有手续费 + 刷单佣金 + 刷单手续费 + 员工成本 + 运营成本
             # 从base_report中减去已计算的手续费，避免重复
             course_cost_without_fee = base_report['summary']['total_cost'] - base_report.get('total_fee', 0)
@@ -152,6 +155,7 @@ class EnhancedProfitService(ProfitService):
                 },
                 'cost': {
                     'course_cost': course_cost_without_fee,  # 课程成本（不含手续费）
+                    'course_cost_detail': course_cost_detail,  # 课程成本明细（新增）
                     'total_fee': total_fee_all,  # 总手续费（课程手续费+淘宝刷单手续费）
                     'taobao_commission': taobao_cost['total_commission'],
                     'taobao_fee': taobao_cost['total_fee'],
@@ -226,6 +230,67 @@ class EnhancedProfitService(ProfitService):
                 'employee_count': 0
             }
     
+    @classmethod
+    def calculate_course_cost_detail(cls, start_date: Optional[datetime] = None,
+                                   end_date: Optional[datetime] = None) -> Dict:
+        """
+        计算课程成本明细（按试听课、新课、续课分类）
+        
+        Args:
+            start_date: 开始日期
+            end_date: 结束日期
+            
+        Returns:
+            课程成本明细数据
+        """
+        try:
+            query = Course.query
+            if start_date:
+                query = query.filter(Course.created_at >= start_date)
+            if end_date:
+                query = query.filter(Course.created_at <= end_date)
+            
+            courses = query.all()
+            
+            trial_cost = 0
+            new_course_cost = 0
+            renewal_cost = 0
+            
+            for course in courses:
+                # 获取课程基础成本
+                base_cost = cls.safe_float(course.cost, 0)
+                
+                if course.is_trial:
+                    # 试听课成本
+                    trial_cost += base_cost
+                else:
+                    # 正课成本（包含other_cost）
+                    other_cost = cls.safe_float(course.other_cost, 0)
+                    total_course_cost = base_cost + other_cost
+                    
+                    if course.is_renewal:
+                        renewal_cost += total_course_cost
+                    else:
+                        new_course_cost += total_course_cost
+            
+            total_course_cost = trial_cost + new_course_cost + renewal_cost
+            
+            return {
+                'trial_cost': trial_cost,
+                'new_course_cost': new_course_cost, 
+                'renewal_cost': renewal_cost,
+                'total_course_cost': total_course_cost
+            }
+            
+        except Exception as e:
+            logger.error(f"计算课程成本明细失败: {str(e)}")
+            return {
+                'trial_cost': 0,
+                'new_course_cost': 0,
+                'renewal_cost': 0,
+                'total_course_cost': 0
+            }
+
     @classmethod
     def calculate_revenue_detail(cls, start_date: Optional[datetime] = None,
                                end_date: Optional[datetime] = None) -> Dict:

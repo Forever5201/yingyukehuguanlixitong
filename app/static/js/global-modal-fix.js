@@ -191,6 +191,17 @@
             return;
         }
         
+        // 保护：若页面存在试听退款表单元素，判定为试听上下文，禁止调用正课退费接口
+        try {
+            const trialRefundForm = document.getElementById('refundForm');
+            const trialRefundModal = document.getElementById('refundModal');
+            if (trialRefundForm || trialRefundModal) {
+                log('⚠️ 检测到试听页上下文，已阻止调用正课退费模态');
+                alert('当前为试听课程，请直接在本页提交试听退费。');
+                return;
+            }
+        } catch (e) { /* 忽略检测错误，按原逻辑继续 */ }
+
         ensureDOMReady(() => {
             // 获取课程信息并显示退费模态框
             apiCall(`/api/formal-courses/${courseId}`)

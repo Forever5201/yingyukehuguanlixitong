@@ -12,6 +12,7 @@ from typing import Dict, List, Optional, Tuple
 from datetime import datetime
 from sqlalchemy import and_, func
 from ..models import db, Course, Customer, Config, CourseRefund, Employee, CommissionConfig
+from .config_service import ConfigService
 import logging
 
 logger = logging.getLogger(__name__)
@@ -63,7 +64,7 @@ class ProfitService:
             fee = 0
             # 检查支付渠道或渠道来源是否为淘宝
             if course.payment_channel == '淘宝' or course.source == '淘宝':
-                fee_rate = course.snapshot_fee_rate if course.snapshot_fee_rate else 0.006
+                fee_rate = course.snapshot_fee_rate if course.snapshot_fee_rate else (ConfigService.get_decimal('taobao_fee_rate', 0.6) / 100.0)
                 fee = original_revenue * fee_rate
             
             # 原始成本
@@ -160,18 +161,11 @@ class ProfitService:
             股东分配信息
         """
         try:
-            # 获取统一的分配比例配置
-            config_a_key = 'shareholder_a_ratio'
-            config_b_key = 'shareholder_b_ratio'
-            default_a = 50
-            default_b = 50
-            
-            # 查询配置
-            configs = Config.query.filter(Config.key.in_([config_a_key, config_b_key])).all()
-            config_dict = {c.key: cls.safe_float(c.value) for c in configs}
-            
-            ratio_a = config_dict.get(config_a_key, default_a) / 100
-            ratio_b = config_dict.get(config_b_key, default_b) / 100
+            # 获取统一的分配比例配置（百分比数值，例如50表示50%）
+            ratio_a_pct = ConfigService.get_decimal('shareholder_a_ratio', 50.0)
+            ratio_b_pct = ConfigService.get_decimal('shareholder_b_ratio', 50.0)
+            ratio_a = ratio_a_pct / 100.0
+            ratio_b = ratio_b_pct / 100.0
             
             # 确保比例和为1
             if ratio_a + ratio_b != 1:
@@ -291,69 +285,122 @@ class ProfitService:
             利润报表数据
         """
         try:
-            # 构建查询
-            query = db.session.query(Course, Customer).join(
-                Customer, Course.customer_id == Customer.id
-            )
-            
-            if start_date:
-                query = query.filter(Course.created_at >= start_date)
-            if end_date:
-                query = query.filter(Course.created_at <= end_date)
-            
-            courses = query.all()
-            
-            # 统计数据
-            total_revenue = 0
-            total_cost = 0
-            total_fee = 0  # 新增总手续费
-            total_profit = 0
-            trial_profit = 0
-            new_course_profit = 0
-            renewal_profit = 0
-            
-            for course, customer in courses:
-                profit_info = cls.calculate_course_profit(course)
-                
-                total_revenue += profit_info['actual_revenue']
-                total_cost += profit_info['cost']
-                total_fee += profit_info['fee']  # 单独统计手续费
-                total_profit += profit_info['profit']
-                
-                if course.is_trial:
-                    trial_profit += profit_info['profit']
-                elif course.is_renewal:
-                    renewal_profit += profit_info['profit']
-                else:
-                    new_course_profit += profit_info['profit']
-            
-            # 计算股东分配（统一分配比例）
-            new_distribution = cls.calculate_shareholder_distribution(new_course_profit)
-            renewal_distribution = cls.calculate_shareholder_distribution(renewal_profit)
-            
-            return {
-                'summary': {
-                    'total_revenue': total_revenue,
-                    'total_cost': total_cost + total_fee,  # 总成本包含手续费
-                    'total_fee': total_fee,  # 单独返回手续费
-                    'total_profit': total_profit,
-                    'course_count': len(courses)
-                },
-                'profit_by_type': {
-                    'trial': trial_profit,
-                    'new_course': new_course_profit,
-                    'renewal': renewal_profit
-                },
-                'shareholder_distribution': {
-                    'new_course': new_distribution,
-                    'renewal': renewal_distribution,
-                    'total': {
-                        'shareholder_a': new_distribution['shareholder_a'] + renewal_distribution['shareholder_a'],
-                        'shareholder_b': new_distribution['shareholder_b'] + renewal_distribution['shareholder_b']
+            # 一致性快照内读取，避免生成期间数据漂移
+            with db.session.begin():
+                # 聚合退费（completed）
+                refunds_subq = (
+                    db.session.query(
+                        CourseRefund.course_id.label('course_id'),
+                        func.coalesce(func.sum(CourseRefund.refund_sessions), 0).label('refunded_sessions'),
+                        func.coalesce(func.sum(CourseRefund.refund_amount), 0.0).label('refunded_amount')
+                    )
+                    .filter(CourseRefund.status == 'completed')
+                    .group_by(CourseRefund.course_id)
+                    .subquery()
+                )
+
+                query = (
+                    db.session.query(
+                        Course,
+                        Customer,
+                        refunds_subq.c.refunded_sessions,
+                        refunds_subq.c.refunded_amount,
+                    )
+                    .join(Customer, Course.customer_id == Customer.id)
+                    .outerjoin(refunds_subq, refunds_subq.c.course_id == Course.id)
+                )
+
+                if start_date:
+                    query = query.filter(Course.created_at >= start_date)
+                if end_date:
+                    query = query.filter(Course.created_at <= end_date)
+
+                rows = query.all()
+
+                total_revenue = 0.0
+                total_cost_no_fee = 0.0
+                total_fee = 0.0
+                total_profit = 0.0
+                trial_profit = 0.0
+                new_course_profit = 0.0
+                renewal_profit = 0.0
+
+                for course, _customer, refunded_sessions, refunded_amount in rows:
+                    # 收入
+                    if course.is_trial:
+                        original_revenue = cls.safe_float(course.trial_price, 0)
+                    else:
+                        original_revenue = cls.safe_int(course.sessions, 0) * cls.safe_float(course.price, 0)
+
+                    # 手续费
+                    fee = 0.0
+                    if course.payment_channel == '淘宝' or course.source == '淘宝':
+                        fee_rate = course.snapshot_fee_rate if course.snapshot_fee_rate else (ConfigService.get_decimal('taobao_fee_rate', 0.6) / 100.0)
+                        fee = original_revenue * fee_rate
+
+                    # 成本（不含手续费）
+                    base_cost = cls.safe_float(course.cost, 0)
+
+                    # 退费影响
+                    actual_revenue = original_revenue
+                    actual_cost = base_cost
+                    if course.is_trial:
+                        # 试听课退费逻辑
+                        if course.trial_status == 'refunded':
+                            actual_revenue = 0  # 试听课退费，收入计为0
+                            # 成本不变，仍计入总成本
+                    else:
+                        # 正课退费逻辑
+                        sessions = cls.safe_int(course.sessions, 0)
+                        rs = int(refunded_sessions or 0)
+                        ra = float(refunded_amount or 0.0)
+                        actual_revenue = original_revenue - ra
+                        if sessions > 0:
+                            other_cost = cls.safe_float(course.other_cost, 0)
+                            variable_cost = base_cost - other_cost
+                            kept_sessions = max(sessions - rs, 0)
+                            actual_cost = (variable_cost * (kept_sessions / sessions)) + other_cost
+
+                    profit = actual_revenue - actual_cost - fee
+
+                    total_revenue += actual_revenue
+                    total_cost_no_fee += actual_cost
+                    total_fee += fee
+                    total_profit += profit
+
+                    if course.is_trial:
+                        trial_profit += profit
+                    elif course.is_renewal:
+                        renewal_profit += profit
+                    else:
+                        new_course_profit += profit
+
+                new_distribution = cls.calculate_shareholder_distribution(new_course_profit)
+                renewal_distribution = cls.calculate_shareholder_distribution(renewal_profit)
+
+                return {
+                    'summary': {
+                        'total_revenue': total_revenue,
+                        'total_cost': total_cost_no_fee + total_fee,
+                        'total_fee': total_fee,
+                        'total_profit': total_profit,
+                        'course_count': len(rows)
+                    },
+                    'profit_by_type': {
+                        'trial': trial_profit,
+                        'new_course': new_course_profit,
+                        'renewal': renewal_profit
+                    },
+                    'shareholder_distribution': {
+                        'new_course': new_distribution,
+                        'renewal': renewal_distribution,
+                        'total': {
+                            'shareholder_a': new_distribution['shareholder_a'] + renewal_distribution['shareholder_a'],
+                            'shareholder_b': new_distribution['shareholder_b'] + renewal_distribution['shareholder_b']
+                        }
                     }
                 }
-            }
-            
+
         except Exception as e:
             logger.error(f"生成利润报表失败: {str(e)}")
             raise

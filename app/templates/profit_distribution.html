@@ -379,6 +379,18 @@
                     <td>课程成本</td>
                     <td class="amount" id="courseCostDetail">¥0</td>
                 </tr>
+                <tr class="sub-item">
+                    <td>&nbsp;&nbsp;• 试听课成本</td>
+                    <td class="amount" id="trialCostDetail">¥0</td>
+                </tr>
+                <tr class="sub-item">
+                    <td>&nbsp;&nbsp;• 新课成本</td>
+                    <td class="amount" id="newCourseCostDetail">¥0</td>
+                </tr>
+                <tr class="sub-item">
+                    <td>&nbsp;&nbsp;• 续课成本</td>
+                    <td class="amount" id="renewalCostDetail">¥0</td>
+                </tr>
                 <tr>
                     <td>总手续费</td>
                     <td class="amount" id="totalFee">¥0</td>
@@ -727,6 +739,17 @@
     border-top: 3px double #333;
     font-weight: bold;
     font-size: 16px;
+}
+
+.detail-table .sub-item td {
+    padding-left: 20px;
+    color: #666;
+    font-size: 14px;
+    border-bottom: 1px solid #f5f5f5;
+}
+
+.detail-table .sub-item td:first-child {
+    font-style: italic;
 }
 
 .amount.negative {
@@ -1356,6 +1379,19 @@ function displayReport(report) {
     
     // 成本明细
     document.getElementById('courseCostDetail').textContent = formatCurrency(report.cost.course_cost);
+    
+    // 课程成本明细（新增）
+    if (report.cost.course_cost_detail) {
+        document.getElementById('trialCostDetail').textContent = formatCurrency(report.cost.course_cost_detail.trial_cost);
+        document.getElementById('newCourseCostDetail').textContent = formatCurrency(report.cost.course_cost_detail.new_course_cost);
+        document.getElementById('renewalCostDetail').textContent = formatCurrency(report.cost.course_cost_detail.renewal_cost);
+    } else {
+        // 兼容性处理：如果没有明细数据，显示为0
+        document.getElementById('trialCostDetail').textContent = formatCurrency(0);
+        document.getElementById('newCourseCostDetail').textContent = formatCurrency(0);
+        document.getElementById('renewalCostDetail').textContent = formatCurrency(0);
+    }
+    
     document.getElementById('totalFee').textContent = formatCurrency(report.cost.total_fee);
     document.getElementById('taobaoCommission').textContent = formatCurrency(report.cost.taobao_commission);
     document.getElementById('employeeSalary').textContent = formatCurrency(report.cost.employee_salary);
@@ -1478,21 +1514,25 @@ function initCharts(data) {
     costChart = new Chart(costCtx, {
         type: 'doughnut',
         data: {
-            labels: ['课程成本', '总手续费', '刷单佣金', '员工工资', '员工提成'],
+            labels: ['试听课成本', '新课成本', '续课成本', '总手续费', '刷单佣金', '员工工资', '员工提成'],
             datasets: [{
                 data: [
-                    data.cost.course_cost,
+                    data.cost.course_cost_detail ? data.cost.course_cost_detail.trial_cost : 0,
+                    data.cost.course_cost_detail ? data.cost.course_cost_detail.new_course_cost : 0,
+                    data.cost.course_cost_detail ? data.cost.course_cost_detail.renewal_cost : 0,
                     data.cost.total_fee,
                     data.cost.taobao_commission,
                     data.cost.employee_salary,
                     data.cost.employee_commission
                 ],
                 backgroundColor: [
-                    '#ef4444',
-                    '#f59e0b',
-                    '#10b981',
-                    '#3b82f6',
-                    '#8b5cf6'
+                    '#ef4444',  // 试听课成本 - 红色
+                    '#f97316',  // 新课成本 - 橙色
+                    '#eab308',  // 续课成本 - 黄色
+                    '#22c55e',  // 总手续费 - 绿色
+                    '#3b82f6',  // 刷单佣金 - 蓝色
+                    '#8b5cf6',  // 员工工资 - 紫色
+                    '#06b6d4'   // 员工提成 - 青色
                 ],
                 borderWidth: 0
             }]
@@ -1583,6 +1623,12 @@ function exportReport() {
     csv += '成本明细\n';
     csv += '项目,金额\n';
     csv += `课程成本,${currentReport.cost.course_cost}\n`;
+    // 课程成本明细（新增）
+    if (currentReport.cost.course_cost_detail) {
+        csv += `  试听课成本,${currentReport.cost.course_cost_detail.trial_cost}\n`;
+        csv += `  新课成本,${currentReport.cost.course_cost_detail.new_course_cost}\n`;
+        csv += `  续课成本,${currentReport.cost.course_cost_detail.renewal_cost}\n`;
+    }
     csv += `总手续费,${currentReport.cost.total_fee}\n`;
     csv += `刷单佣金,${currentReport.cost.taobao_commission}\n`;
     csv += `员工工资,${currentReport.cost.employee_salary}\n`;

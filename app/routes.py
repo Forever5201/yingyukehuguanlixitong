@@ -435,7 +435,7 @@ def calculate_course_profit_with_refund(course, include_refund=True):
             
             return {
                 'revenue': actual_revenue,
-                'cost': actual_cost + fee,  # 为了兼容现有逻辑，成本包含手续费
+                'cost': actual_cost,  # 修改：成本不包含手续费
                 'profit': profit,
                 'has_refund': True,
                 'refund_info': {
@@ -447,7 +447,7 @@ def calculate_course_profit_with_refund(course, include_refund=True):
             # 没有退费，返回原始数据
             return {
                 'revenue': revenue,
-                'cost': cost + fee,
+                'cost': cost,  # 修改：成本不包含手续费
                 'profit': revenue - cost - fee,
                 'has_refund': False
             }
@@ -455,7 +455,7 @@ def calculate_course_profit_with_refund(course, include_refund=True):
         # 不考虑退费的原始计算
         return {
             'revenue': revenue,
-            'cost': cost + fee,
+            'cost': cost,  # 修改：成本不包含手续费
             'profit': revenue - cost - fee,
             'has_refund': False
         }
@@ -1661,13 +1661,13 @@ def manage_trial_courses():
         # 按状态计算
         if status == 'registered':
             revenue = course.trial_price or 0
-            cost = course.cost or 0  # 使用成本
+            cost = course.cost or 0  # 使用课程成本（不含手续费）
             fees = (revenue * channel_rate) if revenue else 0
-            profit = revenue - (cost + fees)
+            profit = revenue - cost - fees
         elif status == 'refunded':
             # 退费（MIGRATION_GUIDE）：收入=0；成本=基础成本C；不再从利润中扣除手续费
             revenue = 0
-            cost = course.cost or 0  # 使用成本
+            cost = course.cost or 0  # 使用课程成本（不含手续费）
             refund_channel = (course.refund_channel or '').strip()
             if refund_channel == '淘宝':
                 fees = 0.0
@@ -1684,15 +1684,15 @@ def manage_trial_courses():
         elif status == 'converted':
             # 独立核算：与已报名一致
             revenue = course.trial_price or 0
-            cost = course.cost or 0  # 使用成本
+            cost = course.cost or 0  # 使用课程成本（不含手续费）
             fees = (revenue * channel_rate) if revenue else 0
-            profit = revenue - (cost + fees)
+            profit = revenue - cost - fees
         elif status == 'no_action':
             # 视为已支付并完成试听：与已报名一致
             revenue = course.trial_price or 0
-            cost = course.cost or 0  # 使用成本
+            cost = course.cost or 0  # 使用课程成本（不含手续费）
             fees = (revenue * channel_rate) if revenue else 0
-            profit = revenue - (cost + fees)
+            profit = revenue - cost - fees
         else:
             # 未知状态保护
             revenue = 0
@@ -1736,8 +1736,8 @@ def manage_trial_courses():
         'total_cost': sum(s['cost'] for s in status_stats.values()),
         # 修改：单独计算总手续费
         'total_fees': sum(s['fees'] for s in status_stats.values()),
-        # 直接计算总利润 = 总收入 - 总成本
-        'total_profit': sum(s['revenue'] for s in status_stats.values()) - sum(s['cost'] for s in status_stats.values())
+        # 修改：总利润 = 总收入 - 总成本 - 总手续费
+        'total_profit': sum(s['revenue'] for s in status_stats.values()) - sum(s['cost'] for s in status_stats.values()) - sum(s['fees'] for s in status_stats.values())
     }
     
     # 获取员工列表
@@ -1827,6 +1827,7 @@ def api_formal_courses_stats():
                 'has_refund': profit_info['has_refund'],
                 'refund_amount': profit_info.get('refund_info', {}).get('amount', 0),
                 'created_at': course.created_at.isoformat() if course.created_at else None,
+                'is_renewal': course.is_renewal  # <-- 新增字段
             })
         
         return {
@@ -1868,11 +1869,11 @@ def api_trial_courses_stats():
                 fee_rate = course.snapshot_fee_rate if course.snapshot_fee_rate else default_fee_rate
                 fee = revenue * fee_rate
             
-            # 计算成本（course.cost已包含课时成本和其他成本），总成本包含手续费
-            cost = safe_float(course.cost, 0) + fee
+            # 计算成本（仅课程基础成本，不包含手续费）
+            cost = safe_float(course.cost, 0)
             
-            # 计算利润（统一口径）
-            profit = revenue - cost
+            # 计算利润（收入 - 课程成本 - 手续费）
+            profit = revenue - cost - fee
             
             # 累加统计
             total_revenue += revenue
@@ -2576,11 +2577,11 @@ def api_trial_courses_status_stats():
                 fee_rate = course.snapshot_fee_rate if course.snapshot_fee_rate else default_fee_rate
                 fee = revenue * fee_rate
             
-            # 计算成本（course.cost已包含课时成本和其他成本）
-            cost = (course.cost or 0) + fee  # 总成本包含手续费
+            # 计算成本（仅课程基础成本，不包含手续费）
+            cost = (course.cost or 0)
             
-            # 计算利润
-            profit = revenue - cost
+            # 计算利润（收入 - 课程成本 - 手续费）
+            profit = revenue - cost - fee
             
             # 累加统计
             if course.trial_status == 'registered':
@@ -2618,7 +2619,7 @@ def api_trial_courses_status_stats():
                 'course_cost': course.cost,  # 原始成本（不含手续费）
                 'other_cost': course.other_cost,
                 'fee': fee,
-                'total_cost': cost,  # 总成本（含手续费）
+                'total_cost': cost,  # 课程成本（不含手续费）
                 'profit': profit,
                 'created_at': course.created_at.strftime('%Y-%m-%d') if course.created_at else ''
             })
@@ -2638,20 +2639,18 @@ def api_trial_courses_status_stats():
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
 
-@main_bp.route('/formal-courses', methods=['GET'])
+@main_bp.route('/formal-courses')
+@login_required_custom
 def manage_formal_courses():
     """正课管理页面"""
     
-    embedded = request.args.get('embedded', 'false').lower() == 'true'
+    # 联合查询以获取客户姓名，并按客户姓名和课程创建时间排序
+    formal_courses_query = db.session.query(Course, Customer).join(Customer, Course.customer_id == Customer.id).filter(Course.is_trial == False)
     
-    # 构建正课查询
-    query = db.session.query(Course, Customer).join(
-        Customer, Course.customer_id == Customer.id
-    ).filter(Course.is_trial == False)
-        
-    formal_courses = query.order_by(Course.created_at.desc()).all()
-    
-    # 获取客户列表用于下拉选择
+    # 首先按客户姓名排序，然后按课程创建时间升序排序
+    ordered_courses = formal_courses_query.order_by(Customer.name, Course.created_at).all()
+
+    # 客户列表
     customers = Customer.query.order_by(Customer.name).all()
     
     # 计算正课统计
@@ -2709,7 +2708,7 @@ def manage_formal_courses():
     today_date = datetime.now().strftime('%Y-%m-%d')
     
     return render_template('formal_courses.html', 
-                         formal_courses=formal_courses,
+                         formal_courses=ordered_courses,
                          customers=customers,
                          taobao_fee_rate=taobao_fee_rate,
                          today_date=today_date,
@@ -2721,8 +2720,7 @@ def manage_formal_courses():
                              'total_sessions': formal_stats.total_sessions or 0,
                              'total_gift_sessions': formal_stats.total_gift_sessions or 0,
                              'total_fees': total_fees
-                         },
-                         embedded=embedded)
+                         })
 
 @main_bp.route('/renew-course/<int:course_id>', methods=['GET', 'POST'])
 def renew_course(course_id):
@@ -4424,3 +4422,23 @@ def delete_salary_record(record_id):
             'success': False,
             'message': f'删除工资记录失败: {str(e)}'
         }), 500
+
+@main_bp.route('/temp-debug-trial-courses')
+def temp_debug_trial_courses():
+    """临时调试路由，用于检查试听课数据"""
+    try:
+        courses = Course.query.filter_by(is_trial=True).limit(10).all()
+        output = []
+        for course in courses:
+            output.append({
+                'id': course.id,
+                'trial_price': course.trial_price,
+                'cost': course.cost,
+                'trial_status': course.trial_status,
+                'payment_channel': course.payment_channel,
+                'source': course.source,
+                'created_at': course.created_at.isoformat() if course.created_at else None
+            })
+        return jsonify(output)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
