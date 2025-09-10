@@ -340,7 +340,7 @@
                 <i class="fas fa-graduation-cap"></i>
             </div>
             <div class="stat-content">
-                <h3>{{ stats.total_courses }}</h3>
+                <h3 id="stat-total-courses">{{ stats.total_courses }}</h3>
                 <p>正课总数</p>
             </div>
         </div>
@@ -349,7 +349,7 @@
                 <i class="fas fa-money-bill-wave"></i>
             </div>
             <div class="stat-content">
-                <h3>¥{{ "%.2f"|format(stats.total_revenue) }}</h3>
+                <h3 id="stat-total-revenue">¥{{ "%.2f"|format(stats.total_revenue) }}</h3>
                 <p>总收入</p>
             </div>
         </div>
@@ -378,7 +378,7 @@
                 <i class="fas fa-coins"></i>
             </div>
             <div class="stat-content">
-                <h3>¥{{ "%.2f"|format(stats.total_cost) }}</h3>
+                <h3 id="stat-total-cost">¥{{ "%.2f"|format(stats.total_cost) }}</h3>
                 <p>总成本</p>
             </div>
         </div>
@@ -387,7 +387,7 @@
                 <i class="fas fa-chart-line"></i>
             </div>
             <div class="stat-content">
-                <h3>¥{{ "%.2f"|format(stats.total_profit) }}</h3>
+                <h3 id="stat-total-profit">¥{{ "%.2f"|format(stats.total_profit) }}</h3>
                 <p>总利润</p>
             </div>
         </div>
@@ -396,7 +396,7 @@
                 <i class="fas fa-percentage"></i>
             </div>
             <div class="stat-content">
-                <h3>¥{{ "%.2f"|format(stats.total_fees) }}</h3>
+                <h3 id="stat-total-fees">¥{{ "%.2f"|format(stats.total_fees) }}</h3>
                 <p>总手续费</p>
             </div>
         </div>
@@ -685,22 +685,16 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function updateStatCards(data) {
-    // 计算总课程数
     const total_courses = data.rows ? data.rows.length : 0;
-    
-    // 查找并更新对应的统计卡片
-    document.querySelectorAll('.stat-card').forEach((card, index) => {
-        const h3 = card.querySelector('h3');
-        if (h3) {
-            switch(index) {
-                case 0: h3.textContent = total_courses; break;
-                case 1: h3.textContent = `¥${(data.total_revenue || 0).toFixed(2)}`; break;
-                case 2: h3.textContent = `¥${(data.total_cost || 0).toFixed(2)}`; break;
-                case 3: h3.textContent = `¥${(data.total_profit || 0).toFixed(2)}`; break;
-                case 4: h3.textContent = `¥${(data.total_fees || 0).toFixed(2)}`; break;
-            }
-        }
-    });
+    const setText = (id, val) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = val;
+    };
+    setText('stat-total-courses', total_courses);
+    setText('stat-total-revenue', `¥${(data.total_revenue || 0).toFixed(2)}`);
+    setText('stat-total-cost', `¥${(data.total_cost || 0).toFixed(2)}`);
+    setText('stat-total-profit', `¥${(data.total_profit || 0).toFixed(2)}`);
+    setText('stat-total-fees', `¥${(data.total_fees || 0).toFixed(2)}`);
 }
 
 function updateTableData(rows) {
