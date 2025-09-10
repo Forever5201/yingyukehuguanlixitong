@@ -344,6 +344,16 @@
                 <p>正课总数</p>
             </div>
         </div>
+        <!-- 新增：销售总节数（含赠送） -->
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-layer-group"></i>
+            </div>
+            <div class="stat-content">
+                <h3 id="stat-total-sessions-sold">0</h3>
+                <p>销售总节数（含赠送）</p>
+            </div>
+        </div>
         <div class="stat-card">
             <div class="stat-icon">
                 <i class="fas fa-money-bill-wave"></i>
@@ -675,6 +685,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 const rr = document.getElementById('stat-renewal-revenue');
                 if (nr) nr.textContent = `¥${(data.new_revenue || 0).toFixed(2)}`;
                 if (rr) rr.textContent = `¥${(data.renewal_revenue || 0).toFixed(2)}`;
+                // 计算销售总节数（购买+赠送）
+                const totalSold = (data.rows || []).reduce((sum, r) => sum + (r.sessions || 0) + (r.gift_sessions || 0), 0);
+                const tss = document.getElementById('stat-total-sessions-sold');
+                if (tss) tss.textContent = totalSold;
             } else {
                 console.error('API返回错误:', data.error);
             }
