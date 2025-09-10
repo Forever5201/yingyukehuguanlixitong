@@ -1773,6 +1773,9 @@ def api_formal_courses_stats():
         total_cost = 0
         total_profit = 0
         total_fees = 0
+        # 新增：按是否续课区分收入
+        new_revenue_total = 0  # 新购收入
+        renewal_revenue_total = 0  # 续课收入
         rows = []
         
         for course in courses:
@@ -1806,6 +1809,16 @@ def api_formal_courses_stats():
             total_cost += cost
             total_profit += profit
             total_fees += fee
+
+            # 新增：区分新购/续课收入
+            try:
+                if getattr(course, 'is_renewal', False):
+                    renewal_revenue_total += revenue
+                else:
+                    new_revenue_total += revenue
+            except Exception:
+                # 保护：字段缺失时一律按新购统计，避免中断
+                new_revenue_total += revenue
             
             # 构建行数据
             rows.append({
@@ -1835,6 +1848,9 @@ def api_formal_courses_stats():
             'total_cost': total_cost,
             'total_profit': total_profit,
             'total_fees': total_fees,
+            # 新增字段：前端用于分别展示
+            'new_revenue': new_revenue_total,
+            'renewal_revenue': renewal_revenue_total,
             'rows': rows,
         }
     except Exception as e:

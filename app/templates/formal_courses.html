@@ -353,6 +353,26 @@
                 <p>总收入</p>
             </div>
         </div>
+        <!-- 新增：新购收入 -->
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-plus-circle"></i>
+            </div>
+            <div class="stat-content">
+                <h3 id="stat-new-revenue">¥0.00</h3>
+                <p>新购收入</p>
+            </div>
+        </div>
+        <!-- 新增：续课收入 -->
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-redo-alt"></i>
+            </div>
+            <div class="stat-content">
+                <h3 id="stat-renewal-revenue">¥0.00</h3>
+                <p>续课收入</p>
+            </div>
+        </div>
         <div class="stat-card">
             <div class="stat-icon">
                 <i class="fas fa-coins"></i>
@@ -650,6 +670,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 updateStatCards(data);
                 // 更新表格数据
                 updateTableData(data.rows);
+                // 更新新增收入卡片
+                const nr = document.getElementById('stat-new-revenue');
+                const rr = document.getElementById('stat-renewal-revenue');
+                if (nr) nr.textContent = `¥${(data.new_revenue || 0).toFixed(2)}`;
+                if (rr) rr.textContent = `¥${(data.renewal_revenue || 0).toFixed(2)}`;
             } else {
                 console.error('API返回错误:', data.error);
             }
