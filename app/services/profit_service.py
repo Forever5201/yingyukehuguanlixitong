@@ -38,6 +38,50 @@ class ProfitService:
             return default
     
     @classmethod
+    def get_fee_rate(cls, course: Course) -> float:
+        """
+        获取课程的手续费率（支持多渠道）
+        
+        Args:
+            course: 课程对象
+            
+        Returns:
+            手续费率（小数形式，如0.006表示0.6%）
+        """
+        # 优先使用课程快照的费率
+        if course.snapshot_fee_rate:
+            return course.snapshot_fee_rate
+        
+        # 根据渠道获取对应费率
+        source = (course.source or course.payment_channel or '').strip()
+        
+        if source == '淘宝':
+            return ConfigService.get_decimal('taobao_fee_rate', 0.6) / 100.0
+        elif source == '小红书':
+            return ConfigService.get_decimal('xiaohongshu_fee_rate', 0) / 100.0
+        elif source == '抖音':
+            return ConfigService.get_decimal('douyin_fee_rate', 0) / 100.0
+        elif source == '转介绍':
+            return ConfigService.get_decimal('referral_fee_rate', 0) / 100.0
+        
+        return 0.0
+    
+    @classmethod
+    def should_charge_fee(cls, course: Course) -> bool:
+        """
+        统一判断课程是否需要收取手续费
+        
+        规则：根据渠道费率判断，费率>0则收取
+        
+        Args:
+            course: 课程对象
+            
+        Returns:
+            是否需要收取手续费
+        """
+        return cls.get_fee_rate(course) > 0
+    
+    @classmethod
     def calculate_course_profit(cls, course: Course, include_refund: bool = True) -> Dict:
         """
         计算单个课程的利润
@@ -54,17 +98,17 @@ class ProfitService:
             if course.is_trial:
                 # 试听课使用trial_price
                 original_revenue = cls.safe_float(course.trial_price, 0)
+                sessions = 1  # 试听课按1节计算
             else:
                 # 正课使用sessions * price
                 sessions = cls.safe_int(course.sessions, 0)
                 price = cls.safe_float(course.price, 0)
                 original_revenue = sessions * price
             
-            # 计算手续费
+            # 使用统一的手续费判断函数
             fee = 0
-            # 检查支付渠道或渠道来源是否为淘宝
-            if course.payment_channel == '淘宝' or course.source == '淘宝':
-                fee_rate = course.snapshot_fee_rate if course.snapshot_fee_rate else (ConfigService.get_decimal('taobao_fee_rate', 0.6) / 100.0)
+            if cls.should_charge_fee(course):
+                fee_rate = cls.get_fee_rate(course)
                 fee = original_revenue * fee_rate
             
             # 原始成本
@@ -332,10 +376,10 @@ class ProfitService:
                     else:
                         original_revenue = cls.safe_int(course.sessions, 0) * cls.safe_float(course.price, 0)
 
-                    # 手续费
+                    # 使用统一的手续费判断函数
                     fee = 0.0
-                    if course.payment_channel == '淘宝' or course.source == '淘宝':
-                        fee_rate = course.snapshot_fee_rate if course.snapshot_fee_rate else (ConfigService.get_decimal('taobao_fee_rate', 0.6) / 100.0)
+                    if cls.should_charge_fee(course):
+                        fee_rate = cls.get_fee_rate(course)
                         fee = original_revenue * fee_rate
 
                     # 成本（不含手续费）

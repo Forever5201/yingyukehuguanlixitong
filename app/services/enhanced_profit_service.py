@@ -85,7 +85,7 @@ class EnhancedProfitService(ProfitService):
     def generate_comprehensive_profit_report(cls, start_date: Optional[datetime] = None,
                                            end_date: Optional[datetime] = None) -> Dict:
         """
-        生成综合利润报表（包含刷单）
+        生成综合利润报表（刷单独立核算，不计入课程利润）
         
         Args:
             start_date: 开始日期
@@ -95,48 +95,45 @@ class EnhancedProfitService(ProfitService):
             综合利润报表数据
         """
         try:
-            # 1. 获取基础利润报表
+            # 1. 获取基础利润报表（仅课程）
             base_report = cls.generate_profit_report(start_date, end_date)
             
-            # 2. 计算刷单成本
-            taobao_cost = cls.calculate_taobao_order_cost(start_date, end_date)
+            # 2. 计算刷单统计（独立核算，不计入课程成本）
+            taobao_stats = cls.calculate_taobao_order_cost(start_date, end_date)
             
             # 3. 计算员工成本
             employee_cost = cls.calculate_employee_cost(start_date, end_date)
             
-            # 4. 计算运营成本（新增）
+            # 4. 计算运营成本
             operational_cost = OperationalCostService.allocate_operational_costs_to_courses(start_date, end_date)
             
-            # 5. 重新计算总收入和总成本
-            # 总收入 = 课程收入（不包含刷单金额）
+            # 5. 课程总收入（不包含刷单）
             total_revenue = base_report['summary']['total_revenue']
             
-            # 6. 计算试听课收入和正课收入的详细分类
+            # 6. 计算收入明细
             revenue_detail = cls.calculate_revenue_detail(start_date, end_date)
             
-            # 6.5. 计算课程成本明细（按课程类型分类）
+            # 6.5. 计算课程成本明细
             course_cost_detail = cls.calculate_course_cost_detail(start_date, end_date)
             
-            # 7. 总成本 = 课程成本（不含手续费） + 所有手续费 + 刷单佣金 + 刷单手续费 + 员工成本 + 运营成本
-            # 从base_report中减去已计算的手续费，避免重复
+            # 7. 课程总成本（不包含刷单费用）
+            # 课程成本 = 课程基础成本 + 课程手续费 + 员工成本 + 运营成本
             course_cost_without_fee = base_report['summary']['total_cost'] - base_report.get('total_fee', 0)
-            # 总手续费 = 课程手续费 + 淘宝刷单手续费
-            total_fee_courses = base_report['summary']['total_fee']
-            total_fee_all = total_fee_courses + taobao_cost['total_fee']  # 所有手续费
+            total_fee_courses = base_report['summary']['total_fee']  # 仅课程手续费
             total_cost = (course_cost_without_fee +          # 课程成本（不含手续费）
-                         total_fee_all +                     # 所有手续费（课程手续费+淘宝刷单手续费）
-                         taobao_cost['total_commission'] +   # 刷单佣金
-                         employee_cost['total_cost'] +        # 员工成本
-                         operational_cost['total_operational_cost'])  # 运营成本（新增）
+                         total_fee_courses +                 # 课程手续费（不含刷单手续费）
+                         employee_cost['total_cost'] +       # 员工成本
+                         operational_cost['total_operational_cost'])  # 运营成本
             
-            # 8. 计算净利润
+            # 8. 计算课程净利润（不含刷单）
             net_profit = total_revenue - total_cost
             
-            # 9. 简化股东分配计算 - 使用统一的分配比例
-            # 获取统一的分配比例
-            distribution_ratios = cls.calculate_shareholder_distribution(100)  # 获取比例
+            # 9. 刷单独立核算（佣金和手续费都是支出）
+            # 刷单成本 = 佣金支出 + 手续费支出
+            taobao_cost = taobao_stats['total_commission'] + taobao_stats['total_fee']
             
-            # 直接按比例分配净利润
+            # 10. 股东分配（仅基于课程利润，刷单单独结算）
+            distribution_ratios = cls.calculate_shareholder_distribution(100)
             shareholder_a_net_profit = net_profit * (distribution_ratios['ratio_a'] / 100)
             shareholder_b_net_profit = net_profit * (distribution_ratios['ratio_b'] / 100)
             
@@ -155,29 +152,37 @@ class EnhancedProfitService(ProfitService):
                 },
                 'cost': {
                     'course_cost': course_cost_without_fee,  # 课程成本（不含手续费）
-                    'course_cost_detail': course_cost_detail,  # 课程成本明细（新增）
-                    'total_fee': total_fee_all,  # 总手续费（课程手续费+淘宝刷单手续费）
-                    'taobao_commission': taobao_cost['total_commission'],
-                    'taobao_fee': taobao_cost['total_fee'],
+                    'course_cost_detail': course_cost_detail,  # 课程成本明细
+                    'total_fee': total_fee_courses,  # 仅课程手续费（不含刷单）
                     'employee_salary': employee_cost['total_salary'],
                     'employee_commission': employee_cost['total_commission'],
-                    'operational_cost': operational_cost['total_operational_cost'],  # 运营成本（新增）
-                    'total_cost': total_cost
+                    'operational_cost': operational_cost['total_operational_cost'],
+                    'total_cost': total_cost  # 不含刷单费用
                 },
                 'profit': {
                     'gross_profit': base_report['summary']['total_profit'],  # 毛利润
-                    'net_profit': net_profit,  # 净利润
-                    'profit_margin': (net_profit / total_revenue * 100) if total_revenue > 0 else 0  # 净利率
+                    'net_profit': net_profit,  # 课程净利润（不含刷单）
+                    'profit_margin': (net_profit / total_revenue * 100) if total_revenue > 0 else 0
                 },
                 'shareholder_distribution': {
                     'shareholder_a_net_profit': shareholder_a_net_profit,
                     'shareholder_b_net_profit': shareholder_b_net_profit,
                     'total_distributed': shareholder_a_net_profit + shareholder_b_net_profit
                 },
-                'operational_cost_detail': operational_cost,  # 运营成本详情（新增）
+                # 刷单独立统计（与课程利润分开）
+                'taobao_separate': {
+                    'order_count': taobao_stats['order_count'],
+                    'total_amount': taobao_stats['total_amount'],  # 刷单总金额（垫付，会返还）
+                    'total_commission': taobao_stats['total_commission'],  # 佣金支出
+                    'total_fee': taobao_stats['total_fee'],  # 手续费支出
+                    'total_cost': taobao_cost,  # 刷单总成本 = 佣金 + 手续费
+                    'settled_amount': taobao_stats['settled_amount'],
+                    'unsettled_amount': taobao_stats['unsettled_amount']
+                },
+                'operational_cost_detail': operational_cost,
                 'statistics': {
                     'course_count': base_report['summary']['course_count'],
-                    'taobao_order_count': taobao_cost['order_count'],
+                    'taobao_order_count': taobao_stats['order_count'],
                     'employee_count': employee_cost['employee_count']
                 }
             }
@@ -189,10 +194,26 @@ class EnhancedProfitService(ProfitService):
     @classmethod
     def calculate_employee_cost(cls, start_date: Optional[datetime] = None,
                                end_date: Optional[datetime] = None) -> Dict:
-        """计算员工成本"""
+        """
+        计算员工成本（按时间范围计算底薪）
+        
+        Args:
+            start_date: 开始日期
+            end_date: 结束日期
+            
+        Returns:
+            员工成本统计
+        """
         try:
             # 获取所有员工
             employees = Employee.query.all()
+            
+            # 计算月数（用于底薪计算）
+            if start_date and end_date:
+                # 计算跨越的月数
+                months = (end_date.year - start_date.year) * 12 + (end_date.month - start_date.month) + 1
+            else:
+                months = 1  # 默认1个月
             
             total_salary = 0
             total_commission = 0
@@ -201,10 +222,10 @@ class EnhancedProfitService(ProfitService):
                 # 获取员工配置
                 commission_config = CommissionConfig.query.filter_by(employee_id=employee.id).first()
                 if commission_config:
-                    # 基本工资（按月计算，这里简化处理）
-                    total_salary += cls.safe_float(commission_config.base_salary, 0)
+                    # 基本工资按月数计算
+                    total_salary += cls.safe_float(commission_config.base_salary, 0) * months
                 
-                # 计算该员工的提成
+                # 计算该员工的提成（基于时间范围内的课程）
                 courses = Course.query.filter_by(assigned_employee_id=employee.id)
                 if start_date:
                     courses = courses.filter(Course.created_at >= start_date)
@@ -218,7 +239,8 @@ class EnhancedProfitService(ProfitService):
                 'total_salary': total_salary,
                 'total_commission': total_commission,
                 'total_cost': total_salary + total_commission,
-                'employee_count': len(employees)
+                'employee_count': len(employees),
+                'months': months  # 返回计算的月数，便于调试
             }
             
         except Exception as e:
@@ -227,7 +249,8 @@ class EnhancedProfitService(ProfitService):
                 'total_salary': 0,
                 'total_commission': 0,
                 'total_cost': 0,
-                'employee_count': 0
+                'employee_count': 0,
+                'months': 1
             }
     
     @classmethod
@@ -257,21 +280,18 @@ class EnhancedProfitService(ProfitService):
             renewal_cost = 0
             
             for course in courses:
-                # 获取课程基础成本
+                # 获取课程基础成本（course.cost 已经包含 other_cost，不要重复计算）
                 base_cost = cls.safe_float(course.cost, 0)
                 
                 if course.is_trial:
                     # 试听课成本
                     trial_cost += base_cost
                 else:
-                    # 正课成本（包含other_cost）
-                    other_cost = cls.safe_float(course.other_cost, 0)
-                    total_course_cost = base_cost + other_cost
-                    
+                    # 正课成本（course.cost 已经包含 other_cost）
                     if course.is_renewal:
-                        renewal_cost += total_course_cost
+                        renewal_cost += base_cost
                     else:
-                        new_course_cost += total_course_cost
+                        new_course_cost += base_cost
             
             total_course_cost = trial_cost + new_course_cost + renewal_cost
             
@@ -294,7 +314,11 @@ class EnhancedProfitService(ProfitService):
     @classmethod
     def calculate_revenue_detail(cls, start_date: Optional[datetime] = None,
                                end_date: Optional[datetime] = None) -> Dict:
-        """计算收入明细"""
+        """
+        计算收入明细（使用统一的ProfitService计算，确保与其他报表一致）
+        
+        返回的收入是扣除退费后的实际收入
+        """
         try:
             query = Course.query
             if start_date:
@@ -308,50 +332,39 @@ class EnhancedProfitService(ProfitService):
             new_course_revenue = 0
             renewal_revenue = 0
             refund_amount = 0
-            total_fee = 0  # 总手续费
+            total_fee = 0
             
             for course in courses:
-                if course.is_trial:
-                    trial_revenue += cls.safe_float(course.trial_price, 0)
-                    # 试听课也可能有手续费
-                    if course.payment_channel == '淘宝':
-                        trial_price = cls.safe_float(course.trial_price, 0)
-                        fee_rate = cls.safe_float(course.snapshot_fee_rate, 0.006)
-                        total_fee += trial_price * fee_rate
-                else:
-                    revenue = cls.safe_float(course.sessions, 0) * cls.safe_float(course.price, 0)
-                    if course.is_renewal:
-                        renewal_revenue += revenue
-                    else:
-                        new_course_revenue += revenue
-                    
-                    # 正课和续课的手续费
-                    if course.payment_channel == '淘宝':
-                        fee_rate = cls.safe_float(course.snapshot_fee_rate, 0.006)
-                        total_fee += revenue * fee_rate
+                # 使用统一的利润计算方法
+                profit_info = cls.calculate_course_profit(course, include_refund=True)
                 
-                # 计算退费
-                if course.refunds:
-                    for refund in course.refunds:
-                        # 在利润报表中，退费金额应该是实际退给客户的金额
-                        # 退费手续费是从退款中扣除的，不是成本
-                        refund_total = cls.safe_float(refund.refund_amount, 0)
-                        refund_fee = cls.safe_float(refund.refund_fee, 0)
-                        actual_refund = refund_total - refund_fee  # 实际退款金额
-                        
-                        refund_amount += actual_refund  # 累加实际退款金额
-                        
-                        # 注意：退费手续费不应计入总手续费（成本）
-                        # 因为退费手续费是企业从退款中扣留的收入，不是成本
+                if course.is_trial:
+                    # 试听课：退费状态的收入已经在calculate_course_profit中处理为0
+                    if course.trial_status != 'refunded':
+                        trial_revenue += profit_info['actual_revenue']
+                        total_fee += profit_info['fee']
+                else:
+                    # 正课：使用实际收入（已扣除退费）
+                    if course.is_renewal:
+                        renewal_revenue += profit_info['actual_revenue']
+                    else:
+                        new_course_revenue += profit_info['actual_revenue']
+                    total_fee += profit_info['fee']
+                    
+                    # 统计退费金额
+                    if profit_info['has_refund'] and profit_info['refund_info']:
+                        refund_amount += profit_info['refund_info']['amount']
+            
+            total_revenue = trial_revenue + new_course_revenue + renewal_revenue
             
             return {
                 'trial_revenue': trial_revenue,
                 'new_course_revenue': new_course_revenue,
                 'renewal_revenue': renewal_revenue,
-                'total_revenue': trial_revenue + new_course_revenue + renewal_revenue,
+                'total_revenue': total_revenue,
                 'refund_amount': refund_amount,
-                'net_revenue': trial_revenue + new_course_revenue + renewal_revenue - refund_amount,
-                'total_fee': total_fee  # 新增总手续费
+                'net_revenue': total_revenue,  # 已经是扣除退费后的收入
+                'total_fee': total_fee
             }
             
         except Exception as e:

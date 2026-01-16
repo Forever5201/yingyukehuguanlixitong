@@ -299,7 +299,6 @@
                     <p class="amount" id="totalCost">¥0</p>
                     <div class="details">
                         <span>课程成本: <em id="courseCost">¥0</em></span>
-                        <span>刷单费用: <em id="taobaoCost">¥0</em></span>
                         <span>员工成本: <em id="employeeCost">¥0</em></span>
                     </div>
                 </div>
@@ -392,12 +391,8 @@
                     <td class="amount" id="renewalCostDetail">¥0</td>
                 </tr>
                 <tr>
-                    <td>总手续费</td>
+                    <td>总手续费（课程）</td>
                     <td class="amount" id="totalFee">¥0</td>
-                </tr>
-                <tr>
-                    <td>刷单佣金</td>
-                    <td class="amount" id="taobaoCommission">¥0</td>
                 </tr>
                 <tr>
                     <td>员工基本工资</td>
@@ -572,16 +567,119 @@
             </div>
         </div>
         
+        <!-- 刷单独立统计（与课程利润分开） -->
+        <div class="section taobao-separate-section">
+            <h2><i class="fas fa-shopping-cart"></i> 刷单独立统计 <small class="text-muted">（不计入课程利润）</small></h2>
+            <div class="taobao-stats-grid">
+                <div class="taobao-stat-card">
+                    <div class="stat-label">刷单总数</div>
+                    <div class="stat-value" id="taobaoOrderCount">0</div>
+                </div>
+                <div class="taobao-stat-card">
+                    <div class="stat-label">刷单总金额</div>
+                    <div class="stat-value" id="taobaoTotalAmount">¥0</div>
+                    <div class="stat-note">垫付金额，会返还</div>
+                </div>
+                <div class="taobao-stat-card">
+                    <div class="stat-label">佣金支出</div>
+                    <div class="stat-value text-danger" id="taobaoCommissionCost">¥0</div>
+                </div>
+                <div class="taobao-stat-card">
+                    <div class="stat-label">手续费支出</div>
+                    <div class="stat-value text-danger" id="taobaoFee">¥0</div>
+                </div>
+                <div class="taobao-stat-card highlight-cost">
+                    <div class="stat-label">刷单总成本</div>
+                    <div class="stat-value" id="taobaoTotalCost">¥0</div>
+                </div>
+            </div>
+            <div class="taobao-settlement-info">
+                <span>已结算本金: <strong id="taobaoSettled">¥0</strong></span>
+                <span>未结算本金: <strong id="taobaoUnsettled">¥0</strong></span>
+            </div>
+            <p class="text-muted" style="margin-top:15px;font-size:13px;">
+                <i class="fas fa-info-circle"></i> 刷单业务独立核算，不影响课程利润和股东分红。刷单总成本 = 佣金支出 + 手续费支出
+            </p>
+        </div>
+        
         <!-- 导出按钮 -->
         <div class="export-section">
-            <button class="btn btn-success" onclick="exportReport()">
-                <i class="fas fa-download"></i> 导出报表
+            <button class="btn btn-primary" onclick="exportExcelReport()">
+                <i class="fas fa-file-excel"></i> 导出Excel报表（推荐）
+            </button>
+            <button class="btn btn-secondary" onclick="exportReport()" style="margin-left:10px;">
+                <i class="fas fa-file-csv"></i> 导出CSV
             </button>
         </div>
     </div>
 </div>
 
 <style>
+/* 刷单独立统计样式 */
+.taobao-separate-section {
+    background: linear-gradient(135deg, #fff9e6 0%, #fff 100%);
+    border: 1px solid #ffc107;
+}
+
+.taobao-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 15px;
+    margin-bottom: 15px;
+}
+
+.taobao-stat-card {
+    background: white;
+    padding: 15px;
+    border-radius: 8px;
+    text-align: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.taobao-stat-card.highlight-cost {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    color: white;
+}
+
+.taobao-stat-card.highlight-cost .stat-label,
+.taobao-stat-card.highlight-cost .stat-value {
+    color: white;
+}
+
+.taobao-stat-card .stat-note {
+    font-size: 10px;
+    color: #999;
+    margin-top: 4px;
+}
+
+.taobao-stat-card .stat-label {
+    font-size: 12px;
+    color: #666;
+    margin-bottom: 5px;
+}
+
+.taobao-stat-card .stat-value {
+    font-size: 20px;
+    font-weight: bold;
+    color: #333;
+}
+
+.taobao-settlement-info {
+    display: flex;
+    gap: 30px;
+    justify-content: center;
+    padding: 10px;
+    background: #f8f9fa;
+    border-radius: 6px;
+}
+
+.taobao-settlement-info span {
+    color: #666;
+}
+
+.taobao-settlement-info strong {
+    color: #333;
+}
 .profit-distribution-container {
     padding: 20px;
     max-width: 1400px;
@@ -1360,7 +1458,6 @@ function displayReport(report) {
     
     document.getElementById('totalCost').textContent = formatCurrency(report.cost.total_cost);
     document.getElementById('courseCost').textContent = formatCurrency(report.cost.course_cost);
-    document.getElementById('taobaoCost').textContent = formatCurrency(report.cost.taobao_commission + report.cost.taobao_fee);
     document.getElementById('employeeCost').textContent = formatCurrency(report.cost.employee_salary + report.cost.employee_commission);
     
     document.getElementById('netProfit').textContent = formatCurrency(report.profit.net_profit);
@@ -1393,7 +1490,6 @@ function displayReport(report) {
     }
     
     document.getElementById('totalFee').textContent = formatCurrency(report.cost.total_fee);
-    document.getElementById('taobaoCommission').textContent = formatCurrency(report.cost.taobao_commission);
     document.getElementById('employeeSalary').textContent = formatCurrency(report.cost.employee_salary);
     document.getElementById('employeeCommission').textContent = formatCurrency(report.cost.employee_commission);
     document.getElementById('operationalCost').textContent = formatCurrency(report.cost.operational_cost);
@@ -1430,6 +1526,17 @@ function displayReport(report) {
     
     console.log('股东A元素更新后的文本:', document.getElementById('shareholderAProfit').textContent);
     console.log('股东B元素更新后的文本:', document.getElementById('shareholderBProfit').textContent);
+    
+    // 刷单独立统计（新增）
+    if (report.taobao_separate) {
+        document.getElementById('taobaoOrderCount').textContent = report.taobao_separate.order_count || 0;
+        document.getElementById('taobaoTotalAmount').textContent = formatCurrency(report.taobao_separate.total_amount || 0);
+        document.getElementById('taobaoCommissionCost').textContent = formatCurrency(report.taobao_separate.total_commission || 0);
+        document.getElementById('taobaoFee').textContent = formatCurrency(report.taobao_separate.total_fee || 0);
+        document.getElementById('taobaoTotalCost').textContent = formatCurrency(report.taobao_separate.total_cost || 0);
+        document.getElementById('taobaoSettled').textContent = formatCurrency(report.taobao_separate.settled_amount || 0);
+        document.getElementById('taobaoUnsettled').textContent = formatCurrency(report.taobao_separate.unsettled_amount || 0);
+    }
     
     // 初始化图表
     initCharts(report);
@@ -1514,25 +1621,25 @@ function initCharts(data) {
     costChart = new Chart(costCtx, {
         type: 'doughnut',
         data: {
-            labels: ['试听课成本', '新课成本', '续课成本', '总手续费', '刷单佣金', '员工工资', '员工提成'],
+            labels: ['试听课成本', '新课成本', '续课成本', '课程手续费', '员工工资', '员工提成', '运营成本'],
             datasets: [{
                 data: [
                     data.cost.course_cost_detail ? data.cost.course_cost_detail.trial_cost : 0,
                     data.cost.course_cost_detail ? data.cost.course_cost_detail.new_course_cost : 0,
                     data.cost.course_cost_detail ? data.cost.course_cost_detail.renewal_cost : 0,
                     data.cost.total_fee,
-                    data.cost.taobao_commission,
                     data.cost.employee_salary,
-                    data.cost.employee_commission
+                    data.cost.employee_commission,
+                    data.cost.operational_cost || 0
                 ],
                 backgroundColor: [
                     '#ef4444',  // 试听课成本 - 红色
                     '#f97316',  // 新课成本 - 橙色
                     '#eab308',  // 续课成本 - 黄色
-                    '#22c55e',  // 总手续费 - 绿色
-                    '#3b82f6',  // 刷单佣金 - 蓝色
+                    '#22c55e',  // 课程手续费 - 绿色
                     '#8b5cf6',  // 员工工资 - 紫色
-                    '#06b6d4'   // 员工提成 - 青色
+                    '#06b6d4',  // 员工提成 - 青色
+                    '#64748b'   // 运营成本 - 灰色
                 ],
                 borderWidth: 0
             }]
@@ -1600,6 +1707,32 @@ function initCharts(data) {
     });
 }
 
+// 导出Excel报表（多Sheet格式）
+function exportExcelReport() {
+    if (!currentReport) {
+        alert('请先加载报表');
+        return;
+    }
+    
+    // 构建导出URL
+    let url = `/api/export/shareholder-report?period=${currentPeriod}`;
+    
+    if (currentPeriod === 'custom') {
+        const startDate = document.getElementById('startDate').value;
+        const endDate = document.getElementById('endDate').value;
+        
+        if (!startDate || !endDate) {
+            alert('请选择开始和结束日期');
+            return;
+        }
+        
+        url += `&start_date=${startDate}&end_date=${endDate}`;
+    }
+    
+    // 直接下载
+    window.location.href = url;
+}
+
 // 导出报表
 function exportReport() {
     if (!currentReport) {
@@ -1620,31 +1753,43 @@ function exportReport() {
     csv += `退费金额（实际退款）,-${currentReport.revenue.refund_amount}\n`;
     csv += `总收入,${currentReport.revenue.total_revenue}\n\n`;
     
-    csv += '成本明细\n';
+    csv += '成本明细（不含刷单）\n';
     csv += '项目,金额\n';
     csv += `课程成本,${currentReport.cost.course_cost}\n`;
-    // 课程成本明细（新增）
+    // 课程成本明细
     if (currentReport.cost.course_cost_detail) {
         csv += `  试听课成本,${currentReport.cost.course_cost_detail.trial_cost}\n`;
         csv += `  新课成本,${currentReport.cost.course_cost_detail.new_course_cost}\n`;
         csv += `  续课成本,${currentReport.cost.course_cost_detail.renewal_cost}\n`;
     }
-    csv += `总手续费,${currentReport.cost.total_fee}\n`;
-    csv += `刷单佣金,${currentReport.cost.taobao_commission}\n`;
+    csv += `课程手续费,${currentReport.cost.total_fee}\n`;
     csv += `员工工资,${currentReport.cost.employee_salary}\n`;
     csv += `员工提成,${currentReport.cost.employee_commission}\n`;
     csv += `运营成本,${currentReport.cost.operational_cost}\n`;
     csv += `总成本,${currentReport.cost.total_cost}\n\n`;
     
-    csv += '利润\n';
+    csv += '课程利润\n';
     csv += `净利润,${currentReport.profit.net_profit}\n`;
     csv += `利润率,${currentReport.profit.profit_margin}%\n\n`;
     
-    csv += '股东利润分配\n';
+    csv += '股东利润分配（基于课程利润）\n';
     csv += '股东,净利润\n';
     csv += `股东A,${currentReport.shareholder_distribution.shareholder_a_net_profit}\n`;
     csv += `股东B,${currentReport.shareholder_distribution.shareholder_b_net_profit}\n`;
-    csv += `合计,${currentReport.shareholder_distribution.total_distributed}\n`;
+    csv += `合计,${currentReport.shareholder_distribution.total_distributed}\n\n`;
+    
+    // 刷单独立统计
+    if (currentReport.taobao_separate) {
+        csv += '刷单独立统计（不计入课程利润）\n';
+        csv += '项目,金额\n';
+        csv += `刷单总数,${currentReport.taobao_separate.order_count}\n`;
+        csv += `刷单总金额（垫付）,${currentReport.taobao_separate.total_amount}\n`;
+        csv += `佣金支出,${currentReport.taobao_separate.total_commission}\n`;
+        csv += `手续费支出,${currentReport.taobao_separate.total_fee}\n`;
+        csv += `刷单总成本,${currentReport.taobao_separate.total_cost}\n`;
+        csv += `已结算本金,${currentReport.taobao_separate.settled_amount}\n`;
+        csv += `未结算本金,${currentReport.taobao_separate.unsettled_amount}\n`;
+    }
     
     // 下载CSV
     const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });

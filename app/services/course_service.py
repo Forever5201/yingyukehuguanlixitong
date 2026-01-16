@@ -14,8 +14,60 @@ from sqlalchemy import and_, or_
 
 logger = logging.getLogger(__name__)
 
+
 class CourseService:
     """课程服务类 - 统一的课程业务逻辑处理"""
+    
+    @staticmethod
+    def get_fee_rate(course: Course) -> float:
+        """
+        获取课程的手续费率（支持多渠道）
+        
+        Args:
+            course: 课程对象
+            
+        Returns:
+            手续费率（小数形式）
+        """
+        # 优先使用课程快照的费率
+        if hasattr(course, 'snapshot_fee_rate') and course.snapshot_fee_rate:
+            return course.snapshot_fee_rate
+        
+        # 根据渠道获取对应费率
+        source = (course.source or course.payment_channel or '').strip()
+        
+        fee_rate_config = Config.query.filter_by(key=f'{source.lower()}_fee_rate' if source else 'taobao_fee_rate').first()
+        
+        # 按渠道名称查找配置
+        if source == '淘宝':
+            config = Config.query.filter_by(key='taobao_fee_rate').first()
+            return float(config.value) / 100 if config else 0.006
+        elif source == '小红书':
+            config = Config.query.filter_by(key='xiaohongshu_fee_rate').first()
+            return float(config.value) / 100 if config else 0
+        elif source == '抖音':
+            config = Config.query.filter_by(key='douyin_fee_rate').first()
+            return float(config.value) / 100 if config else 0
+        elif source == '转介绍':
+            config = Config.query.filter_by(key='referral_fee_rate').first()
+            return float(config.value) / 100 if config else 0
+        
+        return 0.0
+    
+    @staticmethod
+    def should_charge_fee(course: Course) -> bool:
+        """
+        统一判断课程是否需要收取手续费
+        
+        规则：根据渠道费率判断，费率>0则收取
+        
+        Args:
+            course: 课程对象
+            
+        Returns:
+            是否需要收取手续费
+        """
+        return CourseService.get_fee_rate(course) > 0
     
     @staticmethod
     def get_courses(course_type: Optional[str] = None,
@@ -131,8 +183,8 @@ class CourseService:
                 cost += float(course.other_cost or 0)
             total_cost += cost
             
-            # 手续费计算
-            if course.payment_channel == '淘宝' or course.source == '淘宝':
+            # 使用统一的手续费判断函数
+            if CourseService.should_charge_fee(course):
                 total_fees += revenue * fee_rate
         
         return {
@@ -274,9 +326,9 @@ class CourseService:
                         'experience_status': '有经验' if customer.has_tutoring_experience else '无经验'
                     })
                 
-                # 手续费计算
+                # 使用统一的手续费判断函数
                 revenue = course_data['price']
-                if course.payment_channel == '淘宝' or course.source == '淘宝':
+                if CourseService.should_charge_fee(course):
                     course_data['fees'] = revenue * taobao_fee_rate
                 else:
                     course_data['fees'] = 0

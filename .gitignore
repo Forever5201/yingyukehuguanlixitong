@@ -22,8 +22,8 @@ wheels/
 MANIFEST
 
 # Flask
-instance/
-!instance/.gitkeep
+# instance/  # 已取消忽略，用于包含数据库
+# !instance/.gitkeep
 .webassets-cache
 
 # Environment variables
@@ -55,9 +55,10 @@ Thumbs.db
 *.log
 
 # Database
-*.db
-*.sqlite
-*.sqlite3
+# *.db
+# *.sqlite
+# *.sqlite3
+# 注意：数据库文件已包含在版本控制中，用于部署
 
 # Temporary files
 *.tmp

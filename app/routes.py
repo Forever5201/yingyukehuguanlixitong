@@ -141,47 +141,8 @@ def test_excel_export():
 @main_bp.route('/')
 @login_required_custom
 def home():
-    # 批量获取配置值
-    configs = {c.key: float(c.value) for c in Config.query.filter(Config.key.in_([
-        'trial_cost', 'course_cost', 'taobao_fee_rate'
-    ])).all()}
-    
-    trial_cost_value = configs.get('trial_cost', 0)
-    course_cost_value = configs.get('course_cost', 0)
-    taobao_fee_rate_value = configs.get('taobao_fee_rate', 0)
-    
-    # 获取统计数据（单次查询）
-    current_month_start = datetime.now().replace(day=1, hour=0, minute=0, second=0)
-    
-    # 分别查询客户和订单统计，避免笛卡尔积
-    from sqlalchemy import case
-    
-    # 客户统计
-    customer_stats = db.session.query(
-        db.func.count(Customer.id).label('total_customers'),
-        db.func.sum(case((Customer.created_at >= current_month_start, 1), else_=0)).label('new_customers')
-    ).first()
-    
-    # 订单统计
-    order_stats = db.session.query(
-        db.func.count(TaobaoOrder.id).label('total_orders'),
-        db.func.coalesce(db.func.sum(TaobaoOrder.amount), 0).label('total_order_amount')
-    ).first()
-    
-    # 获取最近客户（使用索引）
-    recent_customers = Customer.query.with_entities(
-        Customer.name, Customer.phone, Customer.grade, Customer.region, Customer.created_at
-    ).order_by(Customer.created_at.desc()).limit(5).all()
-    
-    return render_template('index.html', 
-                         total_customers=customer_stats.total_customers or 0,
-                         new_customers=customer_stats.new_customers or 0,
-                         trial_cost=trial_cost_value,
-                         course_cost=course_cost_value,
-                         taobao_fee_rate=taobao_fee_rate_value,
-                         total_orders=order_stats.total_orders or 0,
-                         total_order_amount=order_stats.total_order_amount or 0,
-                         recent_customers=recent_customers)
+    """首页 - 直接跳转到试听课管理页面"""
+    return redirect(url_for('main.manage_trial_courses'))
 
 @main_bp.route('/customers', methods=['GET', 'POST'])
 @login_required_custom
@@ -229,7 +190,7 @@ def manage_customers():
 @main_bp.route('/employee-performance')
 @login_required_custom
 def employee_performance():
-    """员工业绩管理页面"""
+    """员工业绩管理页面 - 使用统一的ProfitService计算，确保数据一致性"""
     employees = Employee.query.all()
     
     # 计算每个员工的基础统计数据
@@ -256,22 +217,40 @@ def employee_performance():
         
         # 本月的正课（所有分配给该员工的）
         monthly_courses = [c for c in formal_courses if c.created_at and c.created_at >= start_of_month]
-        monthly_revenue = sum(safe_int(c.sessions, 0) * safe_float(c.price, 0) for c in monthly_courses)
+        
+        # 使用ProfitService统一计算本月收入（包含退费处理）
+        monthly_revenue = 0
+        monthly_profit = 0
+        for course in monthly_courses:
+            profit_info = ProfitService.calculate_course_profit(course, include_refund=True)
+            monthly_revenue += profit_info['actual_revenue']
+            monthly_profit += profit_info['profit']
+        
+        # 计算总收入和总利润（所有正课）
+        total_revenue = 0
+        total_profit = 0
+        for course in formal_courses:
+            profit_info = ProfitService.calculate_course_profit(course, include_refund=True)
+            total_revenue += profit_info['actual_revenue']
+            total_profit += profit_info['profit']
         
         # 统计信息中增加正课总数
         employee.stats = {
             'trial_count': len(trial_courses),
-            'formal_count': len(formal_courses),  # 添加正课总数
+            'formal_count': len(formal_courses),
             'conversion_rate': conversion_rate,
             'monthly_revenue': monthly_revenue,
-            'monthly_formal_count': len(monthly_courses)  # 本月正课数
+            'monthly_profit': monthly_profit,
+            'monthly_formal_count': len(monthly_courses),
+            'total_revenue': total_revenue,
+            'total_profit': total_profit
         }
     
     return render_template('employee_performance.html', employees=employees)
 
 @main_bp.route('/api/employees/<int:employee_id>/performance')
 def get_employee_performance(employee_id):
-    """获取员工业绩详情"""
+    """获取员工业绩详情 - 使用统一的ProfitService计算"""
     try:
         employee = Employee.query.get(employee_id)
         if not employee:
@@ -323,14 +302,34 @@ def get_employee_performance(employee_id):
         converted_count = sum(1 for c in trial_courses if c.converted_to_course)
         conversion_rate = (converted_count / trial_count * 100) if trial_count > 0 else 0
         
-        # 计算总业绩
-        total_revenue = sum(safe_int(c.sessions, 0) * safe_float(c.price, 0) for c in formal_courses)
+        # 使用ProfitService统一计算总业绩（包含退费处理）
+        total_revenue = 0
+        total_profit = 0
+        for course in formal_courses:
+            profit_info = ProfitService.calculate_course_profit(course, include_refund=True)
+            total_revenue += profit_info['actual_revenue']
+            total_profit += profit_info['profit']
         
-        # 使用ProfitService计算提成
-        from .services import ProfitService
+        # 使用ProfitService计算提成（包含试听课和正课）
+        all_courses = trial_courses + formal_courses
         commission_info = ProfitService.calculate_employee_commission(
-            employee_id, formal_courses
+            employee_id, all_courses
         )
+        
+        # 构建正课列表数据（预先计算避免重复调用）
+        formal_courses_data = []
+        for c in formal_courses:
+            profit_info = ProfitService.calculate_course_profit(c, include_refund=True)
+            formal_courses_data.append({
+                'customer_name': c.customer.name if c.customer else '未知',
+                'course_type': c.course_type or '',
+                'sessions': safe_int(c.sessions, 0),
+                'total_amount': profit_info['actual_revenue'],
+                'profit': profit_info['profit'],
+                'has_refund': profit_info['has_refund'],
+                'is_renewal': bool(c.is_renewal),
+                'created_at': c.created_at.strftime('%Y-%m-%d') if c.created_at else ''
+            })
         
         # 构建返回数据
         result = {
@@ -341,7 +340,8 @@ def get_employee_performance(employee_id):
                 'converted_count': converted_count,
                 'conversion_rate': conversion_rate,
                 'formal_count': len(formal_courses),
-                'total_revenue': total_revenue
+                'total_revenue': total_revenue,
+                'total_profit': total_profit
             },
             'trial_courses': [{
                 'customer_name': c.customer.name if c.customer else '未知',
@@ -350,16 +350,7 @@ def get_employee_performance(employee_id):
                 'created_at': c.created_at.strftime('%Y-%m-%d') if c.created_at else '',
                 'is_converted': bool(c.converted_to_course)
             } for c in trial_courses],
-            'formal_courses': [{
-                'customer_name': c.customer.name if c.customer else '未知',
-                'course_type': c.course_type or '',
-                'sessions': safe_int(c.sessions, 0),
-                'total_amount': safe_int(c.sessions, 0) * safe_float(c.price, 0),
-                'profit': ProfitService.calculate_course_profit(c).get('profit', 0),
-                'has_refund': ProfitService.calculate_course_profit(c).get('has_refund', False),
-                'is_renewal': bool(c.is_renewal),
-                'created_at': c.created_at.strftime('%Y-%m-%d') if c.created_at else ''
-            } for c in formal_courses],
+            'formal_courses': formal_courses_data,
             'commission': {
                 'trial_commission': commission_info.get('trial_commission', 0),
                 'new_course_commission': commission_info.get('new_commission', 0),
@@ -374,91 +365,28 @@ def get_employee_performance(employee_id):
         
     except Exception as e:
         import traceback
-        traceback.print_exc()  # 打印错误到控制台便于调试
+        traceback.print_exc()
         return jsonify({'success': False, 'message': str(e)}), 500
 
 def calculate_course_profit(course):
-    """计算课程利润"""
-    sessions = safe_int(course.sessions, 0)
-    price = safe_float(course.price, 0)
-    revenue = sessions * price
-    fee = 0
-    if course.payment_channel == '淘宝':
-        fee_rate = course.snapshot_fee_rate if course.snapshot_fee_rate else 0.006
-        fee = revenue * fee_rate
-    return revenue - course.cost - fee
+    """计算课程利润 - 委托给ProfitService"""
+    # 使用统一的ProfitService计算
+    profit_info = ProfitService.calculate_course_profit(course, include_refund=False)
+    return profit_info['profit']
 
 def calculate_course_profit_with_refund(course, include_refund=True):
-    """统一的课程利润计算函数（考虑退费）"""
-    # 原始计算
-    sessions = safe_int(course.sessions, 0)
-    price = safe_float(course.price, 0)
-    revenue = sessions * price
+    """统一的课程利润计算函数（考虑退费）- 委托给ProfitService"""
+    # 使用统一的ProfitService计算，确保所有页面数据一致
+    profit_info = ProfitService.calculate_course_profit(course, include_refund=include_refund)
     
-    # 计算手续费（基于原始收入）
-    fee = 0
-    if course.payment_channel == '淘宝':
-        fee_rate = course.snapshot_fee_rate if course.snapshot_fee_rate else 0.006
-        fee = revenue * fee_rate
-    
-    # 原始成本
-    cost = safe_float(course.cost, 0)
-    
-    if include_refund and not course.is_trial:  # 只对正课计算退费
-        # 获取退费记录
-        refunds = CourseRefund.query.filter_by(
-            course_id=course.id,
-            status='completed'
-        ).all()
-        
-        if refunds:
-            total_refunded_sessions = sum(r.refund_sessions for r in refunds)
-            total_refunded_amount = sum(r.refund_amount for r in refunds)
-            
-            # 实际收入 = 原始收入 - 退费金额
-            actual_revenue = revenue - total_refunded_amount
-            
-            # 成本按比例调整
-            actual_sessions = sessions - total_refunded_sessions
-            if sessions > 0:
-                # 分离固定成本和变动成本
-                other_cost = safe_float(course.other_cost, 0)  # 固定成本
-                course_cost = cost - other_cost  # 变动成本
-                
-                # 变动成本按比例，固定成本不变
-                actual_cost = (course_cost * actual_sessions / sessions) + other_cost
-            else:
-                actual_cost = cost  # 全部退费时保留成本
-            
-            # 利润 = 实际收入 - 实际成本 - 手续费（手续费不退）
-            profit = actual_revenue - actual_cost - fee
-            
-            return {
-                'revenue': actual_revenue,
-                'cost': actual_cost,  # 修改：成本不包含手续费
-                'profit': profit,
-                'has_refund': True,
-                'refund_info': {
-                    'sessions': total_refunded_sessions,
-                    'amount': total_refunded_amount
-                }
-            }
-        else:
-            # 没有退费，返回原始数据
-            return {
-                'revenue': revenue,
-                'cost': cost,  # 修改：成本不包含手续费
-                'profit': revenue - cost - fee,
-                'has_refund': False
-            }
-    else:
-        # 不考虑退费的原始计算
-        return {
-            'revenue': revenue,
-            'cost': cost,  # 修改：成本不包含手续费
-            'profit': revenue - cost - fee,
-            'has_refund': False
-        }
+    # 转换返回格式以保持向后兼容
+    return {
+        'revenue': profit_info['actual_revenue'],
+        'cost': profit_info['cost'],
+        'profit': profit_info['profit'],
+        'has_refund': profit_info['has_refund'],
+        'refund_info': profit_info.get('refund_info')
+    }
 
 @main_bp.route('/api/employees/<int:employee_id>/students')
 def get_employee_students(employee_id):
@@ -897,6 +825,168 @@ def get_comprehensive_profit_report():
             'traceback': error_details  # 只在开发环境返回
         })
 
+
+@main_bp.route('/api/export/shareholder-report')
+@login_required_custom
+def export_shareholder_report():
+    """导出股东利润分配报表（Excel多Sheet格式）"""
+    try:
+        period = request.args.get('period', 'month')
+        
+        # 确定时间范围
+        now = datetime.now()
+        if period == 'month':
+            start_date = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            end_date = now
+            period_name = f"{now.year}年{now.month}月"
+        elif period == 'quarter':
+            quarter = (now.month - 1) // 3
+            start_date = datetime(now.year, quarter * 3 + 1, 1)
+            end_date = now
+            period_name = f"{now.year}年第{quarter + 1}季度"
+        elif period == 'year':
+            start_date = datetime(now.year, 1, 1)
+            end_date = now
+            period_name = f"{now.year}年度"
+        else:  # custom
+            start_date = datetime.strptime(request.args.get('start_date'), '%Y-%m-%d')
+            end_date = datetime.strptime(request.args.get('end_date'), '%Y-%m-%d')
+            period_name = f"{start_date.strftime('%Y-%m-%d')}至{end_date.strftime('%Y-%m-%d')}"
+        
+        # 获取综合利润报表
+        report = EnhancedProfitService.generate_comprehensive_profit_report(start_date, end_date)
+        
+        # 获取课程明细
+        courses = db.session.query(Course, Customer).join(
+            Customer, Course.customer_id == Customer.id
+        ).filter(
+            Course.created_at >= start_date,
+            Course.created_at <= end_date
+        ).order_by(Course.created_at.desc()).all()
+        
+        # 获取刷单明细
+        taobao_orders = TaobaoOrder.query.filter(
+            TaobaoOrder.created_at >= start_date,
+            TaobaoOrder.created_at <= end_date
+        ).order_by(TaobaoOrder.order_time.desc()).all()
+        
+        # 获取分红记录
+        dividend_records = DividendRecord.query.filter(
+            DividendRecord.created_at >= start_date,
+            DividendRecord.created_at <= end_date
+        ).order_by(DividendRecord.created_at.desc()).all()
+        
+        # 创建Excel文件
+        output = BytesIO()
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            # Sheet 1: 汇总
+            summary_data = {
+                '项目': [
+                    '【收入明细】', '试听课收入', '新课收入', '续课收入', '退费金额', '课程总收入',
+                    '', '【成本明细】', '课程成本', '  - 试听课成本', '  - 新课成本', '  - 续课成本',
+                    '课程手续费', '员工工资', '员工提成', '运营成本', '总成本',
+                    '', '【利润】', '课程净利润', '利润率',
+                    '', '【股东分配】', '股东A净利润', '股东B净利润', '分配合计',
+                    '', '【刷单独立统计】', '刷单总数', '刷单总金额（垫付）', '佣金支出', '手续费支出', '刷单总成本', '已结算本金', '未结算本金'
+                ],
+                '金额': [
+                    '', f"¥{report['revenue']['trial_revenue']:.2f}", f"¥{report['revenue']['new_course_revenue']:.2f}",
+                    f"¥{report['revenue']['renewal_revenue']:.2f}", f"-¥{report['revenue']['refund_amount']:.2f}",
+                    f"¥{report['revenue']['total_revenue']:.2f}",
+                    '', '', f"¥{report['cost']['course_cost']:.2f}",
+                    f"¥{report['cost']['course_cost_detail']['trial_cost']:.2f}" if report['cost'].get('course_cost_detail') else '¥0.00',
+                    f"¥{report['cost']['course_cost_detail']['new_course_cost']:.2f}" if report['cost'].get('course_cost_detail') else '¥0.00',
+                    f"¥{report['cost']['course_cost_detail']['renewal_cost']:.2f}" if report['cost'].get('course_cost_detail') else '¥0.00',
+                    f"¥{report['cost']['total_fee']:.2f}", f"¥{report['cost']['employee_salary']:.2f}",
+                    f"¥{report['cost']['employee_commission']:.2f}", f"¥{report['cost']['operational_cost']:.2f}",
+                    f"¥{report['cost']['total_cost']:.2f}",
+                    '', '', f"¥{report['profit']['net_profit']:.2f}", f"{report['profit']['profit_margin']:.2f}%",
+                    '', '', f"¥{report['shareholder_distribution']['shareholder_a_net_profit']:.2f}",
+                    f"¥{report['shareholder_distribution']['shareholder_b_net_profit']:.2f}",
+                    f"¥{report['shareholder_distribution']['total_distributed']:.2f}",
+                    '', '', str(report['taobao_separate']['order_count']),
+                    f"¥{report['taobao_separate']['total_amount']:.2f}",
+                    f"¥{report['taobao_separate']['total_commission']:.2f}",
+                    f"¥{report['taobao_separate']['total_fee']:.2f}",
+                    f"¥{report['taobao_separate']['total_cost']:.2f}",
+                    f"¥{report['taobao_separate']['settled_amount']:.2f}",
+                    f"¥{report['taobao_separate']['unsettled_amount']:.2f}"
+                ]
+            }
+            df_summary = pd.DataFrame(summary_data)
+            df_summary.to_excel(writer, sheet_name='汇总', index=False)
+            
+            # Sheet 2: 课程明细
+            course_data = []
+            for course, customer in courses:
+                profit_info = ProfitService.calculate_course_profit(course, include_refund=True)
+                course_type = '试听课' if course.is_trial else ('续课' if course.is_renewal else '新课')
+                course_data.append({
+                    '日期': course.created_at.strftime('%Y-%m-%d'),
+                    '学员姓名': customer.name,
+                    '联系方式': customer.phone,
+                    '课程类型': course_type,
+                    '课时数': 1 if course.is_trial else (course.sessions or 0),
+                    '单价': course.trial_price if course.is_trial else (course.price or 0),
+                    '收入': profit_info['actual_revenue'],
+                    '成本': profit_info['cost'],
+                    '手续费': profit_info['fee'],
+                    '利润': profit_info['profit'],
+                    '渠道': course.source or '-',
+                    '状态': course.trial_status if course.is_trial else ('已退费' if profit_info['has_refund'] else '正常')
+                })
+            df_courses = pd.DataFrame(course_data) if course_data else pd.DataFrame(columns=['日期', '学员姓名', '联系方式', '课程类型', '课时数', '单价', '收入', '成本', '手续费', '利润', '渠道', '状态'])
+            df_courses.to_excel(writer, sheet_name='课程明细', index=False)
+            
+            # Sheet 3: 刷单明细
+            taobao_data = []
+            for order in taobao_orders:
+                taobao_data.append({
+                    '日期': order.order_time.strftime('%Y-%m-%d') if order.order_time else '-',
+                    '姓名': order.name,
+                    '淘宝等级': order.level or '-',
+                    '商品': order.product_name or '-',
+                    '刷单金额（垫付）': order.amount or 0,
+                    '佣金支出': order.commission or 0,
+                    '手续费支出': order.taobao_fee or 0,
+                    '成本合计': (order.commission or 0) + (order.taobao_fee or 0),
+                    '评价状态': '已评价' if order.evaluated else '未评价',
+                    '结算状态': '已结算' if order.settled else '未结算'
+                })
+            df_taobao = pd.DataFrame(taobao_data) if taobao_data else pd.DataFrame(columns=['日期', '姓名', '淘宝等级', '商品', '刷单金额（垫付）', '佣金支出', '手续费支出', '成本合计', '评价状态', '结算状态'])
+            df_taobao.to_excel(writer, sheet_name='刷单明细', index=False)
+            
+            # Sheet 4: 分红记录
+            dividend_data = []
+            for record in dividend_records:
+                dividend_data.append({
+                    '股东': record.shareholder_name,
+                    '期间': f"{record.period_year}年{record.period_month}月",
+                    '应分利润': record.calculated_profit or 0,
+                    '实际分红': record.actual_dividend or 0,
+                    '分红日期': record.dividend_date.strftime('%Y-%m-%d') if record.dividend_date else '-',
+                    '状态': '已分红' if record.status == 'paid' else ('待分红' if record.status == 'pending' else '已取消'),
+                    '备注': record.notes or '-'
+                })
+            df_dividend = pd.DataFrame(dividend_data) if dividend_data else pd.DataFrame(columns=['股东', '期间', '应分利润', '实际分红', '分红日期', '状态', '备注'])
+            df_dividend.to_excel(writer, sheet_name='分红记录', index=False)
+        
+        output.seek(0)
+        
+        # 生成文件名
+        filename = f"股东利润分配报表_{period_name}.xlsx"
+        
+        response = make_response(output.getvalue())
+        response.headers['Content-Type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        response.headers['Content-Disposition'] = f'attachment; filename*=UTF-8\'\'{filename}'
+        
+        return response
+        
+    except Exception as e:
+        import traceback
+        current_app.logger.error(f"导出股东报表失败: {traceback.format_exc()}")
+        return jsonify({'success': False, 'message': f'导出失败: {str(e)}'}), 500
+
 @main_bp.route('/config', methods=['GET', 'POST'])
 @login_required_custom
 def manage_config():
@@ -989,7 +1079,25 @@ def manage_config():
         'shuadan_products': config_dict.get('shuadan_products', '')
     }
     
-    return render_template('config.html', config=config)
+    # 获取股东列表（从Config构建）
+    shareholders = []
+    shareholder_a_name = config_dict.get('shareholder_a_name', '股东A')
+    shareholder_b_name = config_dict.get('shareholder_b_name', '股东B')
+    shareholder_a_ratio = float(config_dict.get('shareholder_a_ratio', '50')) / 100
+    shareholder_b_ratio = float(config_dict.get('shareholder_b_ratio', '50')) / 100
+    
+    if shareholder_a_name:
+        shareholders.append({'id': 1, 'name': shareholder_a_name, 'share_ratio': shareholder_a_ratio})
+    if shareholder_b_name:
+        shareholders.append({'id': 2, 'name': shareholder_b_name, 'share_ratio': shareholder_b_ratio})
+    
+    # 获取员工列表
+    employees = Employee.query.all()
+    
+    # 获取今天日期
+    today = datetime.now().strftime('%Y-%m-%d')
+    
+    return render_template('config.html', config=config, shareholders=shareholders, employees=employees, today=today)
 
 @main_bp.route('/taobao-orders', methods=['GET', 'POST'])
 @login_required_custom
@@ -1314,17 +1422,17 @@ def export_formal_courses():
         data = []
         for course in courses:
             customer = db.session.get(Customer, course.customer_id)
+            # 使用统一的ProfitService计算
+            profit_info = ProfitService.calculate_course_profit(course, include_refund=True)
+            
             price = float(course.price or 0)
             sessions_val = int(course.sessions or 0)
-            revenue = sessions_val * price
-            fee = 0.0
-            # 仅淘宝渠道计手续费；费率优先使用快照，否则使用默认0.6%
-            if (course.payment_channel or '').strip() == '淘宝':
-                fee_rate = float(getattr(course, 'snapshot_fee_rate', 0) or 0) or 0.006
-                fee = revenue * fee_rate
-            base_cost = float(course.cost or 0)  # 已含课时成本与其他成本
+            revenue = profit_info['actual_revenue']
+            fee = profit_info['fee']
+            base_cost = profit_info['cost']
             other_cost = float(course.other_cost or 0)
-            profit = revenue - (base_cost + fee)
+            profit = profit_info['profit']
+            
             data.append({
                 '课程ID': course.id,
                 '客户姓名': customer.name if customer else '',
@@ -1335,6 +1443,7 @@ def export_formal_courses():
                 '课程售价': price,
                 '课程成本': base_cost,
                 '其他成本': other_cost,
+                '手续费': fee,
                 '利润': profit,
                 '支付渠道': course.payment_channel or '',
                 '来源': course.source or '',
@@ -1530,6 +1639,13 @@ def manage_trial_courses():
         else:
             assigned_employee_id = None
         
+        # 获取报名日期
+        trial_date_str = request.form.get('trial_date')
+        if trial_date_str:
+            trial_date = datetime.strptime(trial_date_str, '%Y-%m-%d')
+        else:
+            trial_date = datetime.now()
+        
         # 创建试听课记录
         new_trial = Course(
             name='试听课',
@@ -1540,7 +1656,8 @@ def manage_trial_courses():
             payment_channel=source,  # 试听课的支付渠道与渠道来源保持一致
             cost=total_trial_cost,
             trial_status='registered',
-            assigned_employee_id=assigned_employee_id
+            assigned_employee_id=assigned_employee_id,
+            created_at=trial_date  # 使用选择的日期
         )
         
         db.session.add(new_trial)
@@ -1755,54 +1872,33 @@ def manage_trial_courses():
 
 @main_bp.route('/api/formal-courses/stats', methods=['GET'])
 def api_formal_courses_stats():
-    """正课统计API"""
+    """正课统计API - 使用统一的ProfitService计算"""
     try:
         # 获取所有正课
         courses = Course.query.filter_by(is_trial=False).all()
-        
-        # 获取淘宝手续费率配置（用于旧数据）
-        taobao_fee_config = Config.query.filter_by(key='taobao_fee_rate').first()
-        default_fee_rate = safe_float(taobao_fee_config.value, 0.6) / 100 if taobao_fee_config else 0.006
-        
-        # 获取正课成本配置
-        course_cost_config = Config.query.filter_by(key='course_cost').first()
-        course_cost_per_session = safe_float(course_cost_config.value, 0) if course_cost_config else 0
         
         # 计算统计数据
         total_revenue = 0
         total_cost = 0
         total_profit = 0
         total_fees = 0
-        # 新增：按是否续课区分收入
-        new_revenue_total = 0  # 新购收入
-        renewal_revenue_total = 0  # 续课收入
+        new_revenue_total = 0
+        renewal_revenue_total = 0
         rows = []
         
         for course in courses:
-            # 使用新的利润计算函数（包含退费）
-            profit_info = calculate_course_profit_with_refund(course)
+            # 使用ProfitService统一计算（包含退费处理）
+            profit_info = ProfitService.calculate_course_profit(course, include_refund=True)
             
-            revenue = profit_info['revenue']
+            revenue = profit_info['actual_revenue']
             cost = profit_info['cost']
+            fee = profit_info['fee']
             profit = profit_info['profit']
             
-            # 计算手续费（用于显示）
-            fee = 0
-            if course.payment_channel == '淘宝':
-                fee_rate = course.snapshot_fee_rate if getattr(course, 'snapshot_fee_rate', None) else default_fee_rate
-                fee = safe_int(course.sessions, 0) * safe_float(course.price, 0) * fee_rate  # 基于原始金额计算
-            
-            # 课程成本（用于显示）
-            # 课时成本（不含其他成本、手续费）用于显示
-            other_cost_val = safe_float(course.other_cost, 0)
-            # 利用统一计算结果反推课时成本，避免因退费查询遗漏造成口径不一致
-            adjusted_course_cost = max(0, safe_float(cost, 0) - safe_float(fee, 0) - other_cost_val)
             # 计入收入节数（购买节数 − 已完成退费节数）
             refunds_completed = CourseRefund.query.filter_by(course_id=course.id, status='completed').all()
             refunded_sessions = sum(safe_int(r.refund_sessions, 0) for r in refunds_completed)
             counted_sessions = max(0, safe_int(course.sessions, 0) - refunded_sessions)
-            # other_cost 单独返回；总成本 cost 已含手续费
-            course_cost = adjusted_course_cost + other_cost_val
             
             # 累加统计
             total_revenue += revenue
@@ -1810,37 +1906,32 @@ def api_formal_courses_stats():
             total_profit += profit
             total_fees += fee
 
-            # 新增：区分新购/续课收入
-            try:
-                if getattr(course, 'is_renewal', False):
-                    renewal_revenue_total += revenue
-                else:
-                    new_revenue_total += revenue
-            except Exception:
-                # 保护：字段缺失时一律按新购统计，避免中断
+            # 区分新购/续课收入
+            if course.is_renewal:
+                renewal_revenue_total += revenue
+            else:
                 new_revenue_total += revenue
             
             # 构建行数据
             rows.append({
                 'id': course.id,
-                'customer_id': course.customer.id if getattr(course, 'customer', None) else None,
-                'customer_name': course.customer.name if getattr(course, 'customer', None) else '-',
+                'customer_id': course.customer.id if course.customer else None,
+                'customer_name': course.customer.name if course.customer else '-',
                 'course_type': course.course_type,
                 'sessions': safe_int(course.sessions, 0),
                 'gift_sessions': safe_int(course.gift_sessions, 0),
                 'price': safe_float(course.price, 0),
                 'payment_channel': course.payment_channel,
                 'fee': fee,
-                'course_cost': course_cost,
-                'adjusted_course_cost': adjusted_course_cost,
-                'other_cost': other_cost_val,
+                'course_cost': cost,
+                'other_cost': safe_float(course.other_cost, 0),
                 'revenue': revenue,
                 'profit': profit,
                 'counted_sessions': counted_sessions,
                 'has_refund': profit_info['has_refund'],
-                'refund_amount': profit_info.get('refund_info', {}).get('amount', 0),
+                'refund_amount': profit_info.get('refund_info', {}).get('amount', 0) if profit_info.get('refund_info') else 0,
                 'created_at': course.created_at.isoformat() if course.created_at else None,
-                'is_renewal': course.is_renewal  # <-- 新增字段
+                'is_renewal': course.is_renewal
             })
         
         return {
@@ -1848,7 +1939,6 @@ def api_formal_courses_stats():
             'total_cost': total_cost,
             'total_profit': total_profit,
             'total_fees': total_fees,
-            # 新增字段：前端用于分别展示
             'new_revenue': new_revenue_total,
             'renewal_revenue': renewal_revenue_total,
             'rows': rows,
@@ -1858,14 +1948,10 @@ def api_formal_courses_stats():
 
 @main_bp.route('/api/trial-courses/stats', methods=['GET'])
 def api_trial_courses_stats():
-    """试听统计API"""
+    """试听统计API - 使用统一的ProfitService计算"""
     try:
-        # 获取所有试听
+        # 获取所有试听课
         courses = Course.query.filter_by(is_trial=True).all()
-        
-        # 获取淘宝手续费率配置（用于旧数据）
-        taobao_fee_config = Config.query.filter_by(key='taobao_fee_rate').first()
-        default_fee_rate = float(taobao_fee_config.value) / 100 if taobao_fee_config else 0.006
         
         # 计算统计数据
         total_revenue = 0
@@ -1875,21 +1961,13 @@ def api_trial_courses_stats():
         rows = []
         
         for course in courses:
-            # 试听课收入应以 trial_price 为准，不按节数乘以正课单价
-            price = safe_float(getattr(course, 'trial_price', None), 0)
-            revenue = price
+            # 使用ProfitService统一计算
+            profit_info = ProfitService.calculate_course_profit(course, include_refund=True)
             
-            # 计算手续费（仅淘宝渠道或来源）
-            fee = 0
-            if (course.payment_channel or '').strip() == '淘宝' or (getattr(course, 'source', None) or '').strip() == '淘宝':
-                fee_rate = course.snapshot_fee_rate if course.snapshot_fee_rate else default_fee_rate
-                fee = revenue * fee_rate
-            
-            # 计算成本（仅课程基础成本，不包含手续费）
-            cost = safe_float(course.cost, 0)
-            
-            # 计算利润（收入 - 课程成本 - 手续费）
-            profit = revenue - cost - fee
+            revenue = profit_info['actual_revenue']
+            cost = profit_info['cost']
+            fee = profit_info['fee']
+            profit = profit_info['profit']
             
             # 累加统计
             total_revenue += revenue
@@ -1900,16 +1978,15 @@ def api_trial_courses_stats():
             # 构建行数据
             rows.append({
                 'id': course.id,
-                'customer_name': course.customer.name,
-                'course_type': course.course_type,
-                'sessions': safe_int(getattr(course, 'sessions', 0), 0),
-                'gift_sessions': safe_int(getattr(course, 'gift_sessions', 0), 0),
-                'price': price,
-                'payment_channel': course.payment_channel or getattr(course, 'source', None),
+                'customer_name': course.customer.name if course.customer else '-',
+                'trial_status': course.trial_status or 'registered',
+                'trial_price': safe_float(course.trial_price, 0),
+                'payment_channel': course.payment_channel or course.source,
                 'fee': fee,
-                'course_cost': course.cost,
+                'course_cost': cost,
                 'revenue': revenue,
                 'profit': profit,
+                'created_at': course.created_at.isoformat() if course.created_at else None
             })
         
         return {
@@ -1976,11 +2053,13 @@ def create_employee():
         # 创建新员工
         employee = Employee(name=name)
         
-        # 添加扩展字段（如果Employee模型支持）
+        # 添加扩展字段
         if hasattr(employee, 'phone'):
             employee.phone = data.get('phone', '').strip() or None
         if hasattr(employee, 'email'):
             employee.email = data.get('email', '').strip() or None
+        # 设置月薪
+        employee.salary = float(data.get('salary', 0))
         
         db.session.add(employee)
         db.session.flush()  # 获取employee.id
@@ -2005,6 +2084,7 @@ def create_employee():
                 'name': employee.name,
                 'phone': getattr(employee, 'phone', None),
                 'email': getattr(employee, 'email', None),
+                'salary': employee.salary,
                 'base_salary': commission_config.base_salary,
                 'commission_type': commission_config.commission_type,
                 'new_course_rate': commission_config.new_course_rate,
@@ -2305,11 +2385,14 @@ def update_employee(employee_id):
             
             employee.name = name
         
-        # 更新扩展字段（如果Employee模型支持）
+        # 更新扩展字段
         if hasattr(employee, 'phone') and 'phone' in data:
             employee.phone = data['phone'].strip() or None
         if hasattr(employee, 'email') and 'email' in data:
             employee.email = data['email'].strip() or None
+        # 更新月薪
+        if 'salary' in data:
+            employee.salary = float(data['salary'])
         
         # 更新或创建提成配置
         commission_config = CommissionConfig.query.filter_by(employee_id=employee_id).first()
@@ -2340,6 +2423,7 @@ def update_employee(employee_id):
                 'name': employee.name,
                 'phone': getattr(employee, 'phone', None),
                 'email': getattr(employee, 'email', None),
+                'salary': employee.salary,
                 'base_salary': commission_config.base_salary,
                 'commission_type': commission_config.commission_type,
                 'new_course_rate': commission_config.new_course_rate,
@@ -2434,6 +2518,183 @@ def delete_config(key):
     except Exception as e:
         return {'error': str(e)}, 500
 
+
+# ========== 操作密码相关API ==========
+import hashlib
+
+def hash_password(password):
+    """对密码进行哈希处理"""
+    return hashlib.sha256(password.encode()).hexdigest()
+
+@main_bp.route('/api/operation-password/status')
+@login_required_custom
+def get_operation_password_status():
+    """检查是否已设置操作密码"""
+    config = Config.query.filter_by(key='operation_password').first()
+    return jsonify({'has_password': config is not None})
+
+@main_bp.route('/api/operation-password/set', methods=['POST'])
+@login_required_custom
+def set_operation_password():
+    """设置或修改操作密码"""
+    try:
+        data = request.get_json()
+        new_password = data.get('new_password', '').strip()
+        old_password = data.get('old_password', '').strip()
+        
+        if not new_password or len(new_password) < 4:
+            return jsonify({'success': False, 'message': '密码长度至少4位'})
+        
+        config = Config.query.filter_by(key='operation_password').first()
+        
+        # 如果已有密码，需要验证原密码
+        if config:
+            if not old_password:
+                return jsonify({'success': False, 'message': '请输入原密码'})
+            if config.value != hash_password(old_password):
+                return jsonify({'success': False, 'message': '原密码错误'})
+            config.value = hash_password(new_password)
+        else:
+            # 新建密码
+            config = Config(key='operation_password', value=hash_password(new_password))
+            db.session.add(config)
+        
+        db.session.commit()
+        return jsonify({'success': True, 'message': '密码设置成功'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)})
+
+@main_bp.route('/api/operation-password/clear', methods=['POST'])
+@login_required_custom
+def clear_operation_password():
+    """清除操作密码"""
+    try:
+        data = request.get_json()
+        old_password = data.get('old_password', '').strip()
+        
+        config = Config.query.filter_by(key='operation_password').first()
+        if not config:
+            return jsonify({'success': False, 'message': '未设置操作密码'})
+        
+        if config.value != hash_password(old_password):
+            return jsonify({'success': False, 'message': '密码错误'})
+        
+        db.session.delete(config)
+        db.session.commit()
+        return jsonify({'success': True, 'message': '操作密码已清除'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)})
+
+@main_bp.route('/api/operation-password/verify', methods=['POST'])
+@login_required_custom
+def verify_operation_password_api():
+    """验证操作密码API"""
+    try:
+        data = request.get_json()
+        password = data.get('password', '').strip()
+        
+        config = Config.query.filter_by(key='operation_password').first()
+        if not config:
+            return jsonify({'success': True, 'message': '未设置操作密码'})
+        
+        if config.value == hash_password(password):
+            return jsonify({'success': True, 'message': '密码正确'})
+        else:
+            return jsonify({'success': False, 'message': '密码错误'})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
+
+# ========== 数据库备份与恢复API ==========
+import shutil
+
+@main_bp.route('/api/database/download')
+@login_required_custom
+def download_database():
+    """下载数据库文件"""
+    try:
+        db_path = os.path.join(os.path.abspath(os.path.dirname(os.path.dirname(__file__))), 'instance', 'database.sqlite')
+        if not os.path.exists(db_path):
+            return jsonify({'success': False, 'message': '数据库文件不存在'}), 404
+        
+        # 生成带时间戳的文件名
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f'database_backup_{timestamp}.sqlite'
+        
+        return send_from_directory(
+            os.path.dirname(db_path),
+            'database.sqlite',
+            as_attachment=True,
+            download_name=filename
+        )
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@main_bp.route('/api/database/restore', methods=['POST'])
+@login_required_custom
+def restore_database():
+    """恢复数据库文件"""
+    try:
+        if 'file' not in request.files:
+            return jsonify({'success': False, 'message': '请选择文件'})
+        
+        file = request.files['file']
+        if not file.filename:
+            return jsonify({'success': False, 'message': '请选择文件'})
+        
+        if not file.filename.endswith(('.sqlite', '.db')):
+            return jsonify({'success': False, 'message': '请选择 .sqlite 或 .db 格式的文件'})
+        
+        db_path = os.path.join(os.path.abspath(os.path.dirname(os.path.dirname(__file__))), 'instance', 'database.sqlite')
+        
+        # 先备份当前数据库
+        if os.path.exists(db_path):
+            backup_path = db_path + '.backup_' + datetime.now().strftime('%Y%m%d_%H%M%S')
+            shutil.copy2(db_path, backup_path)
+        
+        # 保存上传的文件
+        file.save(db_path)
+        
+        return jsonify({'success': True, 'message': '数据库恢复成功'})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@main_bp.route('/api/database/info')
+@login_required_custom
+def get_database_info():
+    """获取数据库信息"""
+    try:
+        db_path = os.path.join(os.path.abspath(os.path.dirname(os.path.dirname(__file__))), 'instance', 'database.sqlite')
+        
+        # 文件大小
+        if os.path.exists(db_path):
+            size_bytes = os.path.getsize(db_path)
+            if size_bytes < 1024:
+                size_str = f'{size_bytes} B'
+            elif size_bytes < 1024 * 1024:
+                size_str = f'{size_bytes / 1024:.1f} KB'
+            else:
+                size_str = f'{size_bytes / 1024 / 1024:.2f} MB'
+        else:
+            size_str = '文件不存在'
+        
+        # 数据统计
+        trial_count = Course.query.filter_by(is_trial=True).count()
+        formal_count = Course.query.filter_by(is_trial=False).count()
+        customer_count = Customer.query.count()
+        
+        return jsonify({
+            'success': True,
+            'size': size_str,
+            'trial_count': trial_count,
+            'formal_count': formal_count,
+            'customer_count': customer_count
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
 @main_bp.route('/api/profit-distribution-ratios')
 def get_profit_distribution_ratios():
     """获取利润分配比例配置"""
@@ -2462,73 +2723,54 @@ def get_profit_distribution_ratios():
 
 @main_bp.route('/api/formal-courses/status-stats', methods=['GET'])
 def api_formal_courses_status_stats():
-    """正课状态统计API"""
+    """正课状态统计API - 使用统一的ProfitService计算"""
     try:
         # 获取所有正课
         courses = Course.query.filter_by(is_trial=False).all()
         
-        # 获取淘宝手续费率配置（用于旧数据）
-        taobao_fee_config = Config.query.filter_by(key='taobao_fee_rate').first()
-        default_fee_rate = float(taobao_fee_config.value) / 100 if taobao_fee_config else 0.006
-        
-        # 获取正课成本配置
-        course_cost_config = Config.query.filter_by(key='course_cost').first()
-        course_cost_per_session = float(course_cost_config.value) if course_cost_config else 0
-        
         # 计算统计数据
         status_stats = {
-            'paid': {'count': 0, 'revenue': 0, 'cost': 0, 'fees': 0},
-            'unpaid': {'count': 0, 'revenue': 0, 'cost': 0, 'fees': 0},
-            'refunded': {'count': 0, 'revenue': 0, 'cost': 0, 'fees': 0},
+            'paid': {'count': 0, 'revenue': 0, 'cost': 0, 'fees': 0, 'course_cost': 0, 'fee': 0},
+            'unpaid': {'count': 0, 'revenue': 0, 'cost': 0, 'fees': 0, 'course_cost': 0, 'fee': 0},
+            'refunded': {'count': 0, 'revenue': 0, 'cost': 0, 'fees': 0, 'course_cost': 0, 'fee': 0},
         }
         calc_rows = []
         
         for course in courses:
-            # 计算收入
-            sessions = safe_int(course.sessions, 0)
-            price = safe_float(course.price, 0)
-            revenue = sessions * price
+            # 使用统一的ProfitService计算
+            profit_info = ProfitService.calculate_course_profit(course, include_refund=True)
             
-            # 计算手续费
-            fee = 0
-            if course.payment_channel == '淘宝':
-                # 优先使用快照费率，否则使用默认费率
-                fee_rate = course.snapshot_fee_rate if course.snapshot_fee_rate else default_fee_rate
-                fee = revenue * fee_rate
-            
-            # 计算成本（使用基础成本和自定义成本）
-            if course.custom_course_cost:
-                # 使用自定义成本
-                course_cost = course.custom_course_cost
-            elif course.snapshot_course_cost:
-                # 使用快照成本
-                course_cost = (course.sessions + course.gift_sessions) * course.snapshot_course_cost + (course.other_cost or 0)
-            else:
-                # 使用配置的成本
-                course_cost = (course.sessions + course.gift_sessions) * course_cost_per_session + (course.other_cost or 0)
+            revenue = profit_info['actual_revenue']
+            fee = profit_info['fee']
+            course_cost = profit_info['cost']
+            profit = profit_info['profit']
             
             # 总成本包含手续费
             cost = course_cost + fee
             
-            # 计算利润（统一口径：收入 - (课程成本 + 手续费)）
-            profit = revenue - (course_cost + fee)
-            
             # 累加统计
-            if course.status == 'paid':
+            status = getattr(course, 'status', 'paid') or 'paid'
+            if status == 'paid':
                 status_stats['paid']['count'] += 1
                 status_stats['paid']['revenue'] += revenue
                 status_stats['paid']['cost'] += cost
                 status_stats['paid']['fees'] += fee
-            elif course.status == 'unpaid':
+                status_stats['paid']['course_cost'] += course_cost
+                status_stats['paid']['fee'] += fee
+            elif status == 'unpaid':
                 status_stats['unpaid']['count'] += 1
                 status_stats['unpaid']['revenue'] += revenue
                 status_stats['unpaid']['cost'] += cost
                 status_stats['unpaid']['fees'] += fee
-            elif course.status == 'refunded':
+                status_stats['unpaid']['course_cost'] += course_cost
+                status_stats['unpaid']['fee'] += fee
+            elif status == 'refunded':
                 status_stats['refunded']['count'] += 1
                 status_stats['refunded']['revenue'] += revenue
                 status_stats['refunded']['cost'] += cost
                 status_stats['refunded']['fees'] += fee
+                status_stats['refunded']['course_cost'] += course_cost
+                status_stats['refunded']['fee'] += fee
             
             # 构建行数据
             calc_rows.append({
@@ -2581,23 +2823,13 @@ def api_trial_courses_status_stats():
         total_fees = 0
         
         for course in courses:
-            # 计算收入（处理None值）
-            sessions = course.sessions or 0
-            price = course.price or 0
-            revenue = sessions * price
+            # 使用统一的ProfitService计算
+            profit_info = ProfitService.calculate_course_profit(course, include_refund=True)
             
-            # 计算手续费
-            fee = 0
-            if course.payment_channel == '淘宝':
-                # 优先使用快照费率，否则使用默认费率
-                fee_rate = course.snapshot_fee_rate if course.snapshot_fee_rate else default_fee_rate
-                fee = revenue * fee_rate
-            
-            # 计算成本（仅课程基础成本，不包含手续费）
-            cost = (course.cost or 0)
-            
-            # 计算利润（收入 - 课程成本 - 手续费）
-            profit = revenue - cost - fee
+            revenue = profit_info['actual_revenue']
+            fee = profit_info['fee']
+            cost = profit_info['cost']
+            profit = profit_info['profit']
             
             # 累加统计
             if course.trial_status == 'registered':
@@ -2658,7 +2890,7 @@ def api_trial_courses_status_stats():
 @main_bp.route('/formal-courses')
 @login_required_custom
 def manage_formal_courses():
-    """正课管理页面"""
+    """正课管理页面 - 使用统一的ProfitService计算，确保数据一致性"""
     
     # 联合查询以获取客户姓名，并按客户姓名和课程创建时间排序
     formal_courses_query = db.session.query(Course, Customer).join(Customer, Course.customer_id == Customer.id).filter(Course.is_trial == False)
@@ -2669,7 +2901,7 @@ def manage_formal_courses():
     # 客户列表
     customers = Customer.query.order_by(Customer.name).all()
     
-    # 计算正课统计
+    # 计算正课统计（基础统计）
     formal_stats_query = db.session.query(
         db.func.count(Course.id).label('total_courses'),
         db.func.coalesce(db.func.sum(Course.sessions), 0).label('total_sessions'),
@@ -2678,46 +2910,34 @@ def manage_formal_courses():
         
     formal_stats = formal_stats_query.first()
     
-    # 计算实际总收入（考虑手续费）
-    courses_query = Course.query.filter(Course.is_trial == False)
-    courses = courses_query.all()
+    # 使用统一的ProfitService计算收入、成本、利润（包含退费处理）
+    courses = Course.query.filter(Course.is_trial == False).all()
     total_revenue = 0
     total_fees = 0
     total_cost = 0
+    total_profit = 0
+    new_revenue = 0
+    renewal_revenue = 0
     
-    # 获取淘宝手续费率配置
+    # 获取淘宝手续费率配置（用于显示）
     taobao_fee_config = Config.query.filter_by(key='taobao_fee_rate').first()
-    taobao_fee_rate = float(taobao_fee_config.value) / 100 if taobao_fee_config else 0.006  # 转换为小数
-    
-    # 获取正课成本配置
-    course_cost_config = Config.query.filter_by(key='course_cost').first()
-    course_cost_per_session = float(course_cost_config.value) if course_cost_config else 0
+    taobao_fee_rate = float(taobao_fee_config.value) / 100 if taobao_fee_config else 0.006
     
     for course in courses:
-        # 计算基础收入：购买节数 × 单节售价
-        sessions = safe_int(course.sessions, 0)
-        price = safe_float(course.price, 0)
-        revenue = sessions * price
+        # 使用ProfitService统一计算（包含退费处理）
+        profit_info = ProfitService.calculate_course_profit(course, include_refund=True)
         
-        # 如果是淘宝支付，扣除手续费
-        if course.payment_channel == '淘宝':
-            fee_amount = revenue * taobao_fee_rate
-            actual_revenue = revenue - fee_amount
-            total_fees += fee_amount
+        # 累加统计
+        total_revenue += profit_info['actual_revenue']
+        total_cost += profit_info['cost']
+        total_fees += profit_info['fee']
+        total_profit += profit_info['profit']
+        
+        # 区分新购/续课收入
+        if course.is_renewal:
+            renewal_revenue += profit_info['actual_revenue']
         else:
-            actual_revenue = revenue
-            
-        total_revenue += actual_revenue
-        
-        # 计算成本
-        course_cost = course.cost if course.cost is not None else 0
-        if course_cost == 0:
-            # 如果cost字段为空，使用配置的成本计算
-            course_cost = (course.sessions + course.gift_sessions) * course_cost_per_session + (course.other_cost or 0)
-        total_cost += course_cost
-    
-    # 计算利润
-    total_profit = total_revenue - total_cost
+            new_revenue += profit_info['actual_revenue']
     
     # 获取今天的日期
     from datetime import datetime
@@ -2735,7 +2955,9 @@ def manage_formal_courses():
                              'total_profit': total_profit,
                              'total_sessions': formal_stats.total_sessions or 0,
                              'total_gift_sessions': formal_stats.total_gift_sessions or 0,
-                             'total_fees': total_fees
+                             'total_fees': total_fees,
+                             'new_revenue': new_revenue,
+                             'renewal_revenue': renewal_revenue
                          })
 
 @main_bp.route('/renew-course/<int:course_id>', methods=['GET', 'POST'])
@@ -2893,6 +3115,162 @@ def convert_trial_to_course(trial_id):
     
     return render_template('convert_trial.html', trial_course=trial_course)
 
+
+@main_bp.route('/api/customer/<int:customer_id>/full-profile')
+@login_required_custom
+def get_customer_full_profile(customer_id):
+    """获取客户完整档案（包含所有课程、退费记录、统计汇总）"""
+    try:
+        customer = Customer.query.get_or_404(customer_id)
+        
+        # 获取所有试听课
+        trial_courses = Course.query.filter_by(customer_id=customer_id, is_trial=True).all()
+        
+        # 获取所有正课
+        formal_courses = Course.query.filter_by(customer_id=customer_id, is_trial=False).all()
+        
+        # 获取所有退费记录
+        refund_records = []
+        for course in formal_courses:
+            refunds = CourseRefund.query.filter_by(course_id=course.id).all()
+            for refund in refunds:
+                refund_records.append({
+                    'id': refund.id,
+                    'course_id': refund.course_id,
+                    'course_name': course.course_type or '正课',
+                    'refund_sessions': refund.refund_sessions,
+                    'refund_amount': refund.refund_amount,
+                    'refund_reason': refund.refund_reason,
+                    'refund_channel': refund.refund_channel,
+                    'refund_fee': refund.refund_fee,
+                    'refund_date': refund.refund_date.strftime('%Y-%m-%d') if refund.refund_date else None,
+                    'status': refund.status
+                })
+        
+        # 构建试听课数据
+        trial_data = []
+        for tc in trial_courses:
+            employee = Employee.query.get(tc.assigned_employee_id) if tc.assigned_employee_id else None
+            # 检查是否转正课
+            converted_course = Course.query.filter_by(converted_from_trial=tc.id).first()
+            trial_data.append({
+                'id': tc.id,
+                'trial_price': tc.trial_price,
+                'source': tc.source,
+                'trial_status': tc.trial_status,
+                'cost': tc.cost,
+                'created_at': tc.created_at.strftime('%Y-%m-%d') if tc.created_at else None,
+                'assigned_employee': employee.name if employee else None,
+                'refund_amount': tc.refund_amount,
+                'refund_fee': tc.refund_fee,
+                'refund_channel': tc.refund_channel,
+                'converted_to_course_id': converted_course.id if converted_course else None,
+                'converted_course_type': converted_course.course_type if converted_course else None
+            })
+        
+        # 构建正课数据
+        formal_data = []
+        for fc in formal_courses:
+            employee = Employee.query.get(fc.assigned_employee_id) if fc.assigned_employee_id else None
+            # 检查是否从试听课转化
+            from_trial = Course.query.get(fc.converted_from_trial) if fc.converted_from_trial else None
+            # 检查续课来源
+            renewal_from = Course.query.get(fc.renewal_from_course_id) if fc.renewal_from_course_id else None
+            # 获取该课程的退费记录
+            course_refunds = CourseRefund.query.filter_by(course_id=fc.id, status='completed').all()
+            total_refund_sessions = sum(r.refund_sessions for r in course_refunds)
+            total_refund_amount = sum(r.refund_amount for r in course_refunds)
+            
+            formal_data.append({
+                'id': fc.id,
+                'course_type': fc.course_type,
+                'sessions': fc.sessions,
+                'price': fc.price,
+                'total_price': (fc.sessions or 0) * (fc.price or 0),
+                'gift_sessions': fc.gift_sessions,
+                'payment_channel': fc.payment_channel,
+                'source': fc.source,
+                'cost': fc.cost,
+                'other_cost': fc.other_cost,
+                'is_renewal': fc.is_renewal,
+                'renewal_from_course_type': renewal_from.course_type if renewal_from else None,
+                'converted_from_trial': True if fc.converted_from_trial else False,
+                'created_at': fc.created_at.strftime('%Y-%m-%d') if fc.created_at else None,
+                'assigned_employee': employee.name if employee else None,
+                'refund_sessions': total_refund_sessions,
+                'refund_amount': total_refund_amount,
+                'remaining_sessions': (fc.sessions or 0) + (fc.gift_sessions or 0) - total_refund_sessions
+            })
+        
+        # 统计汇总
+        total_trial_spent = sum(tc.trial_price or 0 for tc in trial_courses if tc.trial_status != 'refunded')
+        total_formal_spent = sum((fc.sessions or 0) * (fc.price or 0) for fc in formal_courses)
+        total_spent = total_trial_spent + total_formal_spent
+        
+        total_trial_refund = sum(tc.refund_amount or 0 for tc in trial_courses if tc.trial_status == 'refunded')
+        total_formal_refund = sum(r['refund_amount'] for r in refund_records)
+        total_refund = total_trial_refund + total_formal_refund
+        
+        total_sessions_bought = sum(fc.sessions or 0 for fc in formal_courses)
+        total_sessions_gift = sum(fc.gift_sessions or 0 for fc in formal_courses)
+        total_sessions_refund = sum(r['refund_sessions'] for r in refund_records)
+        
+        # 计算客户总利润
+        # 利润 = 实际收入 - 实际成本 - 手续费
+        total_profit = 0
+        total_fee = 0  # 总手续费
+        total_cost = 0  # 总成本
+        
+        # 试听课利润（使用calculate_course_profit，它会根据is_trial自动处理）
+        for tc in trial_courses:
+            profit_info = ProfitService.calculate_course_profit(tc, include_refund=True)
+            total_profit += profit_info.get('profit', 0)
+            total_fee += profit_info.get('fee', 0)
+            total_cost += profit_info.get('cost', 0)
+        
+        # 正课利润
+        for fc in formal_courses:
+            profit_info = ProfitService.calculate_course_profit(fc, include_refund=True)
+            total_profit += profit_info.get('profit', 0)
+            total_fee += profit_info.get('fee', 0)
+            total_cost += profit_info.get('cost', 0)
+        
+        summary = {
+            'total_spent': total_spent,
+            'total_refund': total_refund,
+            'net_spent': total_spent - total_refund,
+            'total_sessions_bought': total_sessions_bought,
+            'total_sessions_gift': total_sessions_gift,
+            'total_sessions_refund': total_sessions_refund,
+            'total_sessions': total_sessions_bought + total_sessions_gift - total_sessions_refund,
+            'total_cost': total_cost,
+            'total_fee': total_fee,
+            'total_profit': total_profit
+        }
+        
+        return jsonify({
+            'success': True,
+            'customer': {
+                'id': customer.id,
+                'name': customer.name,
+                'gender': customer.gender,
+                'grade': customer.grade,
+                'region': customer.region,
+                'phone': customer.phone,
+                'source': customer.source,
+                'created_at': customer.created_at.strftime('%Y-%m-%d') if customer.created_at else None
+            },
+            'trial_courses': trial_data,
+            'formal_courses': formal_data,
+            'refund_records': refund_records,
+            'summary': summary
+        })
+        
+    except Exception as e:
+        import traceback
+        return jsonify({'success': False, 'message': str(e), 'traceback': traceback.format_exc()})
+
+
 @main_bp.route('/api/trial-courses/<int:course_id>', methods=['GET'])
 def get_trial_course(course_id):
     """获取单个试听课的详细信息"""
@@ -2976,13 +3354,9 @@ def formal_course_details(course_id):
             cfg = Config.query.filter_by(key='course_cost').first()
             renewal_cost_per_session = safe_float(cfg.value, 0) if cfg else 0
         
-        # 计算手续费
-        renewal_fee = 0
-        if renewal.payment_channel == '淘宝':
-            fee_rate = 0.006  # 默认淘宝手续费率
-            if hasattr(renewal, 'snapshot_fee_rate') and renewal.snapshot_fee_rate is not None:
-                fee_rate = safe_float(renewal.snapshot_fee_rate, 0.006)
-            renewal_fee = renewal_sessions * renewal_price * fee_rate
+        # 计算手续费（使用统一的ProfitService）
+        renewal_profit_info = ProfitService.calculate_course_profit(renewal, include_refund=True)
+        renewal_fee = renewal_profit_info['fee']
         
         renewal_info = {
             'id': renewal.id,
@@ -3014,19 +3388,17 @@ def formal_course_details(course_id):
         except:
             pass
     
-    # 计算展示信息（与列表页保持一致逻辑，考虑退费）
+    # 计算展示信息（使用统一的ProfitService计算，确保数据一致性）
+    profit_info = ProfitService.calculate_course_profit(course, include_refund=True)
+    
     sessions = safe_int(course.sessions, 0)
     price = safe_float(course.price, 0)
     original_revenue = sessions * price
-    fee = 0
-    fee_rate = 0
-    if course.payment_channel == '淘宝':
-        fee_rate = course.snapshot_fee_rate if getattr(course, 'snapshot_fee_rate', None) else 0.006
-        fee = original_revenue * fee_rate
+    fee = profit_info['fee']
+    fee_rate = ProfitService.get_fee_rate(course)
     
-    profit_info = calculate_course_profit_with_refund(course)
-    revenue = profit_info['revenue']
-    total_cost = profit_info['cost']  # 已包含手续费
+    revenue = profit_info['actual_revenue']
+    total_cost = profit_info['cost']
     profit = profit_info['profit']
     
     # 计算用于展示的课时成本（从实际成本中扣除手续费与其他成本后的课时部分）
@@ -3233,6 +3605,38 @@ def delete_formal_course(course_id):
     db.session.commit()
     return jsonify({'success': True, 'message': '正课记录删除成功'})
 
+
+@main_bp.route('/api/formal-courses/<int:course_id>/refund', methods=['POST'])
+def formal_course_refund(course_id):
+    """正课退费"""
+    try:
+        data = request.get_json()
+        
+        # 准备退费数据
+        refund_data = {
+            'refund_sessions': int(data.get('used_sessions', 0)),  # 已上节数
+            'refund_reason': data.get('refund_note', ''),
+            'refund_channel': data.get('refund_channel', '原路退回'),
+            'refund_fee': float(data.get('refund_fee', 0)),
+            'remark': data.get('refund_note', ''),
+            'operator_name': session.get('user_name', 'System'),
+            'refund_amount': float(data.get('refund_amount', 0))  # 直接使用前端传入的退费金额
+        }
+        
+        # 使用服务层处理退费
+        success, message, refund = RefundService.process_refund(course_id, refund_data)
+        
+        if not success:
+            return jsonify({'success': False, 'message': message}), 400
+        
+        return jsonify({
+            'success': True,
+            'message': message
+        })
+            
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
 @main_bp.route('/api/config/course_cost')
 def get_course_cost_config():
     """获取正课成本配置"""
@@ -3251,34 +3655,43 @@ def update_trial_course(course_id):
     course = Course.query.filter_by(id=course_id, is_trial=True).first_or_404()
     
     try:
+        # 获取JSON数据
+        data = request.get_json() or {}
+        
         # 更新客户信息
         customer = course.customer
-        customer.name = request.form.get('name', request.form.get('customer_name', customer.name)).strip()
-        customer.phone = request.form.get('phone', request.form.get('customer_phone', customer.phone)).strip()
-        customer.gender = request.form.get('gender', request.form.get('customer_gender')) or None
-        customer.grade = request.form.get('grade', request.form.get('customer_grade')) or None
-        customer.region = request.form.get('region', request.form.get('customer_region')) or None
-        customer.source = request.form.get('source', customer.source) or None
-        customer.has_tutoring_experience = request.form.get('has_tutoring_experience', customer.has_tutoring_experience) or None
+        customer.name = data.get('name', data.get('customer_name', customer.name)).strip() if data.get('name') or data.get('customer_name') else customer.name
+        customer.phone = data.get('phone', data.get('customer_phone', customer.phone)).strip() if data.get('phone') or data.get('customer_phone') else customer.phone
+        customer.gender = data.get('gender', data.get('customer_gender')) or customer.gender
+        customer.grade = data.get('grade', data.get('customer_grade')) or customer.grade
+        customer.region = data.get('region', data.get('customer_region')) or customer.region
+        customer.source = data.get('source', customer.source) or customer.source
         
         # 更新试听课信息
-        course.trial_price = float(request.form.get('trial_price', course.trial_price))
-        course.source = request.form.get('source', course.source)
-        course.trial_status = request.form.get('trial_status', course.trial_status)
+        if 'trial_price' in data:
+            course.trial_price = float(data['trial_price'])
+        if 'source' in data:
+            course.source = data['source']
+        if 'trial_status' in data:
+            course.trial_status = data['trial_status']
+        
+        # 更新报名日期
+        trial_date_str = data.get('trial_date')
+        if trial_date_str:
+            course.created_at = datetime.strptime(trial_date_str, '%Y-%m-%d')
         
         # 更新自定义成本（如果提供）
-        custom_trial_cost = request.form.get('trial_cost')
-        if custom_trial_cost and custom_trial_cost.strip():
+        custom_trial_cost = data.get('trial_cost')
+        if custom_trial_cost and str(custom_trial_cost).strip():
             course.custom_trial_cost = float(custom_trial_cost)
         
         # 更新退费信息（如果是退费状态）
         if course.trial_status == 'refunded':
-            course.refund_amount = float(request.form.get('refund_amount', 0))
-            course.refund_fee = float(request.form.get('refund_fee', 0))
-            course.refund_channel = request.form.get('refund_channel')
+            course.refund_amount = float(data.get('refund_amount', 0))
+            course.refund_fee = float(data.get('refund_fee', 0))
+            course.refund_channel = data.get('refund_channel')
         
         # 计算试听课成本
-        # 统一规则：course.cost 仅存储"基础试听课成本"，不包含任何渠道手续费，防止与统计中的手续费重复计算
         if course.custom_trial_cost is not None:
             course.cost = course.custom_trial_cost
         else:

@@ -2,67 +2,63 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="format-detection" content="telephone=no">
     <title>{% block title %}客户管理系统{% endblock %}</title>
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='45' fill='%23007bff'/%3E%3Ctext x='50' y='58' font-size='44' text-anchor='middle' fill='white' font-family='Arial'%3EC%3C/text%3E%3C/svg%3E">
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='45' fill='%233b82f6'/%3E%3Ctext x='50' y='65' font-size='50' text-anchor='middle' fill='white' font-family='Arial'%3EE%3C/text%3E%3C/svg%3E">
     
-    <!-- 原有样式 -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <!-- 统一样式 -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
     
-    <!-- 现代化UI增强样式 -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/modern-ui.css') }}">
-    
-    <!-- 教育培训系统专属样式 -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/education-ui.css') }}">
-    
-    <!-- 第三方库 -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/fontawesome/all.min.css') }}">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+    <!-- Font Awesome CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <!-- jQuery -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     
-    <!-- Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    
-    <!-- Chart.js for data visualization -->
+    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+    
     {% block head %}{% endblock %}
 </head>
 <body>
-    <div id="loadingOverlay" style="position:fixed;top:0;left:0;width:100%;height:100%;background:#fff;z-index:9999;display:flex;justify-content:center;align-items:center;">
+    <!-- 加载遮罩 -->
+    <div id="loadingOverlay">
         <div style="text-align:center;">
-            <i class="fas fa-spinner fa-spin fa-3x" style="color:#007bff;"></i>
-            <p style="margin-top:10px;">加载中...</p>
+            <div class="spinner"></div>
+            <p style="margin-top:16px;color:var(--gray-500);">加载中...</p>
         </div>
     </div>
-    <div class="sidebar" style="display:none;">
+
+    <!-- 移动端侧边栏遮罩 -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <!-- 侧边栏 -->
+    <div class="sidebar" id="sidebar">
         <div class="sidebar-header">
-            <h2><i class="fas fa-users"></i> 客户管理</h2>
+            <h2><i class="fas fa-graduation-cap"></i> <span>英语培训管理</span></h2>
         </div>
         <nav class="sidebar-nav">
-            <a href="{{ url_for('main.home') }}" class="nav-item {{ 'active' if request.endpoint == 'main.home' else '' }}">
-                <i class="fas fa-home"></i>
-                <span>首页</span>
-            </a>
             <a href="{{ url_for('main.manage_trial_courses') }}" class="nav-item {{ 'active' if request.endpoint == 'main.manage_trial_courses' else '' }}">
                 <i class="fas fa-play-circle"></i>
                 <span>试听课管理</span>
             </a>
             <a href="{{ url_for('main.manage_formal_courses') }}" class="nav-item {{ 'active' if request.endpoint == 'main.manage_formal_courses' else '' }}">
-                <i class="fas fa-graduation-cap"></i>
+                <i class="fas fa-book-open"></i>
                 <span>正课管理</span>
             </a>
             <a href="{{ url_for('main.employee_performance') }}" class="nav-item {{ 'active' if request.endpoint == 'main.employee_performance' else '' }}">
-                <i class="fas fa-chart-line"></i>
+                <i class="fas fa-chart-bar"></i>
                 <span>员工业绩</span>
             </a>
             <a href="{{ url_for('main.profit_distribution') }}" class="nav-item {{ 'active' if request.endpoint == 'main.profit_distribution' else '' }}">
-                <i class="fas fa-coins"></i>
+                <i class="fas fa-chart-pie"></i>
                 <span>报表中心</span>
             </a>
             <a href="{{ url_for('main.manage_taobao_orders') }}" class="nav-item {{ 'active' if request.endpoint == 'main.manage_taobao_orders' else '' }}">
-                <i class="fas fa-shopping-cart"></i>
+                <i class="fas fa-shopping-bag"></i>
                 <span>刷单管理</span>
             </a>
             <a href="{{ url_for('main.manage_config') }}" class="nav-item {{ 'active' if request.endpoint == 'main.manage_config' else '' }}">
@@ -72,23 +68,21 @@
         </nav>
     </div>
 
-    <div class="main-content" style="display:none;">
+    <!-- 主内容区 -->
+    <div class="main-content">
         <header class="top-header">
             <div class="header-left">
-                <button class="menu-toggle" id="menuToggle">
+                <button class="menu-toggle" id="menuToggle" aria-label="菜单">
                     <i class="fas fa-bars"></i>
                 </button>
-                <h1>{% block page_title %}客户管理系统{% endblock %}</h1>
+                <h1>{% block page_title %}控制面板{% endblock %}</h1>
             </div>
             <div class="header-right">
                 <span class="user-info">
                     <i class="fas fa-user-circle"></i>
                     {% if current_user.is_authenticated %}
-                        {{ current_user.username }}
-                        <a href="{{ url_for('main.session_info') }}" class="session-link" title="会话信息">
-                            <i class="fas fa-info-circle"></i>
-                        </a>
-                        <a href="{{ url_for('main.logout') }}" class="logout-link" title="登出">
+                        <span class="user-name-text">{{ current_user.username }}</span>
+                        <a href="{{ url_for('main.logout') }}" style="margin-left:8px;color:var(--gray-400);" title="退出登录">
                             <i class="fas fa-sign-out-alt"></i>
                         </a>
                     {% else %}
@@ -103,22 +97,404 @@
         </main>
     </div>
 
-    <link rel="preload" href="{{ url_for('static', filename='js/app.js') }}" as="script">
     <script>
+        // 页面加载完成后隐藏加载遮罩
         window.addEventListener('load', function() {
-            document.getElementById('loadingOverlay').style.display='none';
-            document.querySelector('.sidebar').style.display='block';
-            document.querySelector('.main-content').style.display='block';
+            document.getElementById('loadingOverlay').style.display = 'none';
+        });
+        
+        // 移动端菜单切换
+        const menuToggle = document.getElementById('menuToggle');
+        const sidebar = document.getElementById('sidebar');
+        const sidebarOverlay = document.getElementById('sidebarOverlay');
+        
+        function toggleSidebar() {
+            sidebar.classList.toggle('active');
+            sidebarOverlay.classList.toggle('active');
+            document.body.style.overflow = sidebar.classList.contains('active') ? 'hidden' : '';
+        }
+        
+        function closeSidebar() {
+            sidebar.classList.remove('active');
+            sidebarOverlay.classList.remove('active');
+            document.body.style.overflow = '';
+        }
+        
+        menuToggle.addEventListener('click', toggleSidebar);
+        sidebarOverlay.addEventListener('click', closeSidebar);
+        
+        // 点击导航链接后关闭侧边栏
+        document.querySelectorAll('.nav-item').forEach(function(item) {
+            item.addEventListener('click', function() {
+                if (window.innerWidth <= 768) {
+                    closeSidebar();
+                }
+            });
+        });
+        
+        // 窗口大小改变时重置
+        window.addEventListener('resize', function() {
+            if (window.innerWidth > 768) {
+                closeSidebar();
+            }
         });
     </script>
-    <!-- Bootstrap JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     
-    <!-- 全局模态框修复脚本 - 优先加载 -->
+    <!-- 客户详情弹窗（全局组件） -->
+    <div id="customerProfileModal" class="modal customer-profile-modal">
+        <div class="modal-content" style="max-width:800px;max-height:90vh;overflow-y:auto;">
+            <div class="modal-header">
+                <h4><i class="fas fa-user-circle"></i> 客户详情 - <span id="profileCustomerName">-</span></h4>
+                <span class="close" onclick="closeCustomerProfile()">&times;</span>
+            </div>
+            <div class="modal-body" id="customerProfileContent">
+                <div class="profile-loading"><div class="spinner"></div><p>加载中...</p></div>
+            </div>
+        </div>
+    </div>
+    
+    <style>
+    /* 客户详情弹窗样式 */
+    .customer-profile-modal .modal-content { padding: 0; }
+    .customer-profile-modal .modal-header { padding: 16px 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 8px 8px 0 0; }
+    .customer-profile-modal .modal-header h4 { margin: 0; font-size: 18px; }
+    .customer-profile-modal .modal-header .close { color: white; font-size: 24px; }
+    .customer-profile-modal .modal-body { padding: 20px; }
+    
+    .profile-loading { text-align: center; padding: 40px; }
+    .profile-loading .spinner { width: 40px; height: 40px; border: 3px solid #f3f3f3; border-top: 3px solid #667eea; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 15px; }
+    
+    .profile-section { margin-bottom: 20px; background: #f8f9fa; border-radius: 8px; padding: 15px; }
+    .profile-section-title { font-size: 14px; font-weight: 600; color: #667eea; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #e9ecef; padding-bottom: 8px; }
+    .profile-section-title i { font-size: 16px; }
+    
+    .profile-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+    .profile-item { display: flex; flex-direction: column; }
+    .profile-item .label { font-size: 12px; color: #6c757d; margin-bottom: 2px; }
+    .profile-item .value { font-size: 14px; color: #333; font-weight: 500; }
+    .profile-item .value.highlight { color: #667eea; }
+    .profile-item .value.success { color: #28a745; }
+    .profile-item .value.danger { color: #dc3545; }
+    
+    .course-card { background: white; border: 1px solid #e9ecef; border-radius: 6px; padding: 12px; margin-bottom: 10px; }
+    .course-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .course-card-title { font-weight: 600; color: #333; }
+    .course-card-badge { font-size: 11px; padding: 2px 8px; border-radius: 10px; }
+    .course-card-badge.trial { background: #e3f2fd; color: #1976d2; }
+    .course-card-badge.formal { background: #e8f5e9; color: #388e3c; }
+    .course-card-badge.renewal { background: #fff3e0; color: #f57c00; }
+    .course-card-badge.refunded { background: #ffebee; color: #d32f2f; }
+    
+    .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; }
+    .summary-item { text-align: center; padding: 15px; background: white; border-radius: 8px; border: 1px solid #e9ecef; }
+    .summary-item .number { font-size: 24px; font-weight: 700; color: #333; }
+    .summary-item .label { font-size: 12px; color: #6c757d; margin-top: 4px; }
+    .summary-item.highlight .number { color: #667eea; }
+    .summary-item.success .number { color: #28a745; }
+    .summary-item.danger .number { color: #dc3545; }
+    
+    .no-data { text-align: center; color: #999; padding: 20px; font-size: 14px; }
+    
+    @media (max-width: 600px) {
+        .profile-grid { grid-template-columns: repeat(2, 1fr); }
+        .summary-grid { grid-template-columns: repeat(2, 1fr) !important; }
+    }
+    </style>
+    
+    <script>
+    // 客户详情弹窗功能
+    function showCustomerProfile(customerId) {
+        const modal = document.getElementById('customerProfileModal');
+        const content = document.getElementById('customerProfileContent');
+        
+        // 显示弹窗和加载状态
+        modal.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+        content.innerHTML = '<div class="profile-loading"><div class="spinner"></div><p>加载中...</p></div>';
+        
+        // 获取客户完整信息
+        fetch(`/api/customer/${customerId}/full-profile`)
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    renderCustomerProfile(data);
+                } else {
+                    content.innerHTML = `<div class="no-data"><i class="fas fa-exclamation-circle"></i> 获取信息失败: ${data.message}</div>`;
+                }
+            })
+            .catch(err => {
+                content.innerHTML = `<div class="no-data"><i class="fas fa-exclamation-circle"></i> 网络错误</div>`;
+            });
+    }
+    
+    function renderCustomerProfile(data) {
+        const c = data.customer;
+        const trials = data.trial_courses || [];
+        const formals = data.formal_courses || [];
+        const refunds = data.refund_records || [];
+        const s = data.summary;
+        
+        document.getElementById('profileCustomerName').textContent = c.name || '-';
+        
+        // 状态映射
+        const statusMap = {
+            'registered': '已报名试听课',
+            'not_registered': '已试听未转化',
+            'refunded': '试听后退费',
+            'converted': '试听后转正课',
+            'no_action': '试听后无操作'
+        };
+        
+        let html = `
+            <!-- 基本信息 -->
+            <div class="profile-section">
+                <div class="profile-section-title"><i class="fas fa-user"></i> 基本信息</div>
+                <div class="profile-grid">
+                    <div class="profile-item"><span class="label">姓名</span><span class="value">${c.name || '-'}</span></div>
+                    <div class="profile-item"><span class="label">性别</span><span class="value">${c.gender || '-'}</span></div>
+                    <div class="profile-item"><span class="label">年级</span><span class="value">${c.grade || '-'}</span></div>
+                    <div class="profile-item"><span class="label">地区</span><span class="value">${c.region || '-'}</span></div>
+                    <div class="profile-item"><span class="label">联系方式</span><span class="value">${c.phone || '-'}</span></div>
+                    <div class="profile-item"><span class="label">渠道来源</span><span class="value">${c.source || '-'}</span></div>
+                    <div class="profile-item"><span class="label">创建时间</span><span class="value">${c.created_at || '-'}</span></div>
+                </div>
+            </div>
+            
+            <!-- 试听课信息 -->
+            <div class="profile-section">
+                <div class="profile-section-title"><i class="fas fa-play-circle"></i> 试听课信息</div>
+                ${trials.length === 0 ? '<div class="no-data">暂无试听课记录</div>' : trials.map(t => `
+                    <div class="course-card">
+                        <div class="course-card-header">
+                            <span class="course-card-title">试听课</span>
+                            <span class="course-card-badge ${t.trial_status === 'refunded' ? 'refunded' : (t.trial_status === 'converted' ? 'formal' : 'trial')}">${statusMap[t.trial_status] || t.trial_status}</span>
+                        </div>
+                        <div class="profile-grid">
+                            <div class="profile-item"><span class="label">售价</span><span class="value">¥${(t.trial_price || 0).toFixed(2)}</span></div>
+                            <div class="profile-item"><span class="label">渠道</span><span class="value">${t.source || '-'}</span></div>
+                            <div class="profile-item"><span class="label">报名日期</span><span class="value">${t.created_at || '-'}</span></div>
+                            <div class="profile-item"><span class="label">负责员工</span><span class="value">${t.assigned_employee || '-'}</span></div>
+                            ${t.trial_status === 'refunded' ? `
+                                <div class="profile-item"><span class="label">退费金额</span><span class="value danger">¥${(t.refund_amount || 0).toFixed(2)}</span></div>
+                                <div class="profile-item"><span class="label">退费手续费</span><span class="value">¥${(t.refund_fee || 0).toFixed(2)}</span></div>
+                                <div class="profile-item"><span class="label">退款渠道</span><span class="value">${t.refund_channel || '-'}</span></div>
+                            ` : ''}
+                            ${t.converted_to_course_id ? `
+                                <div class="profile-item"><span class="label">转化课程</span><span class="value success">${t.converted_course_type || '正课'}</span></div>
+                            ` : ''}
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+            
+            <!-- 正课信息 -->
+            <div class="profile-section">
+                <div class="profile-section-title"><i class="fas fa-book-open"></i> 正课信息</div>
+                ${formals.length === 0 ? '<div class="no-data">暂无正课记录</div>' : formals.map(f => `
+                    <div class="course-card">
+                        <div class="course-card-header">
+                            <span class="course-card-title">${f.course_type || '正课'}</span>
+                            <span class="course-card-badge ${f.is_renewal ? 'renewal' : 'formal'}">${f.is_renewal ? '续课' : (f.converted_from_trial ? '试听转化' : '新课')}</span>
+                        </div>
+                        <div class="profile-grid">
+                            <div class="profile-item"><span class="label">购买节数</span><span class="value">${f.sessions || 0}节</span></div>
+                            <div class="profile-item"><span class="label">单价</span><span class="value">¥${(f.price || 0).toFixed(2)}</span></div>
+                            <div class="profile-item"><span class="label">总价</span><span class="value highlight">¥${(f.total_price || 0).toFixed(2)}</span></div>
+                            <div class="profile-item"><span class="label">赠送节数</span><span class="value success">${f.gift_sessions || 0}节</span></div>
+                            <div class="profile-item"><span class="label">支付渠道</span><span class="value">${f.payment_channel || '-'}</span></div>
+                            <div class="profile-item"><span class="label">报课日期</span><span class="value">${f.created_at || '-'}</span></div>
+                            <div class="profile-item"><span class="label">负责员工</span><span class="value">${f.assigned_employee || '-'}</span></div>
+                            ${f.is_renewal ? `<div class="profile-item"><span class="label">续课来源</span><span class="value">${f.renewal_from_course_type || '-'}</span></div>` : ''}
+                            ${f.refund_sessions > 0 ? `
+                                <div class="profile-item"><span class="label">已退节数</span><span class="value danger">${f.refund_sessions}节</span></div>
+                                <div class="profile-item"><span class="label">已退金额</span><span class="value danger">¥${(f.refund_amount || 0).toFixed(2)}</span></div>
+                                <div class="profile-item"><span class="label">剩余节数</span><span class="value">${f.remaining_sessions}节</span></div>
+                            ` : ''}
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+            
+            <!-- 退费记录 -->
+            <div class="profile-section">
+                <div class="profile-section-title"><i class="fas fa-undo"></i> 退费记录</div>
+                ${refunds.length === 0 ? '<div class="no-data">暂无退费记录</div>' : refunds.map(r => `
+                    <div class="course-card">
+                        <div class="profile-grid">
+                            <div class="profile-item"><span class="label">课程</span><span class="value">${r.course_name || '-'}</span></div>
+                            <div class="profile-item"><span class="label">退费节数</span><span class="value danger">${r.refund_sessions}节</span></div>
+                            <div class="profile-item"><span class="label">退费金额</span><span class="value danger">¥${(r.refund_amount || 0).toFixed(2)}</span></div>
+                            <div class="profile-item"><span class="label">退费渠道</span><span class="value">${r.refund_channel || '-'}</span></div>
+                            <div class="profile-item"><span class="label">退费日期</span><span class="value">${r.refund_date || '-'}</span></div>
+                            <div class="profile-item"><span class="label">退费原因</span><span class="value">${r.refund_reason || '-'}</span></div>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+            
+            <!-- 统计汇总 -->
+            <div class="profile-section">
+                <div class="profile-section-title"><i class="fas fa-chart-bar"></i> 统计汇总</div>
+                <div class="summary-grid" style="grid-template-columns: repeat(4, 1fr);">
+                    <div class="summary-item highlight">
+                        <div class="number">¥${(s.total_spent || 0).toFixed(2)}</div>
+                        <div class="label">总消费</div>
+                    </div>
+                    <div class="summary-item danger">
+                        <div class="number">¥${(s.total_refund || 0).toFixed(2)}</div>
+                        <div class="label">总退费</div>
+                    </div>
+                    <div class="summary-item success">
+                        <div class="number">¥${(s.net_spent || 0).toFixed(2)}</div>
+                        <div class="label">净消费</div>
+                    </div>
+                    <div class="summary-item">
+                        <div class="number">${s.total_sessions || 0}</div>
+                        <div class="label">总课时</div>
+                    </div>
+                </div>
+                <div class="summary-grid" style="grid-template-columns: repeat(3, 1fr); margin-top:10px;">
+                    <div class="summary-item" style="background:#fff3cd;">
+                        <div class="number">¥${(s.total_cost || 0).toFixed(2)}</div>
+                        <div class="label">总成本</div>
+                    </div>
+                    <div class="summary-item" style="background:#f8d7da;">
+                        <div class="number">¥${(s.total_fee || 0).toFixed(2)}</div>
+                        <div class="label">平台手续费</div>
+                    </div>
+                    <div class="summary-item ${(s.total_profit || 0) >= 0 ? 'success' : 'danger'}">
+                        <div class="number">¥${(s.total_profit || 0).toFixed(2)}</div>
+                        <div class="label">总利润</div>
+                    </div>
+                </div>
+                <div style="text-align:center;margin-top:10px;font-size:12px;color:#6c757d;">
+                    购买 ${s.total_sessions_bought || 0}节 + 赠送 ${s.total_sessions_gift || 0}节 - 退费 ${s.total_sessions_refund || 0}节 = ${s.total_sessions || 0}节
+                </div>
+                <div style="text-align:center;margin-top:5px;font-size:12px;color:#6c757d;">
+                    利润 = 净消费 ¥${(s.net_spent || 0).toFixed(2)} - 成本 ¥${(s.total_cost || 0).toFixed(2)} - 手续费 ¥${(s.total_fee || 0).toFixed(2)} = ¥${(s.total_profit || 0).toFixed(2)}
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('customerProfileContent').innerHTML = html;
+    }
+    
+    function closeCustomerProfile() {
+        document.getElementById('customerProfileModal').style.display = 'none';
+        document.body.style.overflow = 'auto';
+    }
+    
+    // 点击弹窗外部关闭
+    document.getElementById('customerProfileModal').addEventListener('click', function(e) {
+        if (e.target === this) closeCustomerProfile();
+    });
+    </script>
+
+    <!-- 操作密码验证弹窗（全局组件） -->
+    <div id="operationPasswordModal" class="modal">
+        <div class="modal-content" style="max-width:360px;">
+            <div class="modal-header" style="background:linear-gradient(135deg,#f093fb 0%,#f5576c 100%);">
+                <h4><i class="fas fa-lock"></i> 操作密码验证</h4>
+                <span class="close" onclick="closeOperationPasswordModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <p style="color:#666;margin-bottom:15px;font-size:14px;">此操作需要验证操作密码</p>
+                <div class="form-group">
+                    <label>操作密码</label>
+                    <input type="password" id="operationPasswordInput" class="form-control" placeholder="请输入操作密码" onkeypress="if(event.keyCode===13)confirmOperationPassword()">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeOperationPasswordModal()">取消</button>
+                <button type="button" class="btn btn-primary" onclick="confirmOperationPassword()"><i class="fas fa-check"></i> 确认</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+    // 全局操作密码验证
+    window._operationPasswordCallback = null;
+    window._hasOperationPassword = null;
+    
+    // 检查是否需要密码验证
+    function checkHasOperationPassword(callback) {
+        if (window._hasOperationPassword !== null) {
+            callback(window._hasOperationPassword);
+            return;
+        }
+        fetch('/api/operation-password/status')
+            .then(r => r.json())
+            .then(data => {
+                window._hasOperationPassword = data.has_password;
+                callback(data.has_password);
+            })
+            .catch(() => callback(false));
+    }
+    
+    // 需要操作密码验证时调用此函数
+    function requireOperationPassword(callback) {
+        checkHasOperationPassword(function(hasPassword) {
+            if (!hasPassword) {
+                // 未设置密码，直接执行
+                callback();
+                return;
+            }
+            // 需要验证密码
+            window._operationPasswordCallback = callback;
+            document.getElementById('operationPasswordModal').style.display = 'flex';
+            document.getElementById('operationPasswordInput').value = '';
+            document.getElementById('operationPasswordInput').focus();
+            document.body.style.overflow = 'hidden';
+        });
+    }
+    
+    function closeOperationPasswordModal() {
+        document.getElementById('operationPasswordModal').style.display = 'none';
+        document.body.style.overflow = 'auto';
+        window._operationPasswordCallback = null;
+    }
+    
+    function confirmOperationPassword() {
+        const password = document.getElementById('operationPasswordInput').value;
+        if (!password) {
+            alert('请输入操作密码');
+            return;
+        }
+        
+        // 验证密码
+        fetch('/api/operation-password/verify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password: password })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                closeOperationPasswordModal();
+                if (window._operationPasswordCallback) {
+                    window._operationPasswordCallback();
+                }
+            } else {
+                alert('密码错误');
+                document.getElementById('operationPasswordInput').value = '';
+                document.getElementById('operationPasswordInput').focus();
+            }
+        })
+        .catch(() => alert('验证失败，请重试'));
+    }
+    
+    // 点击弹窗外部关闭
+    document.getElementById('operationPasswordModal').addEventListener('click', function(e) {
+        if (e.target === this) closeOperationPasswordModal();
+    });
+    </script>
+
+    <!-- 全局JS -->
     <script src="{{ url_for('static', filename='js/global-modal-fix.js') }}"></script>
-    
     <script src="{{ url_for('static', filename='js/notification.js') }}"></script>
     <script src="{{ url_for('static', filename='js/course-management.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/app.js') }}" defer></script>
+    
+    {% block scripts %}{% endblock %}
 </body>
 </html>

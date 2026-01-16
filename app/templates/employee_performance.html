@@ -1,1947 +1,228 @@
 {% extends "base.html" %}
-
-{% block title %}员工业绩管理 - 教育培训管理系统{% endblock %}
-{% block page_title %}员工业绩中心{% endblock %}
-
-{% block head %}
-<style>
-/* CSS变量定义 */
-:root {
-    /* 业务板块主题色 */
-    --trial-primary: #3b82f6;
-    --trial-secondary: #60a5fa;
-    --trial-bg: #dbeafe;
-    --trial-gradient: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
-    
-    --formal-primary: #10b981;
-    --formal-secondary: #34d399;
-    --formal-bg: #d1fae5;
-    --formal-gradient: linear-gradient(135deg, #10b981 0%, #047857 100%);
-    
-    --renewal-primary: #f59e0b;
-    --renewal-secondary: #fbbf24;
-    --renewal-bg: #fef3c7;
-    --renewal-gradient: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-    
-    --refund-primary: #ef4444;
-    --refund-secondary: #f87171;
-    --refund-bg: #fee2e2;
-    --refund-gradient: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-}
-
-/* 页面整体布局 */
-.performance-container {
-    padding: 20px;
-    background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
-    min-height: 100vh;
-}
-
-/* 页面标题 */
-.page-header {
-    text-align: center;
-    margin-bottom: 40px;
-}
-
-.page-title {
-    font-size: 42px;
-    font-weight: 800;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    margin-bottom: 12px;
-    text-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-.page-subtitle {
-    font-size: 18px;
-    color: #64748b;
-    font-weight: 500;
-}
-
-/* 员工选择器 */
-.employee-selector {
-    background: white;
-    border-radius: 16px;
-    padding: 24px;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-    margin-bottom: 32px;
-    border: 1px solid #e2e8f0;
-}
-
-.selector-header {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 20px;
-}
-
-.selector-icon {
-    width: 48px;
-    height: 48px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-size: 20px;
-}
-
-.selector-title {
-    font-size: 20px;
-    font-weight: 700;
-    color: #1e293b;
-}
-
-.employee-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 20px;
-}
-
-.employee-option {
-    background: #f8fafc;
-    border: 2px solid #e2e8f0;
-    border-radius: 12px;
-    padding: 20px;
-    cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    text-align: center;
-}
-
-.employee-option:hover {
-    border-color: #667eea;
-    background: white;
-    transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(102, 126, 234, 0.15);
-}
-
-.employee-option.selected {
-    border-color: #667eea;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-}
-
-.employee-avatar {
-    width: 64px;
-    height: 64px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin: 0 auto 16px;
-    font-size: 28px;
-    color: white;
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
-}
-
-.employee-option.selected .employee-avatar {
-    background: rgba(255, 255, 255, 0.2);
-}
-
-.employee-name {
-    font-size: 18px;
-    font-weight: 600;
-    margin-bottom: 8px;
-    color: #1e293b;
-}
-
-.employee-option.selected .employee-name {
-    color: white;
-}
-
-.employee-summary {
-    font-size: 14px;
-    color: #64748b;
-    margin-bottom: 12px;
-}
-
-.employee-actions {
-    margin-top: 12px;
-}
-
-.employee-actions .btn {
-    padding: 6px 12px;
-    font-size: 12px;
-    border-radius: 6px;
-    transition: all 0.3s ease;
-}
-
-.employee-actions .btn:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
-}
-
-.employee-option.selected .employee-summary {
-    color: rgba(255, 255, 255, 0.9);
-}
-
-/* 业务卡片网格 */
-.business-cards-container {
-    display: none;
-    animation: fadeInUp 0.6s ease-out;
-}
-
-.business-cards-container.show {
-    display: block;
-}
-
-.business-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 24px;
-    margin-bottom: 32px;
-}
-
-/* 业务卡片基础样式 */
-.business-card {
-    border-radius: 20px;
-    padding: 28px;
-    color: white;
-    cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    position: relative;
-    overflow: hidden;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
-}
-
-.business-card::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(255, 255, 255, 0.1);
-    opacity: 0;
-    transition: opacity 0.3s ease;
-}
-
-.business-card:hover::before {
-    opacity: 1;
-}
-
-.business-card:hover {
-    transform: translateY(-8px);
-    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.2);
-}
-
-/* 各业务类型主题色 */
-.business-card.trial {
-    background: var(--trial-gradient);
-}
-
-.business-card.formal {
-    background: var(--formal-gradient);
-}
-
-.business-card.renewal {
-    background: var(--renewal-gradient);
-}
-
-.business-card.refund {
-    background: var(--refund-gradient);
-}
-
-.card-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 20px;
-}
-
-.card-icon {
-    width: 56px;
-    height: 56px;
-    background: rgba(255, 255, 255, 0.2);
-    border-radius: 16px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 24px;
-    color: white;
-    backdrop-filter: blur(10px);
-}
-
-.card-badge {
-    background: rgba(255, 255, 255, 0.25);
-    color: white;
-    padding: 6px 12px;
-    border-radius: 20px;
-    font-size: 14px;
-    font-weight: 600;
-    backdrop-filter: blur(10px);
-}
-
-.card-title {
-    font-size: 24px;
-    font-weight: 700;
-    margin-bottom: 8px;
-    color: white;
-}
-
-.card-description {
-    font-size: 14px;
-    color: rgba(255, 255, 255, 0.8);
-    margin-bottom: 20px;
-    line-height: 1.5;
-}
-
-.card-stats {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 16px;
-}
-
-.stat-item {
-    background: rgba(255, 255, 255, 0.15);
-    padding: 16px;
-    border-radius: 12px;
-    backdrop-filter: blur(10px);
-}
-
-.stat-label {
-    font-size: 12px;
-    color: rgba(255, 255, 255, 0.8);
-    margin-bottom: 4px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.stat-value {
-    font-size: 20px;
-    font-weight: 700;
-    color: white;
-}
-
-/* 空状态样式 */
-.empty-state {
-    text-align: center;
-    padding: 60px 20px;
-    color: #64748b;
-}
-
-.empty-icon {
-    font-size: 64px;
-    color: #cbd5e1;
-    margin-bottom: 20px;
-}
-
-.empty-title {
-    font-size: 20px;
-    font-weight: 600;
-    color: #475569;
-    margin-bottom: 8px;
-}
-
-.empty-description {
-    font-size: 14px;
-    color: #64748b;
-}
-
-/* 响应式设计 */
-@media (max-width: 1024px) {
-    .business-grid {
-        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-        gap: 20px;
-    }
-}
-
-@media (max-width: 768px) {
-    .performance-container {
-        padding: 16px;
-    }
-    
-    .page-title {
-        font-size: 32px;
-    }
-    
-    .business-grid {
-        grid-template-columns: 1fr;
-    }
-    
-    .employee-grid {
-        grid-template-columns: 1fr;
-    }
-    
-    .card-stats {
-        grid-template-columns: 1fr;
-    }
-}
-
-/* 动画效果 */
-@keyframes fadeInUp {
-    from {
-        opacity: 0;
-        transform: translateY(30px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-/* 学员容器样式 */
-.students-container {
-    display: none;
-    animation: fadeInUp 0.6s ease-out;
-}
-
-.students-container.show {
-    display: block;
-}
-
-/* 学员列表样式 */
-.students-list {
-    background: white;
-    border-radius: 16px;
-    padding: 24px;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-    margin-bottom: 32px;
-}
-
-.list-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 24px;
-    padding-bottom: 16px;
-    border-bottom: 2px solid #e2e8f0;
-}
-
-.list-header h3 {
-    font-size: 24px;
-    font-weight: 700;
-    color: #1e293b;
-    margin: 0;
-}
-
-.list-summary {
-    display: flex;
-    gap: 24px;
-    align-items: center;
-}
-
-.list-summary span {
-    font-size: 14px;
-    font-weight: 600;
-    color: #64748b;
-    padding: 8px 16px;
-    background: #f1f5f9;
-    border-radius: 8px;
-}
-
-#totalCommission {
-    color: var(--formal-primary) !important;
-    background: var(--formal-bg) !important;
-}
-
-/* 学员网格 */
-.students-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-    gap: 20px;
-}
-
-/* 学员卡片 */
-.student-card {
-    background: white;
-    border: 2px solid #e2e8f0;
-    border-radius: 16px;
-    padding: 24px;
-    cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-}
-
-.student-card:hover {
-    border-color: #667eea;
-    transform: translateY(-4px);
-    box-shadow: 0 8px 25px rgba(102, 126, 234, 0.15);
-}
-
-.student-header {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    margin-bottom: 20px;
-}
-
-.student-avatar {
-    width: 56px;
-    height: 56px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 24px;
-    color: white;
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
-}
-
-.student-basic {
-    flex: 1;
-}
-
-.student-name {
-    font-size: 18px;
-    font-weight: 700;
-    color: #1e293b;
-    margin: 0 0 4px 0;
-}
-
-.student-phone {
-    font-size: 14px;
-    color: #64748b;
-    margin: 0;
-}
-
-.student-content {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-}
-
-.student-stats {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-.stat-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 8px 0;
-}
-
-.stat-label {
-    font-size: 14px;
-    color: #64748b;
-    font-weight: 500;
-}
-
-.stat-value {
-    font-size: 14px;
-    font-weight: 600;
-    color: #1e293b;
-}
-
-.stat-value.commission {
-    color: var(--formal-primary);
-    font-weight: 700;
-}
-
-/* 状态标签 */
-.student-tags {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-}
-
-.status-tag {
-    padding: 4px 12px;
-    border-radius: 16px;
-    font-size: 12px;
-    font-weight: 600;
-    text-align: center;
-}
-
-.status-tag.blue {
-    background: var(--trial-bg);
-    color: var(--trial-primary);
-}
-
-.status-tag.green {
-    background: var(--formal-bg);
-    color: var(--formal-primary);
-}
-
-.status-tag.orange {
-    background: var(--renewal-bg);
-    color: var(--renewal-primary);
-}
-
-.status-tag.red {
-    background: var(--refund-bg);
-    color: var(--refund-primary);
-}
-
-.status-tag.gray {
-    background: #f1f5f9;
-    color: #64748b;
-}
-
-/* 学员详情页面 */
-.student-detail {
-    background: white;
-    border-radius: 16px;
-    padding: 24px;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-    animation: fadeInUp 0.6s ease-out;
-}
-
-.detail-header {
-    display: flex;
-    align-items: center;
-    gap: 24px;
-    margin-bottom: 32px;
-    padding-bottom: 20px;
-    border-bottom: 2px solid #e2e8f0;
-}
-
-.back-btn {
-    background: #f1f5f9;
-    border: none;
-    border-radius: 12px;
-    padding: 12px 20px;
-    font-size: 14px;
-    font-weight: 600;
-    color: #475569;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.back-btn:hover {
-    background: #e2e8f0;
-    color: #1e293b;
-}
-
-.student-info {
-    flex: 1;
-}
-
-.student-info h3 {
-    font-size: 24px;
-    font-weight: 700;
-    color: #1e293b;
-    margin: 0 0 8px 0;
-}
-
-.student-meta {
-    display: flex;
-    gap: 16px;
-    align-items: center;
-}
-
-.student-meta span {
-    font-size: 14px;
-    color: #64748b;
-    background: #f1f5f9;
-    padding: 4px 12px;
-    border-radius: 8px;
-}
-
-/* 业务板块 */
-.business-sections {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 24px;
-    margin-bottom: 32px;
-}
-
-.section-card {
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
-    border-radius: 16px;
-    padding: 24px;
-    transition: all 0.3s ease;
-}
-
-.section-card:hover {
-    border-color: #667eea;
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.1);
-}
-
-.section-header {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 20px;
-}
-
-.section-icon {
-    width: 40px;
-    height: 40px;
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 18px;
-    color: white;
-}
-
-.trial-section .section-icon {
-    background: var(--trial-gradient);
-}
-
-.formal-section .section-icon {
-    background: var(--formal-gradient);
-}
-
-.renewal-section .section-icon {
-    background: var(--renewal-gradient);
-}
-
-.refund-section .section-icon {
-    background: var(--refund-gradient);
-}
-
-.section-header h4 {
-    font-size: 18px;
-    font-weight: 700;
-    color: #1e293b;
-    margin: 0;
-}
-
-.section-content {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-}
-
-/* 课程项目 */
-.course-item {
-    background: white;
-    border: 1px solid #e2e8f0;
-    border-radius: 12px;
-    padding: 20px;
-    transition: all 0.3s ease;
-}
-
-.course-item:hover {
-    border-color: #cbd5e1;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-}
-
-.course-info {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 8px;
-}
-
-.course-info:last-child {
-    margin-bottom: 0;
-}
-
-.course-label {
-    font-size: 14px;
-    color: #64748b;
-    font-weight: 500;
-}
-
-.course-value {
-    font-size: 14px;
-    font-weight: 600;
-    color: #1e293b;
-}
-
-.course-value.success {
-    color: var(--formal-primary);
-}
-
-.course-value.pending {
-    color: #f59e0b;
-}
-
-.course-value.total-amount {
-    color: var(--formal-primary);
-    font-weight: 700;
-}
-
-.course-value.refund-amount {
-    color: var(--refund-primary);
-    font-weight: 700;
-}
-
-.course-notes {
-    margin-top: 12px;
-    padding: 12px;
-    background: #f8fafc;
-    border-radius: 8px;
-    font-size: 13px;
-    color: #64748b;
-    border-left: 3px solid #cbd5e1;
-}
-
-.no-data {
-    text-align: center;
-    padding: 40px 20px;
-    color: #64748b;
-    font-size: 14px;
-    background: #f8fafc;
-    border-radius: 8px;
-    border: 1px dashed #cbd5e1;
-}
-
-/* 提成汇总 */
-.commission-summary {
-    background: #f8fafc;
-    border: 2px solid #e2e8f0;
-    border-radius: 16px;
-    padding: 24px;
-}
-
-.commission-summary h4 {
-    font-size: 20px;
-    font-weight: 700;
-    color: #1e293b;
-    margin: 0 0 20px 0;
-    text-align: center;
-}
-
-.commission-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 16px;
-}
-
-.commission-item {
-    background: white;
-    border: 1px solid #e2e8f0;
-    border-radius: 12px;
-    padding: 20px;
-    text-align: center;
-    transition: all 0.3s ease;
-}
-
-.commission-item:hover {
-    border-color: #cbd5e1;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-}
-
-.commission-item label {
-    display: block;
-    font-size: 14px;
-    color: #64748b;
-    font-weight: 500;
-    margin-bottom: 8px;
-}
-
-.commission-item span {
-    display: block;
-    font-size: 18px;
-    font-weight: 700;
-    color: #1e293b;
-}
-
-.commission-item.trial span {
-    color: var(--trial-primary);
-}
-
-.commission-item.formal span {
-    color: var(--formal-primary);
-}
-
-.commission-item.renewal span {
-    color: var(--renewal-primary);
-}
-
-.commission-item.total {
-    border: 2px solid var(--formal-primary);
-}
-
-.commission-item.total span {
-    color: var(--formal-primary);
-    font-size: 22px;
-}
-
-/* 响应式设计增强 */
-@media (max-width: 768px) {
-    .students-grid {
-        grid-template-columns: 1fr;
-    }
-    
-    .business-sections {
-        grid-template-columns: 1fr;
-    }
-    
-    .commission-grid {
-        grid-template-columns: repeat(2, 1fr);
-    }
-    
-    .list-summary {
-        flex-direction: column;
-        gap: 8px;
-    }
-    
-    .detail-header {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 16px;
-    }
-    
-    .student-meta {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 8px;
-    }
-}
-
-/* 工资管理样式 */
-.salary-header {
-    background: #f8fafc;
-    border-radius: 12px;
-    padding: 20px;
-    margin-bottom: 24px;
-    border: 1px solid #e2e8f0;
-}
-
-.salary-summary .summary-card {
-    background: white;
-    border-radius: 8px;
-    padding: 16px;
-    border: 1px solid #e2e8f0;
-}
-
-.salary-summary h6 {
-    font-size: 14px;
-    color: #64748b;
-    margin-bottom: 12px;
-    font-weight: 600;
-}
-
-.summary-stats {
-    display: flex;
-    gap: 20px;
-}
-
-.stat-item {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-
-.stat-label {
-    font-size: 12px;
-    color: #64748b;
-}
-
-.stat-value {
-    font-size: 18px;
-    font-weight: 700;
-}
-
-.salary-records {
-    background: white;
-    border-radius: 12px;
-    padding: 20px;
-    border: 1px solid #e2e8f0;
-}
-
-.salary-records h6 {
-    font-size: 16px;
-    color: #1e293b;
-    margin-bottom: 16px;
-    font-weight: 600;
-}
-
-.salary-status-badge {
-    padding: 4px 8px;
-    border-radius: 4px;
-    font-size: 12px;
-    font-weight: 500;
-}
-
-.salary-status-pending {
-    background: #fef3c7;
-    color: #d97706;
-}
-
-.salary-status-paid {
-    background: #d1fae5;
-    color: #047857;
-}
-
-.salary-status-cancelled {
-    background: #fee2e2;
-    color: #dc2626;
-}
-</style>
-{% endblock %}
+{% block title %}员工业绩 - 英语培训管理系统{% endblock %}
+{% block page_title %}员工业绩{% endblock %}
 
 {% block content %}
-<div class="performance-container">
-    <!-- 页面标题 -->
-    <div class="page-header">
-        <h1 class="page-title">📊 员工业绩中心</h1>
-        <p class="page-subtitle">全方位展示员工教学业绩，助力团队协作与成长</p>
-    </div>
-
-    <!-- 员工选择器 -->
-    <div class="employee-selector">
-        <div class="selector-header">
-            <div class="selector-icon">
-                <i class="fas fa-users"></i>
-            </div>
-            <h3 class="selector-title">选择员工查看业绩详情</h3>
-        </div>
-        
-        <div class="employee-grid">
-            {% for employee in employees %}
-            <div class="employee-option" data-employee-id="{{ employee.id }}" data-employee-name="{{ employee.name|tojson|safe }}">
-                <div class="employee-avatar">
-                    <i class="fas fa-user-circle"></i>
-                </div>
-                <div class="employee-name">{{ employee.name }}</div>
-                <div class="employee-summary">
-                    试听课 {{ employee.stats.trial_count }}节 | 转化率 {{ "%.1f"|format(employee.stats.conversion_rate) }}%
-                </div>
-                <div class="employee-actions">
-                    <button class="btn btn-sm btn-success" onclick="event.stopPropagation(); showSalaryManagement({{ employee.id }}, '{{ employee.name }}')" title="管理工资">
-                        <i class="fas fa-money-bill-wave"></i> 工资管理
-                    </button>
-                </div>
-            </div>
-            {% endfor %}
+<div class="animate-in">
+    <!-- 操作栏 -->
+    <div class="action-bar mb-4">
+        <div class="action-buttons">
+            <button class="btn btn-primary" onclick="showAddEmployeeModal()"><i class="fas fa-user-plus"></i> 添加员工</button>
         </div>
     </div>
 
-    <!-- 学员信息展示区域 -->
-    <div id="studentsContainer" class="students-container">
-        <!-- 学员列表页面 -->
-        <div id="studentsList" class="students-list">
-            <div class="list-header">
-                <h3>学员列表</h3>
-                <div class="list-summary">
-                    <span id="totalStudents">共 0 名学员</span>
-                    <span id="totalCommission">总提成：¥0</span>
+    <!-- 员工列表 -->
+    <div class="status-stats-grid" id="employeeGrid">
+        {% for employee in employees %}
+        <div class="status-stat-card" style="cursor:pointer;border-left-color:var(--primary);" onclick="selectEmployee({{ employee.id }}, '{{ employee.name }}')">
+            <div class="status-stat-header">
+                <div class="user-avatar" style="width:40px;height:40px;font-size:16px;">{{ employee.name[0] }}</div>
+                <span>{{ employee.name }}</span>
+                <div style="margin-left:auto;display:flex;gap:4px;">
+                    <button class="btn btn-sm btn-outline-primary" onclick="event.stopPropagation();editEmployee({{ employee.id }}, '{{ employee.name }}', {{ employee.salary or 0 }})" title="编辑"><i class="fas fa-edit"></i></button>
+                    <button class="btn btn-sm btn-outline-danger" onclick="event.stopPropagation();deleteEmployee({{ employee.id }})" title="删除"><i class="fas fa-trash"></i></button>
                 </div>
             </div>
-            
-            <div class="students-grid" id="studentsGrid">
-                <!-- 学员卡片将动态加载到这里 -->
-            </div>
-        </div>
-        
-        <!-- 学员详情页面 -->
-        <div id="studentDetail" class="student-detail" style="display: none;">
-            <div class="detail-header">
-                <button class="back-btn" onclick="showStudentsList()">
-                    <i class="fas fa-arrow-left"></i>
-                    返回学员列表
-                </button>
-                <div class="student-info">
-                    <h3 id="detailStudentName">学员姓名</h3>
-                    <div class="student-meta">
-                        <span id="detailStudentPhone"></span>
-                        <span id="detailStudentGrade"></span>
-                        <span id="detailStudentRegion"></span>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="detail-content">
-                <!-- 四个业务板块 -->
-                <div class="business-sections">
-                    <!-- 试听课板块 -->
-                    <div class="section-card trial-section">
-                        <div class="section-header">
-                            <div class="section-icon">
-                                <i class="fas fa-headphones"></i>
-                            </div>
-                            <h4>试听课内容</h4>
-                        </div>
-                        <div class="section-content" id="trialContent">
-                            <!-- 试听课数据将动态加载到这里 -->
-                        </div>
-                    </div>
-                    
-                    <!-- 正课板块 -->
-                    <div class="section-card formal-section">
-                        <div class="section-header">
-                            <div class="section-icon">
-                                <i class="fas fa-graduation-cap"></i>
-                            </div>
-                            <h4>正课内容</h4>
-                        </div>
-                        <div class="section-content" id="formalContent">
-                            <!-- 正课数据将动态加载到这里 -->
-                        </div>
-                    </div>
-                    
-                    <!-- 续课板块 -->
-                    <div class="section-card renewal-section">
-                        <div class="section-header">
-                            <div class="section-icon">
-                                <i class="fas fa-redo-alt"></i>
-                            </div>
-                            <h4>续课内容</h4>
-                        </div>
-                        <div class="section-content" id="renewalContent">
-                            <!-- 续课数据将动态加载到这里 -->
-                        </div>
-                    </div>
-                    
-                    <!-- 退课板块 -->
-                    <div class="section-card refund-section">
-                        <div class="section-header">
-                            <div class="section-icon">
-                                <i class="fas fa-undo-alt"></i>
-                            </div>
-                            <h4>退课内容</h4>
-                        </div>
-                        <div class="section-content" id="refundContent">
-                            <!-- 退课数据将动态加载到这里 -->
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- 提成汇总 -->
-                <div class="commission-summary">
-                    <h4>提成汇总</h4>
-                    <div class="commission-grid">
-                        <div class="commission-item trial">
-                            <label>试听课提成</label>
-                            <span id="summaryTrialCommission">¥0</span>
-                        </div>
-                        <div class="commission-item formal">
-                            <label>正课提成</label>
-                            <span id="summaryFormalCommission">¥0</span>
-                        </div>
-                        <div class="commission-item renewal">
-                            <label>续课提成</label>
-                            <span id="summaryRenewalCommission">¥0</span>
-                        </div>
-                        <div class="commission-item total">
-                            <label>总提成</label>
-                            <span id="summaryTotalCommission">¥0</span>
-                        </div>
-                    </div>
-                </div>
+            <div class="status-stat-content">
+                <div class="stat-row"><span>月薪：</span><span>¥{{ "%.2f"|format(employee.salary or 0) }}</span></div>
+                <div class="stat-row"><span>试听课：</span><span id="trial-{{ employee.id }}">-</span></div>
+                <div class="stat-row"><span>正课：</span><span id="formal-{{ employee.id }}">-</span></div>
             </div>
         </div>
+        {% else %}
+        <div class="text-center text-muted" style="grid-column:1/-1;padding:40px;">
+            <i class="fas fa-users" style="font-size:48px;margin-bottom:16px;display:block;"></i>
+            暂无员工，请先添加员工
+        </div>
+        {% endfor %}
     </div>
 
-    <!-- 空状态提示 -->
-    <div id="emptyState" class="empty-state">
-        <div class="empty-icon">
-            <i class="fas fa-chart-line"></i>
-        </div>
-        <h3 class="empty-title">请选择员工查看业绩</h3>
-        <p class="empty-description">点击上方员工卡片，查看详细的业绩数据和学员信息</p>
-    </div>
-</div>
-
-<!-- 工资管理模态框 -->
-<div class="modal fade" id="salaryManagementModal" tabindex="-1">
-    <div class="modal-dialog modal-xl">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">
-                    <i class="fas fa-money-bill-wave text-success"></i> 
-                    <span id="salaryEmployeeName">员工</span> - 工资管理
-                </h5>
-                <button type="button" class="close" data-bs-dismiss="modal">
-                    <span>&times;</span>
-                </button>
+    <!-- 业绩详情区域 -->
+    <div id="performanceDetail" style="display:none;margin-top:24px;">
+        <div class="card">
+            <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
+                <h3 id="detailTitle"><i class="fas fa-chart-bar"></i> 员工业绩详情</h3>
+                <button class="btn btn-sm btn-secondary" onclick="hideDetail()"><i class="fas fa-times"></i> 关闭</button>
             </div>
-            <div class="modal-body">
-                <!-- 工资管理头部 -->
-                <div class="salary-header">
-                    <div class="row">
-                        <div class="col-md-8">
-                            <div class="salary-summary">
-                                <div class="summary-card">
-                                    <h6>本月统计</h6>
-                                    <div class="summary-stats">
-                                        <div class="stat-item">
-                                            <span class="stat-label">总提成：</span>
-                                            <span class="stat-value text-success" id="currentMonthCommission">￥0</span>
-                                        </div>
-                                        <div class="stat-item">
-                                            <span class="stat-label">学员数：</span>
-                                            <span class="stat-value" id="currentMonthStudents">0</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <button class="btn btn-primary btn-block" onclick="showAddSalaryForm()">
-                                <i class="fas fa-plus"></i> 记录本月工资
-                            </button>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- 工资记录列表 -->
-                <div class="salary-records">
-                    <h6><i class="fas fa-list"></i> 工资发放记录</h6>
-                    <div class="table-responsive">
-                        <table class="table table-striped">
-                            <thead>
-                                <tr>
-                                    <th>发放月份</th>
-                                    <th>基本工资</th>
-                                    <th>提成金额</th>
-                                    <th>奖金</th>
-                                    <th>扣款</th>
-                                    <th>实发金额</th>
-                                    <th>发放日期</th>
-                                    <th>状态</th>
-                                    <th>操作</th>
-                                </tr>
-                            </thead>
-                            <tbody id="salaryRecordsTableBody">
-                                <!-- 工资记录将动态加载到这里 -->
-                            </tbody>
-                        </table>
-                    </div>
+            <div class="card-body">
+                <div class="stats-grid" id="performanceStats"></div>
+                <div class="table-container mt-4">
+                    <div class="table-header"><h3><i class="fas fa-list"></i> 分配的课程</h3></div>
+                    <table class="modern-table">
+                        <thead>
+                            <tr><th>类型</th><th>学员</th><th>金额</th><th>状态</th><th>时间</th></tr>
+                        </thead>
+                        <tbody id="courseList"></tbody>
+                    </table>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- 添加工资记录模态框 -->
-<div class="modal fade" id="addSalaryModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">
-                    <i class="fas fa-plus"></i> <span id="salaryFormTitle">添加工资记录</span>
-                </h5>
-                <button type="button" class="close" data-bs-dismiss="modal">
-                    <span>&times;</span>
-                </button>
-            </div>
+<!-- 添加员工模态框 -->
+<div id="addEmployeeModal" class="modal">
+    <div class="modal-content" style="max-width:400px;">
+        <div class="modal-header">
+            <h4><i class="fas fa-user-plus"></i> 添加员工</h4>
+            <span class="close" onclick="closeAddModal()">&times;</span>
+        </div>
+        <form id="addEmployeeForm">
             <div class="modal-body">
-                <form id="salaryForm">
-                    <input type="hidden" id="salaryRecordId" name="id">
-                    <input type="hidden" id="salaryEmployeeId" name="employee_id">
-                    
-                    <div class="form-group">
-                        <label>发放月份 <span class="text-danger">*</span></label>
-                        <input type="month" class="form-control" id="paymentMonth" name="payment_month" required>
-                    </div>
-                    
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label>基本工资</label>
-                                <input type="number" class="form-control" id="baseSalary" name="base_salary" step="0.01" min="0" placeholder="0.00">
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label>提成金额 <span class="text-info">(系统自动计算)</span></label>
-                                <input type="number" class="form-control" id="commissionAmount" name="commission_amount" step="0.01" min="0" readonly style="background-color: #f8f9fa;">
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label>奖金</label>
-                                <input type="number" class="form-control" id="bonus" name="bonus" step="0.01" min="0" placeholder="0.00">
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label>扣款</label>
-                                <input type="number" class="form-control" id="deduction" name="deduction" step="0.01" min="0" placeholder="0.00">
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label>实发金额 <span class="text-success">(自动计算)</span></label>
-                        <input type="number" class="form-control" id="totalAmount" name="total_amount" step="0.01" readonly style="background-color: #e8f5e8; font-weight: bold;">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label>发放日期</label>
-                        <input type="date" class="form-control" id="paymentDate" name="payment_date">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label>发放方式</label>
-                        <select class="form-control" id="paymentMethod" name="payment_method">
-                            <option value="">选择发放方式</option>
-                            <option value="银行转账">银行转账</option>
-                            <option value="现金">现金</option>
-                            <option value="微信">微信</option>
-                            <option value="支付宝">支付宝</option>
-                        </select>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label>备注</label>
-                        <textarea class="form-control" id="notes" name="notes" rows="3" placeholder="请输入备注信息..."></textarea>
-                    </div>
-                </form>
+                <div class="form-group"><label>员工姓名 *</label><input type="text" id="add_name" class="form-control" required></div>
+                <div class="form-group"><label>月薪</label><input type="number" id="add_salary" class="form-control" step="0.01" min="0" value="0"></div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                <button type="button" class="btn btn-primary" onclick="saveSalaryRecord()">保存</button>
+                <button type="button" class="btn btn-secondary" onclick="closeAddModal()">取消</button>
+                <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> 保存</button>
             </div>
-        </div>
+        </form>
     </div>
 </div>
 
+<!-- 编辑员工模态框 -->
+<div id="editEmployeeModal" class="modal">
+    <div class="modal-content" style="max-width:400px;">
+        <div class="modal-header">
+            <h4><i class="fas fa-edit"></i> 编辑员工</h4>
+            <span class="close" onclick="closeEditModal()">&times;</span>
+        </div>
+        <form id="editEmployeeForm">
+            <input type="hidden" id="edit_id">
+            <div class="modal-body">
+                <div class="form-group"><label>员工姓名 *</label><input type="text" id="edit_name" class="form-control" required></div>
+                <div class="form-group"><label>月薪</label><input type="number" id="edit_salary" class="form-control" step="0.01" min="0"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeEditModal()">取消</button>
+                <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> 保存</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
 <script>
-let currentEmployeeId = null;
-let currentEmployeeName = '';
-let studentsData = null;
-let currentStudentId = null;
-
-// 选择员工
-function selectEmployee(employeeId, employeeName) {
-    // 更新选中状态
-    document.querySelectorAll('.employee-option').forEach(option => {
-        option.classList.remove('selected');
-    });
-    event.currentTarget.classList.add('selected');
-    
-    currentEmployeeId = employeeId;
-    currentEmployeeName = employeeName;
-    
-    // 显示学员容器
-    document.getElementById('studentsContainer').classList.add('show');
-    document.getElementById('emptyState').style.display = 'none';
-    
-    // 显示学员列表页面
-    showStudentsList();
-    
-    // 加载员工学员数据
-    loadEmployeeStudents(employeeId);
-}
-
-// 加载员工学员数据
-function loadEmployeeStudents(employeeId) {
-    fetch('/api/employees/' + employeeId + '/students')
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
-            return response.json();
-        })
-        .then(data => {
-            if (data.success) {
-                studentsData = data;
-                renderStudentsList(data);
-            } else {
-                showError('加载学员数据失败: ' + (data.message || '未知错误'));
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showError('网络错误，请重试: ' + error.message);
-        });
-}
-
-// 渲染学员列表
-function renderStudentsList(data) {
-    const studentsGrid = document.getElementById('studentsGrid');
-    const totalStudents = document.getElementById('totalStudents');
-    const totalCommission = document.getElementById('totalCommission');
-    
-    // 安全处理数据结构，兼容不同的API响应格式
-    const students = data.students || data.data || [];
-    
-    // 更新统计信息
-    const totalCommissionAmount = students.reduce((sum, student) => sum + (student.total_commission || 0), 0);
-    totalStudents.textContent = '共 ' + students.length + ' 名学员';
-    totalCommission.textContent = '总提成：￥' + totalCommissionAmount.toFixed(2);
-
-    // 生成学员卡片
-    studentsGrid.innerHTML = students.map(student => {
-        const statusTags = student.status_tags.map(tag => {
-            const colorMap = {
-                '试听课': 'blue',
-                '正课': 'green', 
-                '续课': 'orange',
-                '退课': 'red'
-            };
-            return '<span class="status-tag ' + (colorMap[tag] || 'gray') + '">' + tag + '</span>';
-        }).join('');
-        
-        return (
-            '<div class="student-card" onclick="showStudentDetail(' + student.customer_id + ')">' +
-                '<div class="student-header">' +
-                    '<div class="student-avatar">' +
-                        '<i class="fas fa-user-circle"></i>' +
-                    '</div>' +
-                    '<div class="student-basic">' +
-                        '<h4 class="student-name">' + student.customer_name + '</h4>' +
-                        '<p class="student-phone">' + (student.phone || '') + '</p>' +
-                    '</div>' +
-                '</div>' +
-                '<div class="student-content">' +
-                    '<div class="student-stats">' +
-                        '<div class="stat-row">' +
-                            '<span class="stat-label">总购买节数：</span>' +
-                            '<span class="stat-value">' + student.total_sessions + '节</span>' +
-                        '</div>' +
-                        '<div class="stat-row">' +
-                            '<span class="stat-label">总提成：</span>' +
-                            '<span class="stat-value commission">￥' + student.total_commission.toFixed(2) + '</span>' +
-                        '</div>' +
-                        '<div class="stat-row">' +
-                            '<span class="stat-label">报名时间：</span>' +
-                            '<span class="stat-value">' + (student.first_registration || '未知') + '</span>' +
-                        '</div>' +
-                    '</div>' +
-                    '<div class="student-tags">' +
-                        statusTags +
-                    '</div>' +
-                '</div>' +
-            '</div>'
-        );
-    }).join('');
-}
-
-// 显示学员列表页面
-function showStudentsList() {
-    document.getElementById('studentsList').style.display = 'block';
-    document.getElementById('studentDetail').style.display = 'none';
-}
-
-// 显示学员详情页面
-function showStudentDetail(customerId) {
-    currentStudentId = customerId;
-    
-    // 切换页面显示
-    document.getElementById('studentsList').style.display = 'none';
-    document.getElementById('studentDetail').style.display = 'block';
-    
-    // 加载学员详情数据
-    loadStudentDetail(currentEmployeeId, customerId);
-}
-
-// 加载学员详情数据
-function loadStudentDetail(employeeId, customerId) {
-    fetch('/api/employees/' + employeeId + '/students/' + customerId)
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
-            return response.json();
-        })
-        .then(data => {
-            if (data.success) {
-                renderStudentDetail(data.data);
-            } else {
-                showError('加载学员详情失败: ' + (data.message || '未知错误'));
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showError('网络错误，请重试: ' + error.message);
-        });
-}
-
-// 渲染学员详情
-function renderStudentDetail(data) {
-    // 更新学员基本信息
-    document.getElementById('detailStudentName').textContent = data.customer.name;
-    document.getElementById('detailStudentPhone').textContent = data.customer.phone || '';
-    document.getElementById('detailStudentGrade').textContent = data.customer.grade || '';
-    document.getElementById('detailStudentRegion').textContent = data.customer.region || '';
-    
-    // 渲染试听课内容
-    renderTrialContent(data.trial_courses);
-    
-    // 渲染正课内容 
-    renderFormalContent(data.formal_courses);
-    
-    // 渲染续课内容
-    renderRenewalContent(data.renewal_courses);
-    
-    // 渲染退课内容
-    renderRefundContent(data.refund_records);
-    
-    // 渲染提成汇总
-    renderCommissionSummary(data.commission_summary);
-}
-
-// 渲染试听课内容
-function renderTrialContent(trialCourses) {
-    const container = document.getElementById('trialContent');
-    
-    if (!trialCourses || trialCourses.length === 0) {
-        container.innerHTML = '<div class="no-data">暂无试听课记录</div>';
-        return;
-    }
-    
-    container.innerHTML = trialCourses.map(course => 
-        '<div class="course-item">' +
-            '<div class="course-info">' +
-                '<span class="course-label">试听价格：</span>' +
-                '<span class="course-value">￥' + (course.trial_price || 0) + '</span>' +
-            '</div>' +
-            '<div class="course-info">' +
-                '<span class="course-label">试听状态：</span>' +
-                '<span class="course-value">' + (course.trial_status || 'registered') + '</span>' +
-            '</div>' +
-            '<div class="course-info">' +
-                '<span class="course-label">试听时间：</span>' +
-                '<span class="course-value">' + (course.trial_time || '') + '</span>' +
-            '</div>' +
-            '<div class="course-info">' +
-                '<span class="course-label">是否转化：</span>' +
-                '<span class="course-value ' + (course.is_converted ? 'success' : 'pending') + '">' +
-                    (course.is_converted ? '已转化' : '未转化') +
-                '</span>' +
-            '</div>' +
-            (course.notes ? '<div class="course-notes">备注：' + course.notes + '</div>' : '') +
-        '</div>'
-    ).join('');
-}
-
-// 渲染正课内容
-function renderFormalContent(formalCourses) {
-    const container = document.getElementById('formalContent');
-    
-    if (!formalCourses || formalCourses.length === 0) {
-        container.innerHTML = '<div class="no-data">暂无正课记录</div>';
-        return;
-    }
-    
-    container.innerHTML = formalCourses.map(course => 
-        '<div class="course-item">' +
-            '<div class="course-info">' +
-                '<span class="course-label">课程类型：</span>' +
-                '<span class="course-value">' + (course.course_type || '未知') + '</span>' +
-            '</div>' +
-            '<div class="course-info">' +
-                '<span class="course-label">课程节数：</span>' +
-                '<span class="course-value">' + (course.sessions || 0) + '节</span>' +
-            '</div>' +
-            '<div class="course-info">' +
-                '<span class="course-label">单节价格：</span>' +
-                '<span class="course-value">￥' + (course.price_per_session || 0) + '</span>' +
-            '</div>' +
-            '<div class="course-info">' +
-                '<span class="course-label">总金额：</span>' +
-                '<span class="course-value total-amount">￥' + (course.total_amount || 0) + '</span>' +
-            '</div>' +
-            '<div class="course-info">' +
-                '<span class="course-label">报名时间：</span>' +
-                '<span class="course-value">' + (course.registration_time || '') + '</span>' +
-            '</div>' +
-            (course.course_info ? '<div class="course-notes">课程信息：' + course.course_info + '</div>' : '') +
-        '</div>'
-    ).join('');
-}
-
-// 渲染续课内容
-function renderRenewalContent(renewalCourses) {
-    const container = document.getElementById('renewalContent');
-    
-    if (!renewalCourses || renewalCourses.length === 0) {
-        container.innerHTML = '<div class="no-data">暂无续课记录</div>';
-        return;
-    }
-    
-    container.innerHTML = renewalCourses.map(course => 
-        '<div class="course-item">' +
-            '<div class="course-info">' +
-                '<span class="course-label">续课类型：</span>' +
-                '<span class="course-value">' + (course.renewal_type || '未知') + '</span>' +
-            '</div>' +
-            '<div class="course-info">' +
-                '<span class="course-label">续课节数：</span>' +
-                '<span class="course-value">' + (course.renewal_sessions || 0) + '节</span>' +
-            '</div>' +
-            '<div class="course-info">' +
-                '<span class="course-label">续课金额：</span>' +
-                '<span class="course-value total-amount">￥' + (course.renewal_amount || 0) + '</span>' +
-            '</div>' +
-            '<div class="course-info">' +
-                '<span class="course-label">续课时间：</span>' +
-                '<span class="course-value">' + (course.renewal_time || '') + '</span>' +
-            '</div>' +
-            (course.renewal_source ? '<div class="course-notes">续课来源：' + course.renewal_source + '</div>' : '') +
-        '</div>'
-    ).join('');
-}
-
-// 渲染退课内容
-function renderRefundContent(refundCourses) {
-    const container = document.getElementById('refundContent');
-    
-    if (!refundCourses || refundCourses.length === 0) {
-        container.innerHTML = '<div class="no-data">暂无退课记录</div>';
-        return;
-    }
-    
-    container.innerHTML = refundCourses.map(refund => 
-        '<div class="course-item">' +
-            '<div class="course-info">' +
-                '<span class="course-label">退课节数：</span>' +
-                '<span class="course-value">' + (refund.refund_sessions || 0) + '节</span>' +
-            '</div>' +
-            '<div class="course-info">' +
-                '<span class="course-label">退款金额：</span>' +
-                '<span class="course-value refund-amount">￥' + (refund.refund_amount || 0) + '</span>' +
-            '</div>' +
-            '<div class="course-info">' +
-                '<span class="course-label">退课原因：</span>' +
-                '<span class="course-value">' + (refund.refund_reason || '未知') + '</span>' +
-            '</div>' +
-            '<div class="course-info">' +
-                '<span class="course-label">退课时间：</span>' +
-                '<span class="course-value">' + (refund.refund_time || '') + '</span>' +
-            '</div>' +
-            '<div class="course-info">' +
-                '<span class="course-label">退课状态：</span>' +
-                '<span class="course-value">' + (refund.refund_status || '未知') + '</span>' +
-            '</div>' +
-            (refund.refund_channel ? `<div class="course-notes">退款渠道：${refund.refund_channel}</div>` : '') +
-        '</div>'
-    ).join('');
-}
-
-// 渲染提成汇总
-function renderCommissionSummary(commissionSummary) {
-    document.getElementById('summaryTrialCommission').textContent = '￥' + (commissionSummary.trial_commission || 0).toFixed(2);
-    document.getElementById('summaryFormalCommission').textContent = '￥' + (commissionSummary.formal_commission || 0).toFixed(2);
-    document.getElementById('summaryRenewalCommission').textContent = '￥' + (commissionSummary.renewal_commission || 0).toFixed(2);
-    document.getElementById('summaryTotalCommission').textContent = '￥' + (commissionSummary.total_commission || 0).toFixed(2);
-}
-
-// 显示错误信息
-function showError(message) {
-    alert(message); // 简化版错误提示
-}
-
-// 页面加载完成后初始化
+// 加载员工统计
 document.addEventListener('DOMContentLoaded', function() {
-    // 初始化页面状态
-    document.getElementById('studentsContainer').classList.remove('show');
-    document.getElementById('emptyState').style.display = 'block';
-    
-    // 添加员工选择事件监听器
-    document.querySelectorAll('.employee-option').forEach(option => {
-        option.addEventListener('click', function() {
-            const employeeId = parseInt(this.dataset.employeeId);
-            // 安全解析员工姓名，处理空值和无效JSON
-            let employeeName = '';
-            try {
-                if (this.dataset.employeeName) {
-                    employeeName = JSON.parse(this.dataset.employeeName);
-                }
-            } catch (e) {
-                // JSON解析失败时，直接使用原始值
-                employeeName = this.dataset.employeeName || '';
-            }
-            selectEmployee(employeeId, employeeName);
-        });
-    });
+    {% for employee in employees %}
+    loadEmployeeStats({{ employee.id }});
+    {% endfor %}
 });
 
-</script>
-
-<script>
-// 显示学员类型的友好提示
-function showStudentType(type) {
-    const messages = {
-        'trial': '试听课学员详情功能开发中...',
-        'formal': '正课学员详情功能开发中...',
-        'renewal': '续课学员详情功能开发中...',
-        'refund': '退课学员详情功能开发中...'
-    };
-    
-    alert(messages[type] || '功能开发中...');
-}
-
-// 错误提示
-function showError(message) {
-    alert('错误: ' + message);
-}
-
-// ========== 工资管理功能 ==========
-
-let currentSalaryEmployeeId = null;
-let currentSalaryEmployeeName = '';
-
-// 显示工资管理页面
-function showSalaryManagement(employeeId, employeeName) {
-    currentSalaryEmployeeId = employeeId;
-    currentSalaryEmployeeName = employeeName;
-    
-    // 更新模态框标题
-    document.getElementById('salaryEmployeeName').textContent = employeeName;
-    
-    // 加载当月统计和工资记录
-    loadMonthlySummary(employeeId);
-    loadSalaryRecords(employeeId);
-    
-    // 显示模态框
-    const salaryModal = new bootstrap.Modal(document.getElementById('salaryManagementModal'));
-    salaryModal.show();
-}
-
-// 加载当月统计信息
-function loadMonthlySummary(employeeId) {
-    const currentDate = new Date();
-    const year = currentDate.getFullYear();
-    const month = currentDate.getMonth() + 1;
-    
-    fetch(`/api/employees/${employeeId}/monthly-summary?year=${year}&month=${month}`)
-        .then(response => {
-            if (response.status === 401) {
-                alert('登录状态已过期，请重新登录');
-                window.location.href = '/login';
-                return;
-            }
-            return response.json();
-        })
+function loadEmployeeStats(id) {
+    fetch(`/api/employees/${id}/stats`)
+        .then(r => r.json())
         .then(data => {
-            if (data && data.success) {
-                document.getElementById('currentMonthCommission').textContent = '￥' + (data.summary.total_commission || 0).toFixed(2);
-                document.getElementById('currentMonthStudents').textContent = data.summary.student_count || 0;
+            if (data.success) {
+                document.getElementById(`trial-${id}`).textContent = data.trial_count || 0;
+                document.getElementById(`formal-${id}`).textContent = data.formal_count || 0;
             }
-        })
-        .catch(error => {
-            console.error('加载月度统计失败:', error);
         });
 }
 
-// 加载工资记录
-function loadSalaryRecords(employeeId) {
-    fetch(`/api/employees/${employeeId}/salary-records`)
-        .then(response => {
-            if (response.status === 401) {
-                alert('登录状态已过期，请重新登录');
-                window.location.href = '/login';
-                return;
-            }
-            return response.json();
-        })
+// 选择员工查看详情
+function selectEmployee(id, name) {
+    document.getElementById('detailTitle').innerHTML = `<i class="fas fa-chart-bar"></i> ${name} 的业绩详情`;
+    document.getElementById('performanceDetail').style.display = 'block';
+    
+    fetch(`/api/employees/${id}/performance`)
+        .then(r => r.json())
         .then(data => {
-            if (data && data.success) {
-                renderSalaryRecords(data.records);
-            }
-        })
-        .catch(error => {
-            console.error('加载工资记录失败:', error);
-        });
-}
-
-// 渲染工资记录表格
-function renderSalaryRecords(records) {
-    const tbody = document.getElementById('salaryRecordsTableBody');
-    
-    if (!records || records.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted">暂无工资记录</td></tr>';
-        return;
-    }
-    
-    tbody.innerHTML = records.map(record => {
-        const statusClass = {
-            'pending': 'salary-status-pending',
-            'paid': 'salary-status-paid',
-            'cancelled': 'salary-status-cancelled'
-        }[record.status] || 'salary-status-pending';
-        
-        const statusText = {
-            'pending': '待发放',
-            'paid': '已发放',
-            'cancelled': '已取消'
-        }[record.status] || record.status;
-        
-        return `
-            <tr>
-                <td>${record.payment_month}</td>
-                <td>￥${(record.base_salary || 0).toFixed(2)}</td>
-                <td>￥${(record.commission_amount || 0).toFixed(2)}</td>
-                <td>￥${(record.bonus || 0).toFixed(2)}</td>
-                <td>￥${(record.deduction || 0).toFixed(2)}</td>
-                <td><strong>￥${(record.total_amount || 0).toFixed(2)}</strong></td>
-                <td>${record.payment_date || '-'}</td>
-                <td><span class="salary-status-badge ${statusClass}">${statusText}</span></td>
-                <td>
-                    <button class="btn btn-sm btn-outline-primary" onclick="editSalaryRecord(${record.id})" title="编辑">
-                        <i class="fas fa-edit"></i>
-                    </button>
-                    <button class="btn btn-sm btn-outline-danger" onclick="deleteSalaryRecord(${record.id})" title="删除">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </td>
-            </tr>
-        `;
-    }).join('');
-}
-
-// 显示添加工资表单
-function showAddSalaryForm() {
-    document.getElementById('salaryFormTitle').textContent = '添加工资记录';
-    document.getElementById('salaryRecordId').value = '';
-    document.getElementById('salaryEmployeeId').value = currentSalaryEmployeeId;
-    
-    // 设置默认月份为当前月份
-    const currentDate = new Date();
-    const currentMonth = currentDate.toISOString().substr(0, 7); // YYYY-MM格式
-    document.getElementById('paymentMonth').value = currentMonth;
-    
-    // 设置默认发放日期为今天
-    document.getElementById('paymentDate').value = currentDate.toISOString().substr(0, 10);
-    
-    // 清空表单
-    document.getElementById('salaryForm').reset();
-    document.getElementById('paymentMonth').value = currentMonth;
-    document.getElementById('paymentDate').value = currentDate.toISOString().substr(0, 10);
-    document.getElementById('salaryEmployeeId').value = currentSalaryEmployeeId;
-    
-    // 获取当月提成金额
-    fetchMonthlyCommission(currentMonth);
-    
-    // 绑定事件监听器（模态框显示后）
-    setTimeout(() => {
-        // 添加工资表单的事件监听器
-        ['baseSalary', 'commissionAmount', 'bonus', 'deduction'].forEach(fieldId => {
-            const field = document.getElementById(fieldId);
-            if (field) {
-                // 移除旧的事件监听器防止重复绑定
-                field.removeEventListener('input', calculateTotalAmount);
-                field.addEventListener('input', calculateTotalAmount);
+            if (data.success) {
+                // 更新统计
+                document.getElementById('performanceStats').innerHTML = `
+                    <div class="stat-card"><div class="stat-icon"><i class="fas fa-play-circle"></i></div><div class="stat-info"><h3>试听课</h3><p class="stat-number">${data.trial_count || 0}</p></div></div>
+                    <div class="stat-card"><div class="stat-icon"><i class="fas fa-book-open"></i></div><div class="stat-info"><h3>正课</h3><p class="stat-number">${data.formal_count || 0}</p></div></div>
+                    <div class="stat-card"><div class="stat-icon"><i class="fas fa-yen-sign"></i></div><div class="stat-info"><h3>总收入</h3><p class="stat-number">¥${(data.total_revenue || 0).toFixed(2)}</p></div></div>
+                `;
+                // 更新课程列表
+                const courses = data.courses || [];
+                document.getElementById('courseList').innerHTML = courses.length ? courses.map(c => `
+                    <tr>
+                        <td><span class="badge ${c.type === 'trial' ? 'badge-info' : 'badge-success'}">${c.type === 'trial' ? '试听课' : '正课'}</span></td>
+                        <td>${c.customer_name || '-'}</td>
+                        <td>¥${(c.price || 0).toFixed(2)}</td>
+                        <td>${c.status || '-'}</td>
+                        <td>${c.created_at || '-'}</td>
+                    </tr>
+                `).join('') : '<tr><td colspan="5" class="text-center text-muted">暂无课程记录</td></tr>';
             }
         });
-        
-        // 月份变化时重新获取提成金额
-        const paymentMonthField = document.getElementById('paymentMonth');
-        if (paymentMonthField) {
-            paymentMonthField.removeEventListener('change', handleMonthChange);
-            paymentMonthField.addEventListener('change', handleMonthChange);
-        }
-    }, 100);
     
-    const addSalaryModal = new bootstrap.Modal(document.getElementById('addSalaryModal'));
-    addSalaryModal.show();
+    document.getElementById('performanceDetail').scrollIntoView({ behavior: 'smooth' });
 }
 
-// 处理月份变化
-function handleMonthChange() {
-    if (this.value && currentSalaryEmployeeId) {
-        fetchMonthlyCommission(this.value);
-    }
+function hideDetail() {
+    document.getElementById('performanceDetail').style.display = 'none';
 }
 
-// 获取指定月份的提成金额
-function fetchMonthlyCommission(paymentMonth) {
-    const [year, month] = paymentMonth.split('-');
-    
-    fetch(`/api/employees/${currentSalaryEmployeeId}/monthly-summary?year=${year}&month=${month}`)
-        .then(response => {
-            if (response.status === 401) {
-                alert('登录状态已过期，请重新登录');
-                window.location.href = '/login';
-                return;
-            }
-            return response.json();
-        })
-        .then(data => {
-            if (data && data.success) {
-                document.getElementById('commissionAmount').value = (data.summary.total_commission || 0).toFixed(2);
-                calculateTotalAmount();
-            }
-        })
-        .catch(error => {
-            console.error('获取月度提成失败:', error);
-        });
+// 添加员工
+function showAddEmployeeModal() {
+    document.getElementById('addEmployeeModal').style.display = 'flex';
+    document.body.style.overflow = 'hidden';
 }
-
-// 计算实发金额
-function calculateTotalAmount() {
-    const baseSalary = parseFloat(document.getElementById('baseSalary').value) || 0;
-    const commissionAmount = parseFloat(document.getElementById('commissionAmount').value) || 0;
-    const bonus = parseFloat(document.getElementById('bonus').value) || 0;
-    const deduction = parseFloat(document.getElementById('deduction').value) || 0;
-    
-    const totalAmount = baseSalary + commissionAmount + bonus - deduction;
-    document.getElementById('totalAmount').value = totalAmount.toFixed(2);
+function closeAddModal() {
+    document.getElementById('addEmployeeModal').style.display = 'none';
+    document.body.style.overflow = 'auto';
+    document.getElementById('addEmployeeForm').reset();
 }
-
-// 保存工资记录
-function saveSalaryRecord() {
-    const formData = new FormData(document.getElementById('salaryForm'));
-    const recordId = document.getElementById('salaryRecordId').value;
-    
-    const url = recordId ? `/api/salary-records/${recordId}` : '/api/salary-records';
-    const method = recordId ? 'PUT' : 'POST';
-    
-    fetch(url, {
-        method: method,
-        body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            const addSalaryModal = bootstrap.Modal.getInstance(document.getElementById('addSalaryModal'));
-            addSalaryModal.hide();
-            loadSalaryRecords(currentSalaryEmployeeId);
-            alert('工资记录保存成功！');
-        } else {
-            alert('保存失败：' + data.message);
-        }
-    })
-    .catch(error => {
-        alert('保存失败，请重试');
+document.getElementById('addEmployeeForm').onsubmit = function(e) {
+    e.preventDefault();
+    const name = document.getElementById('add_name').value.trim();
+    const salary = parseFloat(document.getElementById('add_salary').value) || 0;
+    if (!name) { alert('请输入员工姓名'); return; }
+    fetch('/api/employees', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, salary })
+    }).then(r => r.json()).then(data => {
+        if (data.success) { closeAddModal(); location.reload(); }
+        else alert(data.message || '添加失败');
     });
+};
+
+// 编辑员工
+function editEmployee(id, name, salary) {
+    document.getElementById('edit_id').value = id;
+    document.getElementById('edit_name').value = name;
+    document.getElementById('edit_salary').value = salary;
+    document.getElementById('editEmployeeModal').style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+}
+function closeEditModal() {
+    document.getElementById('editEmployeeModal').style.display = 'none';
+    document.body.style.overflow = 'auto';
+}
+document.getElementById('editEmployeeForm').onsubmit = function(e) {
+    e.preventDefault();
+    const id = document.getElementById('edit_id').value;
+    const name = document.getElementById('edit_name').value.trim();
+    const salary = parseFloat(document.getElementById('edit_salary').value) || 0;
+    if (!name) { alert('请输入员工姓名'); return; }
+    fetch(`/api/employees/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, salary })
+    }).then(r => r.json()).then(data => {
+        if (data.success) { closeEditModal(); location.reload(); }
+        else alert(data.message || '保存失败');
+    });
+};
+
+// 删除员工
+function deleteEmployee(id) {
+    if (!confirm('确定要删除这个员工吗？')) return;
+    fetch(`/api/employees/${id}`, { method: 'DELETE' })
+        .then(r => r.json())
+        .then(data => { if (data.success) location.reload(); else alert(data.message || '删除失败'); });
 }
 
-// 编辑工资记录
-function editSalaryRecord(recordId) {
-    fetch(`/api/salary-records/${recordId}`)
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                const record = data.record;
-                
-                document.getElementById('salaryFormTitle').textContent = '编辑工资记录';
-                document.getElementById('salaryRecordId').value = record.id;
-                document.getElementById('salaryEmployeeId').value = record.employee_id;
-                document.getElementById('paymentMonth').value = record.payment_month;
-                document.getElementById('baseSalary').value = record.base_salary || '';
-                document.getElementById('commissionAmount').value = record.commission_amount || '';
-                document.getElementById('bonus').value = record.bonus || '';
-                document.getElementById('deduction').value = record.deduction || '';
-                document.getElementById('totalAmount').value = record.total_amount || '';
-                document.getElementById('paymentDate').value = record.payment_date || '';
-                document.getElementById('paymentMethod').value = record.payment_method || '';
-                document.getElementById('notes').value = record.notes || '';
-                
-                const addSalaryModal = new bootstrap.Modal(document.getElementById('addSalaryModal'));
-                addSalaryModal.show();
-            } else {
-                alert('加载工资记录失败：' + data.message);
-            }
-        })
-        .catch(error => {
-            alert('加载失败，请重试');
-        });
-}
-
-// 删除工资记录
-function deleteSalaryRecord(recordId) {
-    if (confirm('确定要删除这条工资记录吗？')) {
-        fetch(`/api/salary-records/${recordId}`, {
-            method: 'DELETE'
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                loadSalaryRecords(currentSalaryEmployeeId);
-                alert('工资记录删除成功！');
-            } else {
-                alert('删除失败：' + data.message);
-            }
-        })
-        .catch(error => {
-            alert('删除失败，请重试');
-        });
-    }
-}
+// 模态框点击外部关闭
+window.onclick = function(e) {
+    if (e.target.id === 'addEmployeeModal') closeAddModal();
+    if (e.target.id === 'editEmployeeModal') closeEditModal();
+};
 </script>
 {% endblock %}

@@ -9,6 +9,7 @@ class Employee(db.Model):
     name = db.Column(db.String(100), unique=True, nullable=False)
     phone = db.Column(db.String(20))  # 联系电话或微信号
     email = db.Column(db.String(100))  # 邮箱地址
+    salary = db.Column(db.Float, default=0)  # 月薪
 
 class Customer(db.Model):
     id = db.Column(db.Integer, primary_key=True)
