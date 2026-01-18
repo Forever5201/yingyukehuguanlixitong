@@ -368,6 +368,32 @@ def get_employee_performance(employee_id):
         traceback.print_exc()
         return jsonify({'success': False, 'message': str(e)}), 500
 
+@main_bp.route('/api/employees/<int:employee_id>/stats')
+def get_employee_stats(employee_id):
+    """获取员工的基础统计数据（试听课和正课数量）"""
+    try:
+        employee = Employee.query.get(employee_id)
+        if not employee:
+            return jsonify({'success': False, 'message': '员工不存在'}), 404
+            
+        trial_count = Course.query.filter_by(
+            assigned_employee_id=employee_id, 
+            is_trial=True
+        ).count()
+        
+        formal_count = Course.query.filter_by(
+            assigned_employee_id=employee_id,
+            is_trial=False
+        ).count()
+        
+        return jsonify({
+            'success': True,
+            'trial_count': trial_count,
+            'formal_count': formal_count
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
 def calculate_course_profit(course):
     """计算课程利润 - 委托给ProfitService"""
     # 使用统一的ProfitService计算

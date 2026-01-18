@@ -7,20 +7,26 @@
     <!-- 操作栏 -->
     <div class="action-bar mb-4">
         <div class="action-buttons">
-            <button class="btn btn-primary" onclick="showAddEmployeeModal()"><i class="fas fa-user-plus"></i> 添加员工</button>
+            <button class="btn btn-primary" onclick="showAddEmployeeModal()"><i class="fas fa-user-plus"></i>
+                添加员工</button>
         </div>
     </div>
 
     <!-- 员工列表 -->
     <div class="status-stats-grid" id="employeeGrid">
         {% for employee in employees %}
-        <div class="status-stat-card" style="cursor:pointer;border-left-color:var(--primary);" onclick="selectEmployee({{ employee.id }}, '{{ employee.name }}')">
+        <div class="status-stat-card" style="cursor:pointer;border-left-color:var(--primary);"
+            onclick="selectEmployee({{ employee.id }}, '{{ employee.name }}')">
             <div class="status-stat-header">
                 <div class="user-avatar" style="width:40px;height:40px;font-size:16px;">{{ employee.name[0] }}</div>
                 <span>{{ employee.name }}</span>
                 <div style="margin-left:auto;display:flex;gap:4px;">
-                    <button class="btn btn-sm btn-outline-primary" onclick="event.stopPropagation();editEmployee({{ employee.id }}, '{{ employee.name }}', {{ employee.salary or 0 }})" title="编辑"><i class="fas fa-edit"></i></button>
-                    <button class="btn btn-sm btn-outline-danger" onclick="event.stopPropagation();deleteEmployee({{ employee.id }})" title="删除"><i class="fas fa-trash"></i></button>
+                    <button class="btn btn-sm btn-outline-primary"
+                        onclick="event.stopPropagation();editEmployee({{ employee.id }}, '{{ employee.name }}', {{ employee.salary or 0 }})"
+                        title="编辑"><i class="fas fa-edit"></i></button>
+                    <button class="btn btn-sm btn-outline-danger"
+                        onclick="event.stopPropagation();deleteEmployee({{ employee.id }})" title="删除"><i
+                            class="fas fa-trash"></i></button>
                 </div>
             </div>
             <div class="status-stat-content">
@@ -47,10 +53,18 @@
             <div class="card-body">
                 <div class="stats-grid" id="performanceStats"></div>
                 <div class="table-container mt-4">
-                    <div class="table-header"><h3><i class="fas fa-list"></i> 分配的课程</h3></div>
+                    <div class="table-header">
+                        <h3><i class="fas fa-list"></i> 分配的课程</h3>
+                    </div>
                     <table class="modern-table">
                         <thead>
-                            <tr><th>类型</th><th>学员</th><th>金额</th><th>状态</th><th>时间</th></tr>
+                            <tr>
+                                <th>类型</th>
+                                <th>学员</th>
+                                <th>金额</th>
+                                <th>状态</th>
+                                <th>时间</th>
+                            </tr>
                         </thead>
                         <tbody id="courseList"></tbody>
                     </table>
@@ -69,8 +83,10 @@
         </div>
         <form id="addEmployeeForm">
             <div class="modal-body">
-                <div class="form-group"><label>员工姓名 *</label><input type="text" id="add_name" class="form-control" required></div>
-                <div class="form-group"><label>月薪</label><input type="number" id="add_salary" class="form-control" step="0.01" min="0" value="0"></div>
+                <div class="form-group"><label>员工姓名 *</label><input type="text" id="add_name" class="form-control"
+                        required></div>
+                <div class="form-group"><label>月薪</label><input type="number" id="add_salary" class="form-control"
+                        step="0.01" min="0" value="0"></div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" onclick="closeAddModal()">取消</button>
@@ -90,8 +106,10 @@
         <form id="editEmployeeForm">
             <input type="hidden" id="edit_id">
             <div class="modal-body">
-                <div class="form-group"><label>员工姓名 *</label><input type="text" id="edit_name" class="form-control" required></div>
-                <div class="form-group"><label>月薪</label><input type="number" id="edit_salary" class="form-control" step="0.01" min="0"></div>
+                <div class="form-group"><label>员工姓名 *</label><input type="text" id="edit_name" class="form-control"
+                        required></div>
+                <div class="form-group"><label>月薪</label><input type="number" id="edit_salary" class="form-control"
+                        step="0.01" min="0"></div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" onclick="closeEditModal()">取消</button>
@@ -104,42 +122,51 @@
 
 {% block scripts %}
 <script>
-// 加载员工统计
-document.addEventListener('DOMContentLoaded', function() {
-    {% for employee in employees %}
-    loadEmployeeStats({{ employee.id }});
+    // 加载员工统计
+    document.addEventListener('DOMContentLoaded', function () {
+        {% for employee in employees %}
+        loadEmployeeStats({{ employee.id }});
     {% endfor %}
 });
 
-function loadEmployeeStats(id) {
-    fetch(`/api/employees/${id}/stats`)
-        .then(r => r.json())
-        .then(data => {
-            if (data.success) {
-                document.getElementById(`trial-${id}`).textContent = data.trial_count || 0;
-                document.getElementById(`formal-${id}`).textContent = data.formal_count || 0;
-            }
-        });
-}
+    function loadEmployeeStats(id) {
+        fetch(`/api/employees/${id}/stats`)
+            .then(r => {
+                if (!r.ok) throw new Error('API 响应异常');
+                const contentType = r.headers.get("content-type");
+                if (contentType && contentType.indexOf("application/json") !== -1) {
+                    return r.json();
+                } else {
+                    throw new Error('返回的非 JSON 内容');
+                }
+            })
+            .then(data => {
+                if (data.success) {
+                    document.getElementById(`trial-${id}`).textContent = data.trial_count || 0;
+                    document.getElementById(`formal-${id}`).textContent = data.formal_count || 0;
+                }
+            })
+            .catch(err => console.error(`加载员工 ${id} 统计失败:`, err));
+    }
 
-// 选择员工查看详情
-function selectEmployee(id, name) {
-    document.getElementById('detailTitle').innerHTML = `<i class="fas fa-chart-bar"></i> ${name} 的业绩详情`;
-    document.getElementById('performanceDetail').style.display = 'block';
-    
-    fetch(`/api/employees/${id}/performance`)
-        .then(r => r.json())
-        .then(data => {
-            if (data.success) {
-                // 更新统计
-                document.getElementById('performanceStats').innerHTML = `
+    // 选择员工查看详情
+    function selectEmployee(id, name) {
+        document.getElementById('detailTitle').innerHTML = `<i class="fas fa-chart-bar"></i> ${name} 的业绩详情`;
+        document.getElementById('performanceDetail').style.display = 'block';
+
+        fetch(`/api/employees/${id}/performance`)
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    // 更新统计
+                    document.getElementById('performanceStats').innerHTML = `
                     <div class="stat-card"><div class="stat-icon"><i class="fas fa-play-circle"></i></div><div class="stat-info"><h3>试听课</h3><p class="stat-number">${data.trial_count || 0}</p></div></div>
                     <div class="stat-card"><div class="stat-icon"><i class="fas fa-book-open"></i></div><div class="stat-info"><h3>正课</h3><p class="stat-number">${data.formal_count || 0}</p></div></div>
                     <div class="stat-card"><div class="stat-icon"><i class="fas fa-yen-sign"></i></div><div class="stat-info"><h3>总收入</h3><p class="stat-number">¥${(data.total_revenue || 0).toFixed(2)}</p></div></div>
                 `;
-                // 更新课程列表
-                const courses = data.courses || [];
-                document.getElementById('courseList').innerHTML = courses.length ? courses.map(c => `
+                    // 更新课程列表
+                    const courses = data.courses || [];
+                    document.getElementById('courseList').innerHTML = courses.length ? courses.map(c => `
                     <tr>
                         <td><span class="badge ${c.type === 'trial' ? 'badge-info' : 'badge-success'}">${c.type === 'trial' ? '试听课' : '正课'}</span></td>
                         <td>${c.customer_name || '-'}</td>
@@ -148,81 +175,81 @@ function selectEmployee(id, name) {
                         <td>${c.created_at || '-'}</td>
                     </tr>
                 `).join('') : '<tr><td colspan="5" class="text-center text-muted">暂无课程记录</td></tr>';
-            }
+                }
+            });
+
+        document.getElementById('performanceDetail').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function hideDetail() {
+        document.getElementById('performanceDetail').style.display = 'none';
+    }
+
+    // 添加员工
+    function showAddEmployeeModal() {
+        document.getElementById('addEmployeeModal').style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+    }
+    function closeAddModal() {
+        document.getElementById('addEmployeeModal').style.display = 'none';
+        document.body.style.overflow = 'auto';
+        document.getElementById('addEmployeeForm').reset();
+    }
+    document.getElementById('addEmployeeForm').onsubmit = function (e) {
+        e.preventDefault();
+        const name = document.getElementById('add_name').value.trim();
+        const salary = parseFloat(document.getElementById('add_salary').value) || 0;
+        if (!name) { alert('请输入员工姓名'); return; }
+        fetch('/api/employees', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, salary })
+        }).then(r => r.json()).then(data => {
+            if (data.success) { closeAddModal(); location.reload(); }
+            else alert(data.message || '添加失败');
         });
-    
-    document.getElementById('performanceDetail').scrollIntoView({ behavior: 'smooth' });
-}
+    };
 
-function hideDetail() {
-    document.getElementById('performanceDetail').style.display = 'none';
-}
+    // 编辑员工
+    function editEmployee(id, name, salary) {
+        document.getElementById('edit_id').value = id;
+        document.getElementById('edit_name').value = name;
+        document.getElementById('edit_salary').value = salary;
+        document.getElementById('editEmployeeModal').style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+    }
+    function closeEditModal() {
+        document.getElementById('editEmployeeModal').style.display = 'none';
+        document.body.style.overflow = 'auto';
+    }
+    document.getElementById('editEmployeeForm').onsubmit = function (e) {
+        e.preventDefault();
+        const id = document.getElementById('edit_id').value;
+        const name = document.getElementById('edit_name').value.trim();
+        const salary = parseFloat(document.getElementById('edit_salary').value) || 0;
+        if (!name) { alert('请输入员工姓名'); return; }
+        fetch(`/api/employees/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, salary })
+        }).then(r => r.json()).then(data => {
+            if (data.success) { closeEditModal(); location.reload(); }
+            else alert(data.message || '保存失败');
+        });
+    };
 
-// 添加员工
-function showAddEmployeeModal() {
-    document.getElementById('addEmployeeModal').style.display = 'flex';
-    document.body.style.overflow = 'hidden';
-}
-function closeAddModal() {
-    document.getElementById('addEmployeeModal').style.display = 'none';
-    document.body.style.overflow = 'auto';
-    document.getElementById('addEmployeeForm').reset();
-}
-document.getElementById('addEmployeeForm').onsubmit = function(e) {
-    e.preventDefault();
-    const name = document.getElementById('add_name').value.trim();
-    const salary = parseFloat(document.getElementById('add_salary').value) || 0;
-    if (!name) { alert('请输入员工姓名'); return; }
-    fetch('/api/employees', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, salary })
-    }).then(r => r.json()).then(data => {
-        if (data.success) { closeAddModal(); location.reload(); }
-        else alert(data.message || '添加失败');
-    });
-};
+    // 删除员工
+    function deleteEmployee(id) {
+        if (!confirm('确定要删除这个员工吗？')) return;
+        fetch(`/api/employees/${id}`, { method: 'DELETE' })
+            .then(r => r.json())
+            .then(data => { if (data.success) location.reload(); else alert(data.message || '删除失败'); });
+    }
 
-// 编辑员工
-function editEmployee(id, name, salary) {
-    document.getElementById('edit_id').value = id;
-    document.getElementById('edit_name').value = name;
-    document.getElementById('edit_salary').value = salary;
-    document.getElementById('editEmployeeModal').style.display = 'flex';
-    document.body.style.overflow = 'hidden';
-}
-function closeEditModal() {
-    document.getElementById('editEmployeeModal').style.display = 'none';
-    document.body.style.overflow = 'auto';
-}
-document.getElementById('editEmployeeForm').onsubmit = function(e) {
-    e.preventDefault();
-    const id = document.getElementById('edit_id').value;
-    const name = document.getElementById('edit_name').value.trim();
-    const salary = parseFloat(document.getElementById('edit_salary').value) || 0;
-    if (!name) { alert('请输入员工姓名'); return; }
-    fetch(`/api/employees/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, salary })
-    }).then(r => r.json()).then(data => {
-        if (data.success) { closeEditModal(); location.reload(); }
-        else alert(data.message || '保存失败');
-    });
-};
-
-// 删除员工
-function deleteEmployee(id) {
-    if (!confirm('确定要删除这个员工吗？')) return;
-    fetch(`/api/employees/${id}`, { method: 'DELETE' })
-        .then(r => r.json())
-        .then(data => { if (data.success) location.reload(); else alert(data.message || '删除失败'); });
-}
-
-// 模态框点击外部关闭
-window.onclick = function(e) {
-    if (e.target.id === 'addEmployeeModal') closeAddModal();
-    if (e.target.id === 'editEmployeeModal') closeEditModal();
-};
+    // 模态框点击外部关闭
+    window.onclick = function (e) {
+        if (e.target.id === 'addEmployeeModal') closeAddModal();
+        if (e.target.id === 'editEmployeeModal') closeEditModal();
+    };
 </script>
 {% endblock %}
