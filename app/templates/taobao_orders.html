@@ -8,27 +8,45 @@
     <div class="stats-grid">
         <div class="stat-card">
             <div class="stat-icon"><i class="fas fa-list-ol"></i></div>
-            <div class="stat-info"><h3>总单量</h3><p class="stat-number">{{ stats.total_count }}</p></div>
+            <div class="stat-info">
+                <h3>总单量</h3>
+                <p class="stat-number">{{ stats.total_count }}</p>
+            </div>
         </div>
         <div class="stat-card">
             <div class="stat-icon"><i class="fas fa-shopping-cart"></i></div>
-            <div class="stat-info"><h3>刷单总额</h3><p class="stat-number">¥{{ "%.2f"|format(stats.total_amount) }}</p></div>
+            <div class="stat-info">
+                <h3>刷单总额</h3>
+                <p class="stat-number">¥{{ "%.2f"|format(stats.total_amount) }}</p>
+            </div>
         </div>
         <div class="stat-card">
             <div class="stat-icon"><i class="fas fa-clock"></i></div>
-            <div class="stat-info"><h3>待结算</h3><p class="stat-number">¥{{ "%.2f"|format(stats.pending_principal) }}</p></div>
+            <div class="stat-info">
+                <h3>待结算</h3>
+                <p class="stat-number">¥{{ "%.2f"|format(stats.pending_principal) }}</p>
+            </div>
         </div>
         <div class="stat-card">
             <div class="stat-icon"><i class="fas fa-coins"></i></div>
-            <div class="stat-info"><h3>总本金</h3><p class="stat-number">¥{{ "%.2f"|format(stats.total_principal) }}</p></div>
+            <div class="stat-info">
+                <h3>总本金</h3>
+                <p class="stat-number">¥{{ "%.2f"|format(stats.total_principal) }}</p>
+            </div>
         </div>
         <div class="stat-card">
             <div class="stat-icon"><i class="fas fa-percentage"></i></div>
-            <div class="stat-info"><h3>总佣金</h3><p class="stat-number">¥{{ "%.2f"|format(stats.total_commission) }}</p></div>
+            <div class="stat-info">
+                <h3>总佣金</h3>
+                <p class="stat-number">¥{{ "%.2f"|format(stats.total_commission) }}</p>
+            </div>
         </div>
         <div class="stat-card">
             <div class="stat-icon"><i class="fas fa-check-circle"></i></div>
-            <div class="stat-info"><h3>已结算</h3><p class="stat-number">¥{{ "%.2f"|format(stats.settled_amount) }}</p></div>
+            <div class="stat-info">
+                <h3>已结算</h3>
+                <p class="stat-number">¥{{ "%.2f"|format(stats.settled_amount) }}</p>
+            </div>
         </div>
     </div>
 
@@ -36,7 +54,8 @@
     <div class="action-bar">
         <div class="search-box">
             <i class="fas fa-search"></i>
-            <input type="search" id="searchInput" placeholder="搜索姓名..." autocomplete="new-password" data-form-type="other" data-lpignore="true" readonly onfocus="this.removeAttribute('readonly');">
+            <input type="search" id="searchInput" placeholder="搜索姓名..." autocomplete="new-password"
+                data-form-type="other" data-lpignore="true" readonly onfocus="this.removeAttribute('readonly');">
         </div>
         <div class="action-buttons">
             <select id="settledFilter" class="form-control" style="width:auto;">
@@ -44,13 +63,14 @@
                 <option value="true">已结算</option>
                 <option value="false">未结算</option>
             </select>
-            <button class="btn btn-success" onclick="settleSelected()" id="settleBtn" disabled><i class="fas fa-calculator"></i> 结算选中</button>
+            <button class="btn btn-success" onclick="settleSelected()" id="settleBtn" disabled><i
+                    class="fas fa-calculator"></i> 结算选中</button>
             <button class="btn btn-primary" onclick="showAddModal()"><i class="fas fa-plus"></i> 添加记录</button>
         </div>
     </div>
 
     <!-- 刷单列表 -->
-    <div class="table-container">
+    <div class="table-container mobile-card-view">
         <div class="table-header">
             <h3><i class="fas fa-list"></i> 刷单记录</h3>
         </div>
@@ -58,7 +78,7 @@
             <table class="modern-table" id="ordersTable">
                 <thead>
                     <tr>
-                        <th><input type="checkbox" id="selectAll" onchange="toggleSelectAll()"></th>
+                        <th width="40"><input type="checkbox" id="selectAll" onchange="toggleSelectAll()"></th>
                         <th>姓名</th>
                         <th>淘宝等级</th>
                         <th>商品</th>
@@ -72,30 +92,38 @@
                     </tr>
                 </thead>
                 <tbody>
-                {% for order in orders %}
-                <tr data-id="{{ order.id }}">
-                    <td><input type="checkbox" class="order-checkbox" value="{{ order.id }}" {% if order.settled %}disabled{% endif %} onchange="updateSettleBtn()"></td>
-                    <td>{{ order.name }}</td>
-                    <td><span class="badge badge-info">{{ order.level or '-' }}</span></td>
-                    <td>{{ order.product_name or '-' }}</td>
-                    <td class="text-success">¥{{ "%.2f"|format(order.amount or 0) }}</td>
-                    <td class="text-warning">¥{{ "%.2f"|format(order.commission or 0) }}</td>
-                    <td>¥{{ "%.2f"|format(order.taobao_fee or 0) }}</td>
-                    <td>{% if order.evaluated %}<span class="badge badge-success">已评价</span>{% else %}<span class="badge badge-secondary">未评价</span>{% endif %}</td>
-                    <td>{{ order.order_time.strftime('%Y-%m-%d') if order.order_time else '-' }}</td>
-                    <td>
-                        {% if order.settled %}<span class="badge badge-success">已结算</span>{% else %}<span class="badge badge-warning">未结算</span>{% endif %}
-                    </td>
-                    <td>
-                        <div style="display:flex;gap:4px;">
-                            <button class="btn btn-sm btn-outline-primary" onclick="editOrder({{ order.id }})"><i class="fas fa-edit"></i></button>
-                            <button class="btn btn-sm btn-outline-danger" onclick="deleteOrder({{ order.id }})"><i class="fas fa-trash"></i></button>
-                        </div>
-                    </td>
-                </tr>
-                {% else %}
-                <tr><td colspan="11" class="text-center text-muted" style="padding:40px;">暂无刷单记录</td></tr>
-                {% endfor %}
+                    {% for order in orders %}
+                    <tr data-id="{{ order.id }}">
+                        <td data-label="选择"><input type="checkbox" class="order-checkbox" value="{{ order.id }}" {% if
+                                order.settled %}disabled{% endif %} onchange="updateSettleBtn()"></td>
+                        <td data-label="姓名">{{ order.name }}</td>
+                        <td data-label="淘宝等级"><span class="badge badge-info">{{ order.level or '-' }}</span></td>
+                        <td data-label="商品">{{ order.product_name or '-' }}</td>
+                        <td data-label="刷单金额" class="text-success">¥{{ "%.2f"|format(order.amount or 0) }}</td>
+                        <td data-label="佣金" class="text-warning">¥{{ "%.2f"|format(order.commission or 0) }}</td>
+                        <td data-label="手续费">¥{{ "%.2f"|format(order.taobao_fee or 0) }}</td>
+                        <td data-label="评价">{% if order.evaluated %}<span class="badge badge-success">已评价</span>{% else
+                            %}<span class="badge badge-secondary">未评价</span>{% endif %}</td>
+                        <td data-label="刷单时间">{{ order.order_time.strftime('%Y-%m-%d') if order.order_time else '-' }}
+                        </td>
+                        <td data-label="结算状态">
+                            {% if order.settled %}<span class="badge badge-success">已结算</span>{% else %}<span
+                                class="badge badge-warning">未结算</span>{% endif %}
+                        </td>
+                        <td data-label="操作">
+                            <div style="display:flex;gap:8px;">
+                                <button class="btn btn-sm btn-outline-primary" onclick="editOrder({{ order.id }})"><i
+                                        class="fas fa-edit"></i> 编辑</button>
+                                <button class="btn btn-sm btn-outline-danger" onclick="deleteOrder({{ order.id }})"><i
+                                        class="fas fa-trash"></i> 删除</button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="11" class="text-center text-muted" style="padding:40px;">暂无刷单记录</td>
+                    </tr>
+                    {% endfor %}
                 </tbody>
             </table>
         </div>
@@ -113,13 +141,20 @@
             <input type="hidden" id="orderId" name="order_id">
             <div class="modal-body">
                 <div class="form-row">
-                    <div class="form-group"><label>姓名 *</label><input type="text" id="customer_name" name="customer_name" class="form-control" required></div>
+                    <div class="form-group"><label>姓名 *</label><input type="text" id="customer_name"
+                            name="customer_name" class="form-control" required></div>
                     <div class="form-group"><label>淘宝等级 *</label>
                         <select id="level" name="level" class="form-control" required>
                             <option value="">请选择</option>
-                            <option value="钻3">钻3</option><option value="钻4">钻4</option><option value="钻5">钻5</option>
-                            <option value="皇冠1">皇冠1</option><option value="皇冠2">皇冠2</option><option value="皇冠3">皇冠3</option>
-                            <option value="皇冠4">皇冠4</option><option value="皇冠5">皇冠5</option><option value="88vip">88vip</option>
+                            <option value="钻3">钻3</option>
+                            <option value="钻4">钻4</option>
+                            <option value="钻5">钻5</option>
+                            <option value="皇冠1">皇冠1</option>
+                            <option value="皇冠2">皇冠2</option>
+                            <option value="皇冠3">皇冠3</option>
+                            <option value="皇冠4">皇冠4</option>
+                            <option value="皇冠5">皇冠5</option>
+                            <option value="88vip">88vip</option>
                         </select>
                     </div>
                 </div>
@@ -134,12 +169,17 @@
                     {% endif %}
                 </div>
                 <div class="form-row">
-                    <div class="form-group"><label>刷单金额 *</label><input type="number" id="amount" name="amount" step="0.01" min="0" class="form-control" required></div>
-                    <div class="form-group"><label>佣金 *</label><input type="number" id="commission" name="commission" step="0.01" min="0" class="form-control" required></div>
+                    <div class="form-group"><label>刷单金额 *</label><input type="number" id="amount" name="amount"
+                            step="0.01" min="0" class="form-control" required></div>
+                    <div class="form-group"><label>佣金 *</label><input type="number" id="commission" name="commission"
+                            step="0.01" min="0" class="form-control" required></div>
                 </div>
                 <div class="form-row">
-                    <div class="form-group"><label>刷单时间 *</label><input type="datetime-local" id="order_time" name="order_time" class="form-control" required></div>
-                    <div class="form-group" style="display:flex;align-items:flex-end;"><label style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="evaluated" name="evaluated"> 已评价</label></div>
+                    <div class="form-group"><label>刷单时间 *</label><input type="datetime-local" id="order_time"
+                            name="order_time" class="form-control" required></div>
+                    <div class="form-group" style="display:flex;align-items:flex-end;"><label
+                            style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="evaluated"
+                                name="evaluated"> 已评价</label></div>
                 </div>
             </div>
             <div class="modal-footer">
@@ -153,92 +193,104 @@
 
 {% block scripts %}
 <script>
-// 搜索和筛选
-document.getElementById('searchInput').addEventListener('input', filterTable);
-document.getElementById('settledFilter').addEventListener('change', filterTable);
+    // 搜索和筛选
+    document.getElementById('searchInput').addEventListener('input', filterTable);
+    document.getElementById('settledFilter').addEventListener('change', filterTable);
+    document.getElementById('startDate').addEventListener('change', filterTable);
+    document.getElementById('endDate').addEventListener('change', filterTable);
 
-function filterTable() {
-    const search = document.getElementById('searchInput').value.toLowerCase();
-    const settled = document.getElementById('settledFilter').value;
-    document.querySelectorAll('#ordersTable tbody tr').forEach(row => {
-        if (row.cells.length < 3) return;
-        const name = row.cells[1].textContent.toLowerCase();
-        const isSettled = row.cells[9].textContent.includes('已结算');
-        const matchSearch = name.includes(search);
-        const matchSettled = !settled || (settled === 'true' && isSettled) || (settled === 'false' && !isSettled);
-        row.style.display = (matchSearch && matchSettled) ? '' : 'none';
-    });
-}
+    function filterTable() {
+        const search = document.getElementById('searchInput').value.toLowerCase();
+        const settled = document.getElementById('settledFilter').value;
+        const startDate = document.getElementById('startDate').value;
+        const endDate = document.getElementById('endDate').value;
 
-// 全选
-function toggleSelectAll() {
-    const checked = document.getElementById('selectAll').checked;
-    document.querySelectorAll('.order-checkbox:not(:disabled)').forEach(cb => cb.checked = checked);
-    updateSettleBtn();
-}
+        document.querySelectorAll('#ordersTable tbody tr').forEach(row => {
+            if (row.cells.length < 3) return;
+            const name = row.cells[1].textContent.toLowerCase();
+            const date = row.cells[8].textContent.trim();
+            const isSettled = row.cells[9].textContent.includes('已结算');
 
-function updateSettleBtn() {
-    const checked = document.querySelectorAll('.order-checkbox:checked').length;
-    document.getElementById('settleBtn').disabled = checked === 0;
-}
+            const matchSearch = name.includes(search);
+            const matchSettled = !settled || (settled === 'true' && isSettled) || (settled === 'false' && !isSettled);
 
-// 结算选中
-function settleSelected() {
-    const ids = Array.from(document.querySelectorAll('.order-checkbox:checked')).map(cb => cb.value);
-    if (!ids.length) return;
-    if (!confirm(`确定结算选中的 ${ids.length} 条记录？`)) return;
-    fetch('/api/taobao-orders/settle', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ order_ids: ids })
-    }).then(r => r.json()).then(d => { if (d.success) location.reload(); else alert(d.message || '结算失败'); });
-}
+            let matchDate = true;
+            if (startDate && date && date !== '-') matchDate = date >= startDate;
+            if (endDate && date && date !== '-' && matchDate) matchDate = date <= endDate;
 
-// 添加/编辑模态框
-function showAddModal() {
-    document.getElementById('modalTitle').innerHTML = '<i class="fas fa-plus"></i> 添加刷单记录';
-    document.getElementById('orderForm').reset();
-    document.getElementById('orderId').value = '';
-    document.getElementById('order_time').value = new Date().toISOString().slice(0, 16);
-    document.getElementById('orderModal').style.display = 'flex';
-    document.body.style.overflow = 'hidden';
-}
-
-function closeModal() {
-    document.getElementById('orderModal').style.display = 'none';
-    document.body.style.overflow = 'auto';
-}
-
-function editOrder(id) {
-    fetch(`/api/taobao-orders/${id}`)
-        .then(r => r.json())
-        .then(data => {
-            if (data.success && data.order) {
-                const o = data.order;
-                document.getElementById('modalTitle').innerHTML = '<i class="fas fa-edit"></i> 编辑刷单记录';
-                document.getElementById('orderId').value = o.id;
-                document.getElementById('customer_name').value = o.name || '';
-                document.getElementById('level').value = o.level || '';
-                document.getElementById('product_name').value = o.product_name || '';
-                document.getElementById('amount').value = o.amount || '';
-                document.getElementById('commission').value = o.commission || '';
-                document.getElementById('evaluated').checked = o.evaluated;
-                if (o.order_time) document.getElementById('order_time').value = o.order_time.slice(0, 16);
-                document.getElementById('orderModal').style.display = 'flex';
-                document.body.style.overflow = 'hidden';
-            }
+            row.style.display = (matchSearch && matchSettled && matchDate) ? '' : 'none';
         });
-}
+    }
 
-function deleteOrder(id) {
-    if (!confirm('确定删除这条记录？')) return;
-    requireOperationPassword(function() {
-        fetch(`/api/taobao-orders/${id}`, { method: 'DELETE' })
+    // 全选
+    function toggleSelectAll() {
+        const checked = document.getElementById('selectAll').checked;
+        document.querySelectorAll('.order-checkbox:not(:disabled)').forEach(cb => cb.checked = checked);
+        updateSettleBtn();
+    }
+
+    function updateSettleBtn() {
+        const checked = document.querySelectorAll('.order-checkbox:checked').length;
+        document.getElementById('settleBtn').disabled = checked === 0;
+    }
+
+    // 结算选中
+    function settleSelected() {
+        const ids = Array.from(document.querySelectorAll('.order-checkbox:checked')).map(cb => cb.value);
+        if (!ids.length) return;
+        if (!confirm(`确定结算选中的 ${ids.length} 条记录？`)) return;
+        fetch('/api/taobao-orders/settle', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ order_ids: ids })
+        }).then(r => r.json()).then(d => { if (d.success) location.reload(); else alert(d.message || '结算失败'); });
+    }
+
+    // 添加/编辑模态框
+    function showAddModal() {
+        document.getElementById('modalTitle').innerHTML = '<i class="fas fa-plus"></i> 添加刷单记录';
+        document.getElementById('orderForm').reset();
+        document.getElementById('orderId').value = '';
+        document.getElementById('order_time').value = new Date().toISOString().slice(0, 16);
+        document.getElementById('orderModal').style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeModal() {
+        document.getElementById('orderModal').style.display = 'none';
+        document.body.style.overflow = 'auto';
+    }
+
+    function editOrder(id) {
+        fetch(`/api/taobao-orders/${id}`)
             .then(r => r.json())
-            .then(d => { if (d.success) location.reload(); else alert(d.message || '删除失败'); });
-    });
-}
+            .then(data => {
+                if (data.success && data.order) {
+                    const o = data.order;
+                    document.getElementById('modalTitle').innerHTML = '<i class="fas fa-edit"></i> 编辑刷单记录';
+                    document.getElementById('orderId').value = o.id;
+                    document.getElementById('customer_name').value = o.name || '';
+                    document.getElementById('level').value = o.level || '';
+                    document.getElementById('product_name').value = o.product_name || '';
+                    document.getElementById('amount').value = o.amount || '';
+                    document.getElementById('commission').value = o.commission || '';
+                    document.getElementById('evaluated').checked = o.evaluated;
+                    if (o.order_time) document.getElementById('order_time').value = o.order_time.slice(0, 16);
+                    document.getElementById('orderModal').style.display = 'flex';
+                    document.body.style.overflow = 'hidden';
+                }
+            });
+    }
 
-window.onclick = (e) => { if (e.target.id === 'orderModal') closeModal(); };
+    function deleteOrder(id) {
+        if (!confirm('确定删除这条记录？')) return;
+        requireOperationPassword(function () {
+            fetch(`/api/taobao-orders/${id}`, { method: 'DELETE' })
+                .then(r => r.json())
+                .then(d => { if (d.success) location.reload(); else alert(d.message || '删除失败'); });
+        });
+    }
+
+    window.onclick = (e) => { if (e.target.id === 'orderModal') closeModal(); };
 </script>
 {% endblock %}

@@ -8,7 +8,8 @@
     <!-- 核心统计卡片 -->
     <div class="stats-grid">
         <div class="stat-card">
-            <div class="stat-icon" style="background:linear-gradient(135deg,#667eea,#764ba2);"><i class="fas fa-play-circle"></i></div>
+            <div class="stat-icon" style="background:linear-gradient(135deg,#667eea,#764ba2);"><i
+                    class="fas fa-play-circle"></i></div>
             <div class="stat-info">
                 <h3>试听课总数</h3>
                 <p class="stat-number">{{ trial_total }}</p>
@@ -16,7 +17,8 @@
             </div>
         </div>
         <div class="stat-card">
-            <div class="stat-icon" style="background:linear-gradient(135deg,#11998e,#38ef7d);"><i class="fas fa-book-open"></i></div>
+            <div class="stat-icon" style="background:linear-gradient(135deg,#11998e,#38ef7d);"><i
+                    class="fas fa-book-open"></i></div>
             <div class="stat-info">
                 <h3>正课总数</h3>
                 <p class="stat-number">{{ formal_total }}</p>
@@ -24,21 +26,25 @@
             </div>
         </div>
         <div class="stat-card">
-            <div class="stat-icon" style="background:linear-gradient(135deg,#f093fb,#f5576c);"><i class="fas fa-yen-sign"></i></div>
+            <div class="stat-icon" style="background:linear-gradient(135deg,#f093fb,#f5576c);"><i
+                    class="fas fa-yen-sign"></i></div>
             <div class="stat-info">
                 <h3>本月收入</h3>
                 <p class="stat-number">¥{{ "%.0f"|format(month_revenue) }}</p>
             </div>
         </div>
         <div class="stat-card">
-            <div class="stat-icon" style="background:linear-gradient(135deg,#fa709a,#fee140);"><i class="fas fa-chart-line"></i></div>
+            <div class="stat-icon" style="background:linear-gradient(135deg,#fa709a,#fee140);"><i
+                    class="fas fa-chart-line"></i></div>
             <div class="stat-info">
                 <h3>本月利润</h3>
-                <p class="stat-number {% if month_profit >= 0 %}text-success{% else %}text-danger{% endif %}">¥{{ "%.0f"|format(month_profit) }}</p>
+                <p class="stat-number {% if month_profit >= 0 %}text-success{% else %}text-danger{% endif %}">¥{{
+                    "%.0f"|format(month_profit) }}</p>
             </div>
         </div>
         <div class="stat-card">
-            <div class="stat-icon" style="background:linear-gradient(135deg,#4facfe,#00f2fe);"><i class="fas fa-exchange-alt"></i></div>
+            <div class="stat-icon" style="background:linear-gradient(135deg,#4facfe,#00f2fe);"><i
+                    class="fas fa-exchange-alt"></i></div>
             <div class="stat-info">
                 <h3>转化率</h3>
                 <p class="stat-number">{{ conversion_rate }}%</p>
@@ -46,7 +52,8 @@
             </div>
         </div>
         <div class="stat-card">
-            <div class="stat-icon" style="background:linear-gradient(135deg,#ff9a9e,#fecfef);"><i class="fas fa-user-clock"></i></div>
+            <div class="stat-icon" style="background:linear-gradient(135deg,#ff9a9e,#fecfef);"><i
+                    class="fas fa-user-clock"></i></div>
             <div class="stat-info">
                 <h3>待跟进</h3>
                 <p class="stat-number">{{ pending_count }}</p>
@@ -72,20 +79,27 @@
     </div>
 
     <!-- 最近试听课 -->
-    <div class="table-container">
+    <div class="table-container mobile-card-view">
         <div class="table-header">
             <h3><i class="fas fa-clock"></i> 最近试听课记录</h3>
-            <a href="{{ url_for('main.manage_trial_courses') }}" class="btn btn-sm btn-outline">查看全部 <i class="fas fa-arrow-right"></i></a>
+            <a href="{{ url_for('main.manage_trial_courses') }}" class="btn btn-sm btn-outline">查看全部 <i
+                    class="fas fa-arrow-right"></i></a>
         </div>
         <table class="modern-table">
             <thead>
-                <tr><th>学员</th><th>渠道</th><th>售价</th><th>添加时间</th><th>状态</th></tr>
+                <tr>
+                    <th>学员</th>
+                    <th>渠道</th>
+                    <th>售价</th>
+                    <th>添加时间</th>
+                    <th>状态</th>
+                </tr>
             </thead>
             <tbody>
-            {% if recent_trials %}
+                {% if recent_trials %}
                 {% for course, customer in recent_trials %}
                 <tr>
-                    <td>
+                    <td data-label="学员">
                         <div class="user-info-cell">
                             <div class="user-avatar">{{ customer.name[0] if customer.name else '?' }}</div>
                             <div class="user-details">
@@ -94,29 +108,32 @@
                             </div>
                         </div>
                     </td>
-                    <td><span class="badge badge-info">{{ course.source or '未知' }}</span></td>
-                    <td>¥{{ "%.0f"|format(course.trial_price or 0) }}</td>
-                    <td>{{ course.created_at.strftime('%Y-%m-%d') if course.created_at else '-' }}</td>
-                    <td>
+                    <td data-label="渠道"><span class="badge badge-info">{{ course.source or '未知' }}</span></td>
+                    <td data-label="售价">¥{{ "%.0f"|format(course.trial_price or 0) }}</td>
+                    <td data-label="添加时间">{{ course.created_at.strftime('%Y-%m-%d') if course.created_at else '-' }}
+                    </td>
+                    <td data-label="状态">
                         {% if course.trial_status == 'converted' %}
-                            <span class="badge badge-success">已转正课</span>
+                        <span class="badge badge-success">已转正课</span>
                         {% elif course.trial_status == 'refunded' %}
-                            <span class="badge badge-danger">已退费</span>
+                        <span class="badge badge-danger">已退费</span>
                         {% elif course.trial_status == 'not_registered' %}
-                            <span class="badge badge-warning">已试听未转化</span>
+                        <span class="badge badge-warning">已试听未转化</span>
                         {% elif course.trial_status == 'registered' %}
-                            <span class="badge badge-primary">已报名试听</span>
+                        <span class="badge badge-primary">已报名试听</span>
                         {% else %}
-                            <span class="badge badge-secondary">{{ course.trial_status or '待处理' }}</span>
+                        <span class="badge badge-secondary">{{ course.trial_status or '待处理' }}</span>
                         {% endif %}
                     </td>
                 </tr>
                 {% endfor %}
-            {% else %}
-                <tr><td colspan="5" class="text-center text-muted" style="padding:40px;">
-                    <i class="fas fa-inbox" style="font-size:32px;margin-bottom:8px;display:block;"></i>暂无试听课记录
-                </td></tr>
-            {% endif %}
+                {% else %}
+                <tr>
+                    <td colspan="5" class="text-center text-muted" style="padding:40px;">
+                        <i class="fas fa-inbox" style="font-size:32px;margin-bottom:8px;display:block;"></i>暂无试听课记录
+                    </td>
+                </tr>
+                {% endif %}
             </tbody>
         </table>
     </div>
@@ -125,45 +142,46 @@
 
 {% block scripts %}
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    // 月度趋势图（真实数据）
-    const monthlyCtx = document.getElementById('monthlyChart');
-    if (monthlyCtx) {
-        new Chart(monthlyCtx, {
-            type: 'line',
-            data: {
-                labels: {{ monthly_labels | tojson }},
-                datasets: [{
-                    label: '正课数量',
-                    data: {{ monthly_data | tojson }},
-                    borderColor: '#667eea',
-                    backgroundColor: 'rgba(102,126,234,0.1)',
-                    fill: true,
-                    tension: 0.4,
-                    pointBackgroundColor: '#667eea',
-                    pointBorderColor: '#fff',
-                    pointBorderWidth: 2,
-                    pointRadius: 5
+    document.addEventListener('DOMContentLoaded', function () {
+        // 月度趋势图（真实数据）
+        const monthlyCtx = document.getElementById('monthlyChart');
+        if (monthlyCtx) {
+            new Chart(monthlyCtx, {
+                type: 'line',
+                data: {
+                    labels: {{ monthly_labels | tojson }
+    },
+        datasets: [{
+            label: '正课数量',
+            data: {{ monthly_data | tojson }},
+        borderColor: '#667eea',
+        backgroundColor: 'rgba(102,126,234,0.1)',
+        fill: true,
+        tension: 0.4,
+        pointBackgroundColor: '#667eea',
+        pointBorderColor: '#fff',
+        pointBorderWidth: 2,
+        pointRadius: 5
                 }]
             },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { display: false }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        grid: { color: '#f3f4f6' },
-                        ticks: { stepSize: 1 }
-                    },
-                    x: { grid: { display: false } }
-                }
-            }
+        options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { display: false }
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                grid: { color: '#f3f4f6' },
+                ticks: { stepSize: 1 }
+            },
+            x: { grid: { display: false } }
+        }
+    }
         });
     }
-    
+
     // 渠道分布图（真实数据）
     const channelCtx = document.getElementById('channelChart');
     if (channelCtx) {
@@ -172,18 +190,18 @@ document.addEventListener('DOMContentLoaded', function() {
             type: 'doughnut',
             data: {
                 labels: {{ channel_labels | tojson }},
-                datasets: [{
-                    data: {{ channel_data | tojson }},
-                    backgroundColor: colors.slice(0, {{ channel_labels | length }})
+    datasets: [{
+        data: {{ channel_data | tojson }},
+        backgroundColor: colors.slice(0, {{ channel_labels | length }})
                 }]
             },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
+    options: {
+        responsive: true,
+            maintainAspectRatio: false,
                 plugins: {
-                    legend: { position: 'right' }
-                }
-            }
+            legend: { position: 'right' }
+        }
+    }
         });
     }
 });

@@ -3,56 +3,6 @@
 {% block page_title %}试听课管理{% endblock %}
 
 {% block head %}
-<style>
-/* 移动端试听课页面优化 */
-@media (max-width: 768px) {
-    /* 表格转卡片 */
-    #trialTable thead { display: none; }
-    #trialTable tbody tr {
-        display: block;
-        background: white;
-        margin-bottom: 12px;
-        border-radius: 10px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-        padding: 14px;
-        position: relative;
-    }
-    #trialTable tbody td {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 8px 0;
-        border-bottom: 1px solid #f0f0f0;
-        font-size: 14px;
-    }
-    #trialTable tbody td:last-child { border-bottom: none; }
-    #trialTable tbody td::before {
-        content: attr(data-label);
-        font-weight: 600;
-        color: #666;
-        font-size: 13px;
-        flex-shrink: 0;
-        margin-right: 10px;
-    }
-    /* 隐藏复选框列 */
-    #trialTable tbody td:first-child { display: none; }
-    /* 操作按钮 */
-    #trialTable tbody td:last-child {
-        justify-content: flex-end;
-        padding-top: 12px;
-        margin-top: 4px;
-        border-top: 1px solid #eee;
-    }
-    #trialTable tbody td:last-child::before { display: none; }
-    /* 状态选择框 */
-    .status-select, .employee-select {
-        width: 100% !important;
-        max-width: 160px;
-    }
-    /* 隐藏批量操作 */
-    #selectAll, .course-checkbox, #batchDeleteBtn { display: none !important; }
-}
-</style>
 {% endblock %}
 
 {% block content %}
@@ -84,7 +34,8 @@
             <div class="stat-icon"><i class="fas fa-chart-line"></i></div>
             <div class="stat-info">
                 <h3>总利润</h3>
-                <p class="stat-number {% if stats.total_profit >= 0 %}text-success{% else %}text-danger{% endif %}">¥{{ "%.2f"|format(stats.total_profit) }}</p>
+                <p class="stat-number {% if stats.total_profit >= 0 %}text-success{% else %}text-danger{% endif %}">¥{{
+                    "%.2f"|format(stats.total_profit) }}</p>
             </div>
         </div>
         <div class="stat-card">
@@ -99,58 +50,84 @@
     <!-- 状态统计详情（可折叠） -->
     <div class="status-stats-section">
         <h3 class="collapsible-header" onclick="toggleStatusStats()" style="cursor:pointer;user-select:none;">
-            <i class="fas fa-chart-pie"></i> 状态统计详情 
-            <i class="fas fa-chevron-down toggle-icon" id="statusToggleIcon" style="float:right;transition:transform 0.3s;"></i>
+            <i class="fas fa-chart-pie"></i> 状态统计详情
+            <i class="fas fa-chevron-down toggle-icon" id="statusToggleIcon"
+                style="float:right;transition:transform 0.3s;"></i>
         </h3>
         <div class="status-stats-grid" id="statusStatsContent" style="display:none;">
             <div class="status-stat-card registered">
                 <div class="status-stat-header"><i class="fas fa-user-check"></i> 已报名试听课</div>
                 <div class="status-stat-content">
                     <div class="stat-row"><span>数量：</span><span>{{ status_stats.registered.count }}</span></div>
-                    <div class="stat-row"><span>收入：</span><span>¥{{ "%.2f"|format(status_stats.registered.revenue) }}</span></div>
-                    <div class="stat-row"><span>成本：</span><span>¥{{ "%.2f"|format(status_stats.registered.cost) }}</span></div>
-                    <div class="stat-row"><span>手续费：</span><span>¥{{ "%.2f"|format(status_stats.registered.fees) }}</span></div>
-                    <div class="stat-row profit"><span>利润：</span><span class="{% if status_stats.registered.profit >= 0 %}profit-positive{% else %}profit-negative{% endif %}">¥{{ "%.2f"|format(status_stats.registered.profit) }}</span></div>
+                    <div class="stat-row"><span>收入：</span><span>¥{{ "%.2f"|format(status_stats.registered.revenue)
+                            }}</span></div>
+                    <div class="stat-row"><span>成本：</span><span>¥{{ "%.2f"|format(status_stats.registered.cost)
+                            }}</span></div>
+                    <div class="stat-row"><span>手续费：</span><span>¥{{ "%.2f"|format(status_stats.registered.fees)
+                            }}</span></div>
+                    <div class="stat-row profit"><span>利润：</span><span
+                            class="{% if status_stats.registered.profit >= 0 %}profit-positive{% else %}profit-negative{% endif %}">¥{{
+                            "%.2f"|format(status_stats.registered.profit) }}</span></div>
                 </div>
             </div>
             <div class="status-stat-card not-registered">
                 <div class="status-stat-header"><i class="fas fa-user-times"></i> 已试听未转化</div>
                 <div class="status-stat-content">
                     <div class="stat-row"><span>数量：</span><span>{{ status_stats.not_registered.count }}</span></div>
-                    <div class="stat-row"><span>收入：</span><span>¥{{ "%.2f"|format(status_stats.not_registered.revenue) }}</span></div>
-                    <div class="stat-row"><span>成本：</span><span>¥{{ "%.2f"|format(status_stats.not_registered.cost) }}</span></div>
-                    <div class="stat-row"><span>手续费：</span><span>¥{{ "%.2f"|format(status_stats.not_registered.fees) }}</span></div>
-                    <div class="stat-row profit"><span>利润：</span><span class="{% if status_stats.not_registered.profit >= 0 %}profit-positive{% else %}profit-negative{% endif %}">¥{{ "%.2f"|format(status_stats.not_registered.profit) }}</span></div>
+                    <div class="stat-row"><span>收入：</span><span>¥{{ "%.2f"|format(status_stats.not_registered.revenue)
+                            }}</span></div>
+                    <div class="stat-row"><span>成本：</span><span>¥{{ "%.2f"|format(status_stats.not_registered.cost)
+                            }}</span></div>
+                    <div class="stat-row"><span>手续费：</span><span>¥{{ "%.2f"|format(status_stats.not_registered.fees)
+                            }}</span></div>
+                    <div class="stat-row profit"><span>利润：</span><span
+                            class="{% if status_stats.not_registered.profit >= 0 %}profit-positive{% else %}profit-negative{% endif %}">¥{{
+                            "%.2f"|format(status_stats.not_registered.profit) }}</span></div>
                 </div>
             </div>
             <div class="status-stat-card refunded">
                 <div class="status-stat-header"><i class="fas fa-undo"></i> 试听后退费</div>
                 <div class="status-stat-content">
                     <div class="stat-row"><span>数量：</span><span>{{ status_stats.refunded.count }}</span></div>
-                    <div class="stat-row"><span>收入：</span><span>¥{{ "%.2f"|format(status_stats.refunded.revenue) }}</span></div>
-                    <div class="stat-row"><span>成本：</span><span>¥{{ "%.2f"|format(status_stats.refunded.cost) }}</span></div>
-                    <div class="stat-row"><span>手续费：</span><span>¥{{ "%.2f"|format(status_stats.refunded.fees) }}</span></div>
-                    <div class="stat-row profit"><span>利润：</span><span class="{% if status_stats.refunded.profit >= 0 %}profit-positive{% else %}profit-negative{% endif %}">¥{{ "%.2f"|format(status_stats.refunded.profit) }}</span></div>
+                    <div class="stat-row"><span>收入：</span><span>¥{{ "%.2f"|format(status_stats.refunded.revenue)
+                            }}</span></div>
+                    <div class="stat-row"><span>成本：</span><span>¥{{ "%.2f"|format(status_stats.refunded.cost) }}</span>
+                    </div>
+                    <div class="stat-row"><span>手续费：</span><span>¥{{ "%.2f"|format(status_stats.refunded.fees) }}</span>
+                    </div>
+                    <div class="stat-row profit"><span>利润：</span><span
+                            class="{% if status_stats.refunded.profit >= 0 %}profit-positive{% else %}profit-negative{% endif %}">¥{{
+                            "%.2f"|format(status_stats.refunded.profit) }}</span></div>
                 </div>
             </div>
             <div class="status-stat-card converted">
                 <div class="status-stat-header"><i class="fas fa-arrow-right"></i> 试听后转正课</div>
                 <div class="status-stat-content">
                     <div class="stat-row"><span>数量：</span><span>{{ status_stats.converted.count }}</span></div>
-                    <div class="stat-row"><span>收入：</span><span>¥{{ "%.2f"|format(status_stats.converted.revenue) }}</span></div>
-                    <div class="stat-row"><span>成本：</span><span>¥{{ "%.2f"|format(status_stats.converted.cost) }}</span></div>
-                    <div class="stat-row"><span>手续费：</span><span>¥{{ "%.2f"|format(status_stats.converted.fees) }}</span></div>
-                    <div class="stat-row profit"><span>利润：</span><span class="{% if status_stats.converted.profit >= 0 %}profit-positive{% else %}profit-negative{% endif %}">¥{{ "%.2f"|format(status_stats.converted.profit) }}</span></div>
+                    <div class="stat-row"><span>收入：</span><span>¥{{ "%.2f"|format(status_stats.converted.revenue)
+                            }}</span></div>
+                    <div class="stat-row"><span>成本：</span><span>¥{{ "%.2f"|format(status_stats.converted.cost) }}</span>
+                    </div>
+                    <div class="stat-row"><span>手续费：</span><span>¥{{ "%.2f"|format(status_stats.converted.fees)
+                            }}</span></div>
+                    <div class="stat-row profit"><span>利润：</span><span
+                            class="{% if status_stats.converted.profit >= 0 %}profit-positive{% else %}profit-negative{% endif %}">¥{{
+                            "%.2f"|format(status_stats.converted.profit) }}</span></div>
                 </div>
             </div>
             <div class="status-stat-card no-action">
                 <div class="status-stat-header"><i class="fas fa-clock"></i> 试听后无操作</div>
                 <div class="status-stat-content">
                     <div class="stat-row"><span>数量：</span><span>{{ status_stats.no_action.count }}</span></div>
-                    <div class="stat-row"><span>收入：</span><span>¥{{ "%.2f"|format(status_stats.no_action.revenue) }}</span></div>
-                    <div class="stat-row"><span>成本：</span><span>¥{{ "%.2f"|format(status_stats.no_action.cost) }}</span></div>
-                    <div class="stat-row"><span>手续费：</span><span>¥{{ "%.2f"|format(status_stats.no_action.fees) }}</span></div>
-                    <div class="stat-row profit"><span>利润：</span><span class="{% if status_stats.no_action.profit >= 0 %}profit-positive{% else %}profit-negative{% endif %}">¥{{ "%.2f"|format(status_stats.no_action.profit) }}</span></div>
+                    <div class="stat-row"><span>收入：</span><span>¥{{ "%.2f"|format(status_stats.no_action.revenue)
+                            }}</span></div>
+                    <div class="stat-row"><span>成本：</span><span>¥{{ "%.2f"|format(status_stats.no_action.cost) }}</span>
+                    </div>
+                    <div class="stat-row"><span>手续费：</span><span>¥{{ "%.2f"|format(status_stats.no_action.fees)
+                            }}</span></div>
+                    <div class="stat-row profit"><span>利润：</span><span
+                            class="{% if status_stats.no_action.profit >= 0 %}profit-positive{% else %}profit-negative{% endif %}">¥{{
+                            "%.2f"|format(status_stats.no_action.profit) }}</span></div>
                 </div>
             </div>
         </div>
@@ -160,8 +137,11 @@
     <div class="action-bar">
         <div class="search-box" style="position:relative;">
             <i class="fas fa-search"></i>
-            <input type="search" id="searchInput" placeholder="搜索学员姓名或电话..." autocomplete="new-password" data-form-type="other" data-lpignore="true" readonly onfocus="this.removeAttribute('readonly');">
-            <i class="fas fa-times-circle" id="clearSearch" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);cursor:pointer;color:#999;display:none;" onclick="clearSearchInput()"></i>
+            <input type="search" id="searchInput" placeholder="搜索学员姓名或电话..." autocomplete="new-password"
+                data-form-type="other" data-lpignore="true" readonly onfocus="this.removeAttribute('readonly');">
+            <i class="fas fa-times-circle" id="clearSearch"
+                style="position:absolute;right:10px;top:50%;transform:translateY(-50%);cursor:pointer;color:#999;display:none;"
+                onclick="clearSearchInput()"></i>
         </div>
         <div class="action-buttons">
             <select id="sourceFilter" class="form-control" style="width:auto;display:inline-block;">
@@ -180,13 +160,20 @@
                 <option value="converted">试听后转正课</option>
                 <option value="no_action">试听后无操作</option>
             </select>
+            <div class="filter-group" style="display:inline-flex;align-items:center;gap:8px;margin-right:8px;">
+                <input type="date" id="startDate" class="form-control" style="width:auto;display:inline-block;"
+                    title="开始日期">
+                <span class="text-muted">-</span>
+                <input type="date" id="endDate" class="form-control" style="width:auto;display:inline-block;"
+                    title="结束日期">
+            </div>
             <button class="btn btn-secondary" onclick="exportTrialData()"><i class="fas fa-download"></i> 导出</button>
             <button class="btn btn-primary" id="addTrialBtn"><i class="fas fa-user-plus"></i> 录入新学员</button>
         </div>
     </div>
 
     <!-- 试听课列表 -->
-    <div class="table-container">
+    <div class="table-container mobile-card-view">
         <div class="table-header">
             <h3><i class="fas fa-list"></i> 试听课记录</h3>
             <span class="text-muted">共 <span id="totalRecords">{{ trial_courses|length }}</span> 条记录</span>
@@ -209,66 +196,92 @@
                     </tr>
                 </thead>
                 <tbody>
-                {% for course, customer in trial_courses %}
-                <tr data-course-id="{{ course.id }}" data-customer-id="{{ customer.id }}" class="clickable-row" onclick="handleRowClick(event, {{ customer.id }})">
-                    <td><input type="checkbox" class="course-checkbox" value="{{ course.id }}"></td>
-                    <td data-label="学员">{{ customer.name or '-' }}</td>
-                    <td data-label="性别/年级">{{ (customer.gender or '-') + '/' + (customer.grade or '-') }}</td>
-                    <td data-label="联系方式">{{ customer.phone }}</td>
-                    <td data-label="售价">¥{{ "%.2f"|format(course.trial_price) }}</td>
-                    <td data-label="渠道"><span class="badge badge-info">{{ course.source or '-' }}</span></td>
-                    <td data-label="手续费">
-                        {% if course.source == '淘宝' %}¥{{ "%.2f"|format(course.trial_price * (taobao_fee_rate or 0.006)) }}{% else %}¥0.00{% endif %}
-                    </td>
-                    <td data-label="报名时间">{{ course.created_at.strftime('%Y-%m-%d') }}</td>
-                    <td data-label="状态">
-                        <select class="form-control status-select" data-course-id="{{ course.id }}" data-trial-price="{{ course.trial_price }}" onchange="updateTrialStatus('{{ course.id }}', this.value)" style="width:auto;font-size:12px;padding:4px 8px;">
-                            <option value="registered" {% if course.trial_status == 'registered' %}selected{% endif %}>已报名试听课</option>
-                            <option value="not_registered" {% if course.trial_status == 'not_registered' %}selected{% endif %}>已试听未转化</option>
-                            <option value="refunded" {% if course.trial_status == 'refunded' %}selected{% endif %}>试听后退费</option>
-                            <option value="converted" {% if course.trial_status == 'converted' %}selected{% endif %}>试听后转正课</option>
-                            <option value="no_action" {% if course.trial_status == 'no_action' %}selected{% endif %}>试听后无操作</option>
-                        </select>
-                    </td>
-                    <td data-label="员工">
-                        <select class="form-control employee-select" data-course-id="{{ course.id }}" onchange="assignEmployee('{{ course.id }}', this.value)" style="width:auto;font-size:12px;padding:4px 8px;">
-                            <option value="">未分配</option>
-                            {% for employee in employees %}
-                            <option value="{{ employee.id }}" {% if course.assigned_employee_id == employee.id %}selected{% endif %}>{{ employee.name }}</option>
-                            {% endfor %}
-                        </select>
-                    </td>
-                    <td>
-                        <div style="display:flex;gap:4px;">
-                            <button onclick="editTrialCourse('{{ course.id }}')" class="btn btn-sm btn-outline-primary" title="编辑"><i class="fas fa-edit"></i></button>
-                            {% if not course.converted_to_course %}
-                            <a href="{{ url_for('main.convert_trial_to_course', trial_id=course.id) }}" class="btn btn-sm btn-outline-success" title="转正课"><i class="fas fa-arrow-right"></i></a>
-                            {% endif %}
-                            <button onclick="deleteTrialCourse('{{ course.id }}')" class="btn btn-sm btn-outline-danger" title="删除"><i class="fas fa-trash"></i></button>
-                        </div>
-                    </td>
-                </tr>
-                {% else %}
-                <tr><td colspan="11" class="text-center text-muted" style="padding:40px;">暂无试听课记录</td></tr>
-                {% endfor %}
+                    {% for course, customer in trial_courses %}
+                    <tr data-course-id="{{ course.id }}" data-customer-id="{{ customer.id }}" class="clickable-row"
+                        onclick="handleRowClick(event, {{ customer.id or 'null' }})">
+                        <td data-label="选择"><input type="checkbox" class="course-checkbox" value="{{ course.id }}"></td>
+                        <td data-label="学员">{{ customer.name or '-' }}</td>
+                        <td data-label="性别/年级">{{ (customer.gender or '-') + '/' + (customer.grade or '-') }}</td>
+                        <td data-label="联系方式">{{ customer.phone }}</td>
+                        <td data-label="售价">¥{{ "%.2f"|format(course.trial_price) }}</td>
+                        <td data-label="渠道"><span class="badge badge-info">{{ course.source or '-' }}</span></td>
+                        <td data-label="手续费">
+                            {% if course.source == '淘宝' %}¥{{ "%.2f"|format(course.trial_price * (taobao_fee_rate or
+                            0.006)) }}{% else %}¥0.00{% endif %}
+                        </td>
+                        <td data-label="报名时间">{{ course.created_at.strftime('%Y-%m-%d') }}</td>
+                        <td data-label="状态">
+                            <select class="form-control status-select" data-course-id="{{ course.id }}"
+                                data-trial-price="{{ course.trial_price }}"
+                                onchange="updateTrialStatus('{{ course.id }}', this.value)"
+                                style="width:auto;font-size:12px;padding:4px 8px;">
+                                <option value="registered" {% if course.trial_status=='registered' %}selected{% endif
+                                    %}>已报名试听课</option>
+                                <option value="not_registered" {% if course.trial_status=='not_registered' %}selected{%
+                                    endif %}>已试听未转化</option>
+                                <option value="refunded" {% if course.trial_status=='refunded' %}selected{% endif %}>
+                                    试听后退费</option>
+                                <option value="converted" {% if course.trial_status=='converted' %}selected{% endif %}>
+                                    试听后转正课</option>
+                                <option value="no_action" {% if course.trial_status=='no_action' %}selected{% endif %}>
+                                    试听后无操作</option>
+                            </select>
+                        </td>
+                        <td data-label="员工">
+                            <select class="form-control employee-select" data-course-id="{{ course.id }}"
+                                onchange="assignEmployee('{{ course.id }}', this.value)"
+                                style="width:auto;font-size:12px;padding:4px 8px;">
+                                <option value="">未分配</option>
+                                {% for employee in employees %}
+                                <option value="{{ employee.id }}" {% if course.assigned_employee_id==employee.id
+                                    %}selected{% endif %}>{{ employee.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                        <td data-label="操作">
+                            <div style="display:flex;gap:4px;">
+                                <button onclick="editTrialCourse('{{ course.id }}')"
+                                    class="btn btn-sm btn-outline-primary" title="编辑"><i
+                                        class="fas fa-edit"></i></button>
+                                {% if not course.converted_to_course %}
+                                <a href="{{ url_for('main.convert_trial_to_course', trial_id=course.id) }}"
+                                    class="btn btn-sm btn-outline-success" title="转正课"><i
+                                        class="fas fa-arrow-right"></i></a>
+                                {% endif %}
+                                <button onclick="deleteTrialCourse('{{ course.id }}')"
+                                    class="btn btn-sm btn-outline-danger" title="删除"><i
+                                        class="fas fa-trash"></i></button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="11" class="text-center text-muted" style="padding:40px;">暂无试听课记录</td>
+                    </tr>
+                    {% endfor %}
                 </tbody>
             </table>
         </div>
         <!-- 分页控件 -->
-        <div class="pagination-container" style="display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-top:1px solid var(--gray-200);">
+        <div class="pagination-container"
+            style="display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-top:1px solid var(--gray-200);">
             <div class="pagination-info" style="color:var(--gray-500);font-size:13px;">
                 显示第 <span id="showStart">1</span>-<span id="showEnd">0</span> 条，共 <span id="showTotal">0</span> 条
             </div>
             <div class="pagination-buttons" style="display:flex;gap:8px;align-items:center;">
-                <select id="pageSize" class="form-control" style="width:auto;font-size:13px;padding:4px 8px;" onchange="changePageSize()">
+                <select id="pageSize" class="form-control" style="width:auto;font-size:13px;padding:4px 8px;"
+                    onchange="changePageSize()">
                     <option value="10">10条/页</option>
                     <option value="20" selected>20条/页</option>
                     <option value="50">50条/页</option>
                     <option value="100">100条/页</option>
                 </select>
-                <button class="btn btn-sm btn-secondary" id="prevPage" onclick="goToPage('prev')" disabled><i class="fas fa-chevron-left"></i> 上一页</button>
-                <span style="padding:0 8px;font-size:14px;">第 <span id="currentPage">1</span>/<span id="totalPages">1</span> 页</span>
-                <button class="btn btn-sm btn-secondary" id="nextPage" onclick="goToPage('next')">下一页 <i class="fas fa-chevron-right"></i></button>
+                <button class="btn btn-sm btn-secondary" id="prevPage" onclick="goToPage('prev')" disabled><i
+                        class="fas fa-chevron-left"></i> 上一页</button>
+                <span style="padding:0 8px;font-size:14px;">第 <span id="currentPage">1</span>/<span
+                        id="totalPages">1</span> 页</span>
+                <button class="btn btn-sm btn-secondary" id="nextPage" onclick="goToPage('next')">下一页 <i
+                        class="fas fa-chevron-right"></i></button>
             </div>
         </div>
     </div>
@@ -287,30 +300,60 @@
                     <h5><i class="fas fa-magic"></i> 智能识别 <small class="text-muted">(可选)</small></h5>
                     <div class="smart-input-container">
                         <textarea id="smartInput" placeholder="粘贴学员信息，系统将自动识别..." rows="4"></textarea>
-                        <button type="button" id="parseBtn" class="btn btn-info btn-sm mt-2"><i class="fas fa-wand-magic-sparkles"></i> 智能解析</button>
+                        <button type="button" id="parseBtn" class="btn btn-info btn-sm mt-2"><i
+                                class="fas fa-wand-magic-sparkles"></i> 智能解析</button>
                     </div>
                 </div>
                 <div class="form-section-modal">
                     <h5><i class="fas fa-user"></i> 学员信息</h5>
                     <div class="form-row">
-                        <div class="form-group"><label>学员姓名</label><input type="text" name="new_customer_name" id="new_customer_name" class="form-control"></div>
-                        <div class="form-group"><label>联系电话/微信 *</label><input type="text" name="new_customer_phone" id="new_customer_phone" class="form-control" required></div>
+                        <div class="form-group"><label>学员姓名</label><input type="text" name="new_customer_name"
+                                id="new_customer_name" class="form-control"></div>
+                        <div class="form-group"><label>联系电话/微信 *</label><input type="text" name="new_customer_phone"
+                                id="new_customer_phone" class="form-control" required></div>
                     </div>
                     <div class="form-row">
-                        <div class="form-group"><label>性别</label><select name="new_customer_gender" id="new_customer_gender" class="form-control"><option value="">请选择</option><option value="男">男</option><option value="女">女</option></select></div>
-                        <div class="form-group"><label>年级</label><select name="new_customer_grade" id="new_customer_grade" class="form-control"><option value="">请选择</option><option value="小学">小学</option><option value="初中">初中</option><option value="高中">高中</option><option value="大学">大学</option></select></div>
+                        <div class="form-group"><label>性别</label><select name="new_customer_gender"
+                                id="new_customer_gender" class="form-control">
+                                <option value="">请选择</option>
+                                <option value="男">男</option>
+                                <option value="女">女</option>
+                            </select></div>
+                        <div class="form-group"><label>年级</label><select name="new_customer_grade"
+                                id="new_customer_grade" class="form-control">
+                                <option value="">请选择</option>
+                                <option value="小学">小学</option>
+                                <option value="初中">初中</option>
+                                <option value="高中">高中</option>
+                                <option value="大学">大学</option>
+                            </select></div>
                     </div>
-                    <div class="form-group"><label>地区</label><input type="text" name="new_customer_region" id="new_customer_region" class="form-control"></div>
+                    <div class="form-group"><label>地区</label><input type="text" name="new_customer_region"
+                            id="new_customer_region" class="form-control"></div>
                 </div>
                 <div class="form-section-modal">
                     <h5><i class="fas fa-book"></i> 试听课信息</h5>
                     <div class="form-row">
-                        <div class="form-group"><label>试听课售价 *</label><input type="number" name="trial_price" id="trial_price" step="0.01" min="0" class="form-control" required></div>
-                        <div class="form-group"><label>渠道来源 *</label><select name="source" id="source" class="form-control" required><option value="">请选择</option><option value="淘宝">淘宝</option><option value="视频号">视频号</option><option value="抖音">抖音</option><option value="小红书">小红书</option><option value="其他">其他</option></select></div>
+                        <div class="form-group"><label>试听课售价 *</label><input type="number" name="trial_price"
+                                id="trial_price" step="0.01" min="0" class="form-control" required></div>
+                        <div class="form-group"><label>渠道来源 *</label><select name="source" id="source"
+                                class="form-control" required>
+                                <option value="">请选择</option>
+                                <option value="淘宝">淘宝</option>
+                                <option value="视频号">视频号</option>
+                                <option value="抖音">抖音</option>
+                                <option value="小红书">小红书</option>
+                                <option value="其他">其他</option>
+                            </select></div>
                     </div>
                     <div class="form-row">
-                        <div class="form-group"><label>报名日期 *</label><input type="date" name="trial_date" id="trial_date" class="form-control" required></div>
-                        <div class="form-group"><label>分配员工</label><select name="assigned_employee_id" id="assigned_employee_id" class="form-control"><option value="">暂不分配</option>{% for employee in employees %}<option value="{{ employee.id }}">{{ employee.name }}</option>{% endfor %}</select></div>
+                        <div class="form-group"><label>报名日期 *</label><input type="date" name="trial_date"
+                                id="trial_date" class="form-control" required></div>
+                        <div class="form-group"><label>分配员工</label><select name="assigned_employee_id"
+                                id="assigned_employee_id" class="form-control">
+                                <option value="">暂不分配</option>{% for employee in employees %}<option
+                                    value="{{ employee.id }}">{{ employee.name }}</option>{% endfor %}
+                            </select></div>
                     </div>
                 </div>
             </div>
@@ -333,20 +376,45 @@
             <input type="hidden" id="edit_trial_course_id" name="course_id">
             <div class="modal-body">
                 <div class="form-row">
-                    <div class="form-group"><label>学员姓名 *</label><input type="text" name="customer_name" id="edit_trial_customer_name" class="form-control" required></div>
-                    <div class="form-group"><label>联系电话 *</label><input type="text" name="customer_phone" id="edit_trial_customer_phone" class="form-control" required></div>
+                    <div class="form-group"><label>学员姓名 *</label><input type="text" name="customer_name"
+                            id="edit_trial_customer_name" class="form-control" required></div>
+                    <div class="form-group"><label>联系电话 *</label><input type="text" name="customer_phone"
+                            id="edit_trial_customer_phone" class="form-control" required></div>
                 </div>
                 <div class="form-row">
-                    <div class="form-group"><label>性别</label><select name="customer_gender" id="edit_trial_customer_gender" class="form-control"><option value="">请选择</option><option value="男">男</option><option value="女">女</option></select></div>
-                    <div class="form-group"><label>年级</label><select name="customer_grade" id="edit_trial_customer_grade" class="form-control"><option value="">请选择</option><option value="小学">小学</option><option value="初中">初中</option><option value="高中">高中</option><option value="大学">大学</option></select></div>
+                    <div class="form-group"><label>性别</label><select name="customer_gender"
+                            id="edit_trial_customer_gender" class="form-control">
+                            <option value="">请选择</option>
+                            <option value="男">男</option>
+                            <option value="女">女</option>
+                        </select></div>
+                    <div class="form-group"><label>年级</label><select name="customer_grade"
+                            id="edit_trial_customer_grade" class="form-control">
+                            <option value="">请选择</option>
+                            <option value="小学">小学</option>
+                            <option value="初中">初中</option>
+                            <option value="高中">高中</option>
+                            <option value="大学">大学</option>
+                        </select></div>
                 </div>
                 <div class="form-row">
-                    <div class="form-group"><label>地区</label><input type="text" name="customer_region" id="edit_trial_customer_region" class="form-control"></div>
-                    <div class="form-group"><label>试听课售价 *</label><input type="number" name="trial_price" id="edit_trial_price" step="0.01" min="0" class="form-control" required></div>
+                    <div class="form-group"><label>地区</label><input type="text" name="customer_region"
+                            id="edit_trial_customer_region" class="form-control"></div>
+                    <div class="form-group"><label>试听课售价 *</label><input type="number" name="trial_price"
+                            id="edit_trial_price" step="0.01" min="0" class="form-control" required></div>
                 </div>
                 <div class="form-row">
-                    <div class="form-group"><label>渠道来源 *</label><select name="source" id="edit_trial_source" class="form-control" required><option value="">请选择</option><option value="淘宝">淘宝</option><option value="视频号">视频号</option><option value="抖音">抖音</option><option value="小红书">小红书</option><option value="其他">其他</option></select></div>
-                    <div class="form-group"><label>报名日期 *</label><input type="date" name="trial_date" id="edit_trial_date" class="form-control" required></div>
+                    <div class="form-group"><label>渠道来源 *</label><select name="source" id="edit_trial_source"
+                            class="form-control" required>
+                            <option value="">请选择</option>
+                            <option value="淘宝">淘宝</option>
+                            <option value="视频号">视频号</option>
+                            <option value="抖音">抖音</option>
+                            <option value="小红书">小红书</option>
+                            <option value="其他">其他</option>
+                        </select></div>
+                    <div class="form-group"><label>报名日期 *</label><input type="date" name="trial_date"
+                            id="edit_trial_date" class="form-control" required></div>
                 </div>
             </div>
             <div class="modal-footer">
@@ -367,13 +435,22 @@
         <form id="refundForm">
             <input type="hidden" id="refund_course_id">
             <div class="modal-body">
-                <div class="form-group"><label>退费金额 *</label><input type="number" id="refund_amount" step="0.01" min="0" class="form-control" required></div>
-                <div class="form-group"><label>退费手续费 *</label><input type="number" id="refund_fee" step="0.01" min="0" class="form-control" required></div>
-                <div class="form-group"><label>退款渠道 *</label><select id="refund_channel" class="form-control" required><option value="">请选择</option><option value="微信">微信</option><option value="淘宝">淘宝</option><option value="支付宝">支付宝</option><option value="其他">其他</option></select></div>
+                <div class="form-group"><label>退费金额 *</label><input type="number" id="refund_amount" step="0.01" min="0"
+                        class="form-control" required></div>
+                <div class="form-group"><label>退费手续费 *</label><input type="number" id="refund_fee" step="0.01" min="0"
+                        class="form-control" required></div>
+                <div class="form-group"><label>退款渠道 *</label><select id="refund_channel" class="form-control" required>
+                        <option value="">请选择</option>
+                        <option value="微信">微信</option>
+                        <option value="淘宝">淘宝</option>
+                        <option value="支付宝">支付宝</option>
+                        <option value="其他">其他</option>
+                    </select></div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" onclick="closeRefundModal()">取消</button>
-                <button type="button" class="btn btn-primary" onclick="submitRefund()"><i class="fas fa-check"></i> 确认</button>
+                <button type="button" class="btn btn-primary" onclick="submitRefund()"><i class="fas fa-check"></i>
+                    确认</button>
             </div>
         </form>
     </div>
@@ -382,294 +459,311 @@
 
 {% block scripts %}
 <style>
-.clickable-row { cursor: pointer; transition: background-color 0.2s; }
-.clickable-row:hover { background-color: #f0f7ff !important; }
+    .clickable-row {
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+
+    .clickable-row:hover {
+        background-color: #f0f7ff !important;
+    }
 </style>
 <script>
-// 行点击处理（排除操作按钮区域）
-function handleRowClick(event, customerId) {
-    // 如果点击的是按钮、链接、输入框、下拉框，不触发弹窗
-    const tag = event.target.tagName.toLowerCase();
-    if (['button', 'a', 'input', 'select', 'option', 'i'].includes(tag)) return;
-    if (event.target.closest('button') || event.target.closest('a') || event.target.closest('select')) return;
-    
-    showCustomerProfile(customerId);
-}
+    // 行点击处理（排除操作按钮区域）
+    function handleRowClick(event, customerId) {
+        // 如果点击的是按钮、链接、输入框、下拉框，不触发弹窗
+        const tag = event.target.tagName.toLowerCase();
+        if (['button', 'a', 'input', 'select', 'option', 'i'].includes(tag)) return;
+        if (event.target.closest('button') || event.target.closest('a') || event.target.closest('select')) return;
 
-// 模态框控制
-const addModal = document.getElementById('addTrialModal');
-const editModal = document.getElementById('editTrialModal');
-const refundModal = document.getElementById('refundModal');
-
-document.getElementById('addTrialBtn').onclick = () => { 
-    addModal.style.display = 'flex'; 
-    document.body.style.overflow = 'hidden';
-    // 默认日期为今天
-    document.getElementById('trial_date').value = new Date().toISOString().split('T')[0];
-};
-document.querySelector('.close').onclick = () => { addModal.style.display = 'none'; document.body.style.overflow = 'auto'; };
-document.getElementById('cancelBtn').onclick = () => { addModal.style.display = 'none'; document.body.style.overflow = 'auto'; };
-document.querySelector('.close-edit').onclick = () => { editModal.style.display = 'none'; document.body.style.overflow = 'auto'; };
-document.getElementById('editCancelBtn').onclick = () => { editModal.style.display = 'none'; document.body.style.overflow = 'auto'; };
-
-window.onclick = (e) => {
-    if (e.target === addModal) { addModal.style.display = 'none'; document.body.style.overflow = 'auto'; }
-    if (e.target === editModal) { editModal.style.display = 'none'; document.body.style.overflow = 'auto'; }
-    if (e.target === refundModal) { refundModal.style.display = 'none'; document.body.style.overflow = 'auto'; }
-};
-
-// ========== 状态统计折叠功能 ==========
-function toggleStatusStats() {
-    const content = document.getElementById('statusStatsContent');
-    const icon = document.getElementById('statusToggleIcon');
-    if (content.style.display === 'none') {
-        content.style.display = 'grid';
-        icon.style.transform = 'rotate(180deg)';
-    } else {
-        content.style.display = 'none';
-        icon.style.transform = 'rotate(0deg)';
+        showCustomerProfile(customerId);
     }
-}
 
-// ========== 分页功能 ==========
-let currentPage = 1;
-let pageSize = 20;
-let allRows = [];
-let filteredRows = [];
+    // 模态框控制
+    const addModal = document.getElementById('addTrialModal');
+    const editModal = document.getElementById('editTrialModal');
+    const refundModal = document.getElementById('refundModal');
 
-// 初始化分页
-function initPagination() {
-    allRows = Array.from(document.querySelectorAll('#trialTable tbody tr'));
-    filteredRows = [...allRows];
-    updatePagination();
-}
+    document.getElementById('addTrialBtn').onclick = () => {
+        addModal.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+        // 默认日期为今天
+        document.getElementById('trial_date').value = new Date().toISOString().split('T')[0];
+    };
+    document.querySelector('.close').onclick = () => { addModal.style.display = 'none'; document.body.style.overflow = 'auto'; };
+    document.getElementById('cancelBtn').onclick = () => { addModal.style.display = 'none'; document.body.style.overflow = 'auto'; };
+    document.querySelector('.close-edit').onclick = () => { editModal.style.display = 'none'; document.body.style.overflow = 'auto'; };
+    document.getElementById('editCancelBtn').onclick = () => { editModal.style.display = 'none'; document.body.style.overflow = 'auto'; };
 
-// 更新分页显示
-function updatePagination() {
-    const totalRecords = filteredRows.length;
-    const totalPages = Math.ceil(totalRecords / pageSize) || 1;
-    
-    // 确保当前页有效
-    if (currentPage > totalPages) currentPage = totalPages;
-    if (currentPage < 1) currentPage = 1;
-    
-    const start = (currentPage - 1) * pageSize;
-    const end = Math.min(start + pageSize, totalRecords);
-    
-    // 隐藏所有行，只显示当前页的行
-    allRows.forEach(row => row.style.display = 'none');
-    filteredRows.slice(start, end).forEach(row => row.style.display = '');
-    
-    // 更新分页信息
-    document.getElementById('showStart').textContent = totalRecords > 0 ? start + 1 : 0;
-    document.getElementById('showEnd').textContent = end;
-    document.getElementById('showTotal').textContent = totalRecords;
-    document.getElementById('totalRecords').textContent = totalRecords;
-    document.getElementById('currentPage').textContent = currentPage;
-    document.getElementById('totalPages').textContent = totalPages;
-    
-    // 更新按钮状态
-    document.getElementById('prevPage').disabled = currentPage <= 1;
-    document.getElementById('nextPage').disabled = currentPage >= totalPages;
-}
+    window.onclick = (e) => {
+        if (e.target === addModal) { addModal.style.display = 'none'; document.body.style.overflow = 'auto'; }
+        if (e.target === editModal) { editModal.style.display = 'none'; document.body.style.overflow = 'auto'; }
+        if (e.target === refundModal) { refundModal.style.display = 'none'; document.body.style.overflow = 'auto'; }
+    };
 
-// 翻页
-function goToPage(direction) {
-    if (direction === 'prev' && currentPage > 1) {
-        currentPage--;
-    } else if (direction === 'next') {
-        const totalPages = Math.ceil(filteredRows.length / pageSize);
-        if (currentPage < totalPages) currentPage++;
+    // ========== 状态统计折叠功能 ==========
+    function toggleStatusStats() {
+        const content = document.getElementById('statusStatsContent');
+        const icon = document.getElementById('statusToggleIcon');
+        if (content.style.display === 'none') {
+            content.style.display = 'grid';
+            icon.style.transform = 'rotate(180deg)';
+        } else {
+            content.style.display = 'none';
+            icon.style.transform = 'rotate(0deg)';
+        }
     }
-    updatePagination();
-}
 
-// 改变每页显示数量
-function changePageSize() {
-    pageSize = parseInt(document.getElementById('pageSize').value);
-    currentPage = 1;
-    updatePagination();
-}
+    // ========== 分页功能 ==========
+    let currentPage = 1;
+    let pageSize = 20;
+    let allRows = [];
+    let filteredRows = [];
 
-// 搜索和筛选
-const searchInput = document.getElementById('searchInput');
-const sourceFilter = document.getElementById('sourceFilter');
-const statusFilter = document.getElementById('statusFilter');
-const clearSearchBtn = document.getElementById('clearSearch');
+    // 初始化分页
+    function initPagination() {
+        allRows = Array.from(document.querySelectorAll('#trialTable tbody tr'));
+        filteredRows = [...allRows];
+        updatePagination();
+    }
 
-function filterTable() {
-    const search = searchInput.value.toLowerCase();
-    const source = sourceFilter.value;
-    const status = statusFilter.value;
-    
-    // 显示/隐藏清除按钮
-    clearSearchBtn.style.display = search ? 'block' : 'none';
-    
-    // 筛选行
-    filteredRows = allRows.filter(row => {
-        if (row.cells.length < 3) return false;
-        const name = row.cells[1].textContent.toLowerCase();
-        const phone = row.cells[3].textContent.toLowerCase();
-        const rowSource = row.cells[5].textContent.trim();
-        const statusSelect = row.querySelector('.status-select');
-        const rowStatus = statusSelect ? statusSelect.value : '';
-        const matchSearch = name.includes(search) || phone.includes(search);
-        const matchSource = !source || rowSource === source;
-        const matchStatus = !status || rowStatus === status;
-        return matchSearch && matchSource && matchStatus;
-    });
-    
-    currentPage = 1;
-    updatePagination();
-}
+    // 更新分页显示
+    function updatePagination() {
+        const totalRecords = filteredRows.length;
+        const totalPages = Math.ceil(totalRecords / pageSize) || 1;
 
-function clearSearchInput() {
-    searchInput.value = '';
-    clearSearchBtn.style.display = 'none';
-    filterTable();
-}
+        // 确保当前页有效
+        if (currentPage > totalPages) currentPage = totalPages;
+        if (currentPage < 1) currentPage = 1;
 
-// 初始化
-document.addEventListener('DOMContentLoaded', initPagination);
+        const start = (currentPage - 1) * pageSize;
+        const end = Math.min(start + pageSize, totalRecords);
 
-searchInput.addEventListener('input', filterTable);
-sourceFilter.addEventListener('change', filterTable);
-statusFilter.addEventListener('change', filterTable);
+        // 隐藏所有行，只显示当前页的行
+        allRows.forEach(row => row.style.display = 'none');
+        filteredRows.slice(start, end).forEach(row => row.style.display = '');
 
-// 导出数据
-function exportTrialData() {
-    window.location.href = '/api/export/trial-courses';
-}
+        // 更新分页信息
+        document.getElementById('showStart').textContent = totalRecords > 0 ? start + 1 : 0;
+        document.getElementById('showEnd').textContent = end;
+        document.getElementById('showTotal').textContent = totalRecords;
+        document.getElementById('totalRecords').textContent = totalRecords;
+        document.getElementById('currentPage').textContent = currentPage;
+        document.getElementById('totalPages').textContent = totalPages;
 
-// 删除试听课
-function deleteTrialCourse(courseId) {
-    if (!confirm('确定要删除这条试听课记录吗？')) return;
-    requireOperationPassword(function() {
-        fetch(`/api/trial-courses/${courseId}`, { method: 'DELETE' })
-            .then(r => r.json())
-            .then(data => { if (data.success || data.message) location.reload(); else alert(data.message || data.error || '删除失败'); })
-            .catch(() => alert('删除失败'));
-    });
-}
+        // 更新按钮状态
+        document.getElementById('prevPage').disabled = currentPage <= 1;
+        document.getElementById('nextPage').disabled = currentPage >= totalPages;
+    }
 
-// 更新状态
-function updateTrialStatus(courseId, newStatus) {
-    if (newStatus === 'refunded') { showRefundModal(courseId); return; }
-    requireOperationPassword(function() {
-        fetch(`/api/trial-courses/${courseId}/status`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ status: newStatus })
-        }).then(r => r.json()).then(data => { if (data.success) location.reload(); else alert(data.message || '更新失败'); });
-    });
-}
+    // 翻页
+    function goToPage(direction) {
+        if (direction === 'prev' && currentPage > 1) {
+            currentPage--;
+        } else if (direction === 'next') {
+            const totalPages = Math.ceil(filteredRows.length / pageSize);
+            if (currentPage < totalPages) currentPage++;
+        }
+        updatePagination();
+    }
 
-// 退费模态框
-function showRefundModal(courseId) {
-    document.getElementById('refund_course_id').value = courseId;
-    const sel = document.querySelector(`select.status-select[data-course-id="${courseId}"]`);
-    const price = sel ? parseFloat(sel.dataset.trialPrice) || 0 : 0;
-    document.getElementById('refund_amount').value = price.toFixed(2);
-    document.getElementById('refund_fee').value = '0.00';
-    refundModal.style.display = 'flex';
-    document.body.style.overflow = 'hidden';
-}
-function closeRefundModal() {
-    refundModal.style.display = 'none';
-    document.body.style.overflow = 'auto';
-    document.getElementById('refundForm').reset();
-    // 恢复状态下拉
-    const courseId = document.getElementById('refund_course_id').value;
-    const sel = document.querySelector(`select.status-select[data-course-id="${courseId}"]`);
-    if (sel) sel.value = 'registered';
-}
-function submitRefund() {
-    const courseId = document.getElementById('refund_course_id').value;
-    const amount = parseFloat(document.getElementById('refund_amount').value);
-    const fee = parseFloat(document.getElementById('refund_fee').value);
-    const channel = document.getElementById('refund_channel').value;
-    if (!amount || amount <= 0) { alert('请输入有效的退费金额'); return; }
-    if (!channel) { alert('请选择退款渠道'); return; }
-    requireOperationPassword(function() {
-        fetch(`/api/trial-courses/${courseId}/status`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ status: 'refunded', refund_amount: amount, refund_fee: fee, refund_channel: channel })
-        }).then(r => r.json()).then(data => { if (data.success) { closeRefundModal(); location.reload(); } else alert(data.message || '退费失败'); });
-    });
-}
+    // 改变每页显示数量
+    function changePageSize() {
+        pageSize = parseInt(document.getElementById('pageSize').value);
+        currentPage = 1;
+        updatePagination();
+    }
 
-// 分配员工
-function assignEmployee(courseId, employeeId) {
-    fetch(`/api/trial-courses/${courseId}/assign`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ employee_id: employeeId || null })
-    }).then(r => r.json()).then(data => { if (!data.success) alert(data.message || '分配失败'); });
-}
+    // 搜索和筛选
+    const searchInput = document.getElementById('searchInput');
+    const sourceFilter = document.getElementById('sourceFilter');
+    const statusFilter = document.getElementById('statusFilter');
+    const clearSearchBtn = document.getElementById('clearSearch');
 
-// 编辑试听课
-function editTrialCourse(courseId) {
-    fetch(`/api/trial-courses/${courseId}`)
-        .then(r => r.json())
-        .then(data => {
-            if (data.success && data.course) {
-                const c = data.course, cu = data.customer || {};
-                document.getElementById('edit_trial_course_id').value = c.id;
-                document.getElementById('edit_trial_customer_name').value = cu.name || '';
-                document.getElementById('edit_trial_customer_phone').value = cu.phone || '';
-                document.getElementById('edit_trial_customer_gender').value = cu.gender || '';
-                document.getElementById('edit_trial_customer_grade').value = cu.grade || '';
-                document.getElementById('edit_trial_customer_region').value = cu.region || '';
-                document.getElementById('edit_trial_price').value = c.trial_price || '';
-                document.getElementById('edit_trial_source').value = c.source || '';
-                // 设置日期
-                document.getElementById('edit_trial_date').value = c.created_at ? c.created_at.split('T')[0] : new Date().toISOString().split('T')[0];
-                editModal.style.display = 'flex';
-                document.body.style.overflow = 'hidden';
-            } else alert('获取信息失败');
+    function filterTable() {
+        const search = searchInput.value.toLowerCase();
+        const source = sourceFilter.value;
+        const status = statusFilter.value;
+        const startDate = startDateInput ? startDateInput.value : '';
+        const endDate = endDateInput ? endDateInput.value : '';
+
+        // 显示/隐藏清除按钮
+        clearSearchBtn.style.display = search ? 'block' : 'none';
+
+        // 筛选行
+        filteredRows = allRows.filter(row => {
+            if (row.cells.length < 3) return false;
+            const name = row.cells[1].textContent.toLowerCase();
+            const phone = row.cells[3].textContent.toLowerCase();
+            const rowSource = row.cells[5].textContent.trim();
+            const rowDate = row.cells[7].textContent.trim(); // 报名时间
+            const statusSelect = row.querySelector('.status-select');
+            const rowStatus = statusSelect ? statusSelect.value : '';
+
+            const matchSearch = name.includes(search) || phone.includes(search);
+            const matchSource = !source || rowSource === source;
+            const matchStatus = !status || rowStatus === status;
+
+            let matchDate = true;
+            if (startDate && rowDate) matchDate = rowDate >= startDate;
+            if (endDate && rowDate && matchDate) matchDate = rowDate <= endDate;
+
+            return matchSearch && matchSource && matchStatus && matchDate;
         });
-}
 
-// 编辑表单提交
-document.getElementById('editTrialForm').onsubmit = function(e) {
-    e.preventDefault();
-    const courseId = document.getElementById('edit_trial_course_id').value;
-    const formData = new FormData(this);
-    const data = {};
-    formData.forEach((v, k) => data[k] = v);
-    requireOperationPassword(function() {
-        fetch(`/api/trial-courses/${courseId}`, {
+        currentPage = 1;
+        updatePagination();
+    }
+
+    function clearSearchInput() {
+        searchInput.value = '';
+        clearSearchBtn.style.display = 'none';
+        filterTable();
+    }
+
+    // 初始化
+    document.addEventListener('DOMContentLoaded', initPagination);
+
+    searchInput.addEventListener('input', filterTable);
+    sourceFilter.addEventListener('change', filterTable);
+    statusFilter.addEventListener('change', filterTable);
+    startDateInput.addEventListener('change', filterTable);
+    endDateInput.addEventListener('change', filterTable);
+
+    // 导出数据
+    function exportTrialData() {
+        window.location.href = '/api/export/trial-courses';
+    }
+
+    // 删除试听课
+    function deleteTrialCourse(courseId) {
+        if (!confirm('确定要删除这条试听课记录吗？')) return;
+        requireOperationPassword(function () {
+            fetch(`/api/trial-courses/${courseId}`, { method: 'DELETE' })
+                .then(r => r.json())
+                .then(data => { if (data.success || data.message) location.reload(); else alert(data.message || data.error || '删除失败'); })
+                .catch(() => alert('删除失败'));
+        });
+    }
+
+    // 更新状态
+    function updateTrialStatus(courseId, newStatus) {
+        if (newStatus === 'refunded') { showRefundModal(courseId); return; }
+        requireOperationPassword(function () {
+            fetch(`/api/trial-courses/${courseId}/status`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: newStatus })
+            }).then(r => r.json()).then(data => { if (data.success) location.reload(); else alert(data.message || '更新失败'); });
+        });
+    }
+
+    // 退费模态框
+    function showRefundModal(courseId) {
+        document.getElementById('refund_course_id').value = courseId;
+        const sel = document.querySelector(`select.status-select[data-course-id="${courseId}"]`);
+        const price = sel ? parseFloat(sel.dataset.trialPrice) || 0 : 0;
+        document.getElementById('refund_amount').value = price.toFixed(2);
+        document.getElementById('refund_fee').value = '0.00';
+        refundModal.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+    }
+    function closeRefundModal() {
+        refundModal.style.display = 'none';
+        document.body.style.overflow = 'auto';
+        document.getElementById('refundForm').reset();
+        // 恢复状态下拉
+        const courseId = document.getElementById('refund_course_id').value;
+        const sel = document.querySelector(`select.status-select[data-course-id="${courseId}"]`);
+        if (sel) sel.value = 'registered';
+    }
+    function submitRefund() {
+        const courseId = document.getElementById('refund_course_id').value;
+        const amount = parseFloat(document.getElementById('refund_amount').value);
+        const fee = parseFloat(document.getElementById('refund_fee').value);
+        const channel = document.getElementById('refund_channel').value;
+        if (!amount || amount <= 0) { alert('请输入有效的退费金额'); return; }
+        if (!channel) { alert('请选择退款渠道'); return; }
+        requireOperationPassword(function () {
+            fetch(`/api/trial-courses/${courseId}/status`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: 'refunded', refund_amount: amount, refund_fee: fee, refund_channel: channel })
+            }).then(r => r.json()).then(data => { if (data.success) { closeRefundModal(); location.reload(); } else alert(data.message || '退费失败'); });
+        });
+    }
+
+    // 分配员工
+    function assignEmployee(courseId, employeeId) {
+        fetch(`/api/trial-courses/${courseId}/assign`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
-        }).then(r => r.json()).then(res => { if (res.success) location.reload(); else alert(res.message || '保存失败'); });
-    });
-};
-
-// 智能解析
-document.getElementById('parseBtn').onclick = function() {
-    const text = document.getElementById('smartInput').value.trim();
-    if (!text) { alert('请先输入学员信息'); return; }
-    // 简单解析
-    const phoneMatch = text.match(/1[3-9]\d{9}/);
-    if (phoneMatch) document.getElementById('new_customer_phone').value = phoneMatch[0];
-    const nameMatch = text.match(/[\u4e00-\u9fa5]{2,4}/);
-    if (nameMatch && !['小学','初中','高中','大学','男','女'].includes(nameMatch[0])) {
-        document.getElementById('new_customer_name').value = nameMatch[0];
+            body: JSON.stringify({ employee_id: employeeId || null })
+        }).then(r => r.json()).then(data => { if (!data.success) alert(data.message || '分配失败'); });
     }
-    if (text.includes('男')) document.getElementById('new_customer_gender').value = '男';
-    if (text.includes('女')) document.getElementById('new_customer_gender').value = '女';
-    ['小学','初中','高中','大学'].forEach(g => { if (text.includes(g)) document.getElementById('new_customer_grade').value = g; });
-    document.getElementById('smartInput').value = '';
-    this.innerHTML = '<i class="fas fa-check"></i> 解析成功';
-    setTimeout(() => { this.innerHTML = '<i class="fas fa-wand-magic-sparkles"></i> 智能解析'; }, 2000);
-};
 
-// 全选
-function toggleSelectAll() {
-    const checked = document.getElementById('selectAll').checked;
-    document.querySelectorAll('.course-checkbox').forEach(cb => cb.checked = checked);
-}
+    // 编辑试听课
+    function editTrialCourse(courseId) {
+        fetch(`/api/trial-courses/${courseId}`)
+            .then(r => r.json())
+            .then(data => {
+                if (data.success && data.course) {
+                    const c = data.course, cu = data.customer || {};
+                    document.getElementById('edit_trial_course_id').value = c.id;
+                    document.getElementById('edit_trial_customer_name').value = cu.name || '';
+                    document.getElementById('edit_trial_customer_phone').value = cu.phone || '';
+                    document.getElementById('edit_trial_customer_gender').value = cu.gender || '';
+                    document.getElementById('edit_trial_customer_grade').value = cu.grade || '';
+                    document.getElementById('edit_trial_customer_region').value = cu.region || '';
+                    document.getElementById('edit_trial_price').value = c.trial_price || '';
+                    document.getElementById('edit_trial_source').value = c.source || '';
+                    // 设置日期
+                    document.getElementById('edit_trial_date').value = c.created_at ? c.created_at.split('T')[0] : new Date().toISOString().split('T')[0];
+                    editModal.style.display = 'flex';
+                    document.body.style.overflow = 'hidden';
+                } else alert('获取信息失败');
+            });
+    }
+
+    // 编辑表单提交
+    document.getElementById('editTrialForm').onsubmit = function (e) {
+        e.preventDefault();
+        const courseId = document.getElementById('edit_trial_course_id').value;
+        const formData = new FormData(this);
+        const data = {};
+        formData.forEach((v, k) => data[k] = v);
+        requireOperationPassword(function () {
+            fetch(`/api/trial-courses/${courseId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            }).then(r => r.json()).then(res => { if (res.success) location.reload(); else alert(res.message || '保存失败'); });
+        });
+    };
+
+    // 智能解析
+    document.getElementById('parseBtn').onclick = function () {
+        const text = document.getElementById('smartInput').value.trim();
+        if (!text) { alert('请先输入学员信息'); return; }
+        // 简单解析
+        const phoneMatch = text.match(/1[3-9]\d{9}/);
+        if (phoneMatch) document.getElementById('new_customer_phone').value = phoneMatch[0];
+        const nameMatch = text.match(/[\u4e00-\u9fa5]{2,4}/);
+        if (nameMatch && !['小学', '初中', '高中', '大学', '男', '女'].includes(nameMatch[0])) {
+            document.getElementById('new_customer_name').value = nameMatch[0];
+        }
+        if (text.includes('男')) document.getElementById('new_customer_gender').value = '男';
+        if (text.includes('女')) document.getElementById('new_customer_gender').value = '女';
+        ['小学', '初中', '高中', '大学'].forEach(g => { if (text.includes(g)) document.getElementById('new_customer_grade').value = g; });
+        document.getElementById('smartInput').value = '';
+        this.innerHTML = '<i class="fas fa-check"></i> 解析成功';
+        setTimeout(() => { this.innerHTML = '<i class="fas fa-wand-magic-sparkles"></i> 智能解析'; }, 2000);
+    };
+
+    // 全选
+    function toggleSelectAll() {
+        const checked = document.getElementById('selectAll').checked;
+        document.querySelectorAll('.course-checkbox').forEach(cb => cb.checked = checked);
+    }
 </script>
 {% endblock %}
