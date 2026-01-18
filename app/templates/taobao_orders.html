@@ -194,16 +194,21 @@
 {% block scripts %}
 <script>
     // 搜索和筛选
-    document.getElementById('searchInput').addEventListener('input', filterTable);
-    document.getElementById('settledFilter').addEventListener('change', filterTable);
-    document.getElementById('startDate').addEventListener('change', filterTable);
-    document.getElementById('endDate').addEventListener('change', filterTable);
+    const sInput = document.getElementById('searchInput');
+    const sFilter = document.getElementById('settledFilter');
+    const stDate = document.getElementById('startDate');
+    const enDate = document.getElementById('endDate');
+
+    if (sInput) sInput.addEventListener('input', filterTable);
+    if (sFilter) sFilter.addEventListener('change', filterTable);
+    if (stDate) stDate.addEventListener('change', filterTable);
+    if (enDate) enDate.addEventListener('change', filterTable);
 
     function filterTable() {
-        const search = document.getElementById('searchInput').value.toLowerCase();
-        const settled = document.getElementById('settledFilter').value;
-        const startDate = document.getElementById('startDate').value;
-        const endDate = document.getElementById('endDate').value;
+        const search = sInput ? sInput.value.toLowerCase() : '';
+        const settled = sFilter ? sFilter.value : '';
+        const startDate = stDate ? stDate.value : '';
+        const endDate = enDate ? enDate.value : '';
 
         document.querySelectorAll('#ordersTable tbody tr').forEach(row => {
             if (row.cells.length < 3) return;

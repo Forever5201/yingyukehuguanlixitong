@@ -327,9 +327,9 @@
     const endDateInput = document.getElementById('endDate');
 
     function filterFormalCourses() {
-        const search = searchInput.value.toLowerCase();
-        const startDate = startDateInput.value;
-        const endDate = endDateInput.value;
+        const search = searchInput ? searchInput.value.toLowerCase() : '';
+        const startDate = startDateInput ? startDateInput.value : '';
+        const endDate = endDateInput ? endDateInput.value : '';
 
         filteredRows = allRows.filter(r => {
             const name = (r.customer_name || '').toLowerCase();
@@ -346,9 +346,9 @@
         renderTable();
     }
 
-    searchInput.addEventListener('input', filterFormalCourses);
-    startDateInput.addEventListener('change', filterFormalCourses);
-    endDateInput.addEventListener('change', filterFormalCourses);
+    if (searchInput) searchInput.addEventListener('input', filterFormalCourses);
+    if (startDateInput) startDateInput.addEventListener('change', filterFormalCourses);
+    if (endDateInput) endDateInput.addEventListener('change', filterFormalCourses);
 
     // 导出
     function exportFormalData() {
