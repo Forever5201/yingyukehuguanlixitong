@@ -1184,6 +1184,24 @@ a:hover {
   gap: 8px;
 }
 
+/* 可折叠的智能识别区域样式 */
+.smart-section-collapsible .smart-section-header {
+  margin-bottom: 0;
+  padding: 12px;
+  background: var(--gray-50);
+  border-radius: var(--radius-sm);
+  border-bottom: none;
+  transition: background 0.2s;
+}
+
+.smart-section-collapsible .smart-section-header:hover {
+  background: var(--gray-100);
+}
+
+.smart-section-collapsible .smart-input-container {
+  margin-top: 12px;
+}
+
 /* ========== 智能输入 ========== */
 .smart-input-container {
   display: flex;
@@ -1705,52 +1723,130 @@ textarea.form-control {
     display: none;
   }
 
-  /* 模态框 */
+  /* 模态框 - 移动端全屏优化 (方案 1) */
   .modal {
-    padding: 10px;
-    align-items: flex-end;
+    padding: 0 !important;
+    align-items: flex-start !important;
+    background: white !important;
+    /* 移动端使用白背景模拟页面 */
   }
 
   .modal-content {
-    max-width: 100%;
-    max-height: 90vh;
-    border-radius: var(--radius) var(--radius) 0 0;
-    animation: slideUp 0.3s ease-out;
+    width: 100% !important;
+    max-width: 100% !important;
+    /* 强制覆盖 HTML 中的 inline max-width */
+    height: 100% !important;
+    max-height: 100vh !important;
+    border-radius: 0 !important;
+    margin: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    animation: slideInRight 0.3s ease-out;
+    box-shadow: none !important;
+    border: none !important;
   }
 
-  @keyframes slideUp {
+  @keyframes slideInRight {
     from {
-      transform: translateY(100%);
+      transform: translateX(100%);
     }
 
     to {
-      transform: translateY(0);
+      transform: translateX(0);
     }
   }
 
   .modal-header {
-    padding: 16px;
+    padding: env(safe-area-inset-top, 16px) 16px 14px 16px;
+    background: white;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    border-bottom: 1px solid var(--gray-200);
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
   }
 
   .modal-header h3,
   .modal-header h4 {
-    font-size: 16px;
+    font-size: 17px;
+    font-weight: 600;
   }
 
   .modal-body {
-    padding: 16px;
-    max-height: calc(90vh - 120px);
+    padding: 16px 16px 30px 16px;
+    flex: 1;
+    overflow-y: auto;
+    background: white;
+    -webkit-overflow-scrolling: touch;
+    /* 强化移动端滚动感 */
   }
 
+  /* 核心修复：底部操作栏绝对可见 (全局应用) */
   .modal-footer {
-    padding: 12px 16px;
-    flex-direction: column;
-    gap: 8px;
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px)) 16px;
+    background: white;
+    position: sticky;
+    bottom: 0;
+    z-index: 10;
+    border-top: 1px solid var(--gray-200);
+    box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.05);
+    display: grid !important;
+    grid-template-columns: 1fr 2fr !important;
+    /* 适配所有模态框：左侧取消，右侧主操作 */
+    gap: 10px !important;
+    flex-direction: row !important;
+    flex-shrink: 0;
   }
 
   .modal-footer .btn {
-    width: 100%;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 12px 16px !important;
+    font-size: 15px !important;
+    height: 48px;
+    display: flex;
+    align-items: center;
     justify-content: center;
+  }
+
+  /* 按钮顺序优化 */
+  .modal-footer .btn-secondary,
+  .modal-footer button[onclick*="close"] {
+    order: 1 !important;
+    background: var(--gray-100);
+    color: var(--gray-700);
+    border: none;
+  }
+
+  .modal-footer .btn-primary,
+  .modal-footer button[type="submit"],
+  .modal-footer button[onclick*="submit"],
+  .modal-footer button[onclick*="confirm"] {
+    order: 2 !important;
+    font-weight: 600;
+    box-shadow: 0 4px 12px rgba(var(--primary-rgb), 0.2);
+  }
+
+  /* 针对没有定义为 btn 类的按钮进行兼容 */
+  .modal-footer button {
+    border-radius: var(--radius-sm);
+  }
+
+  /* 点击关闭时的特殊处理 */
+  .modal .close,
+  .modal .close-edit {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--gray-50);
+    border-radius: 50%;
+    font-size: 20px;
+    cursor: pointer;
   }
 
   /* 表单 */

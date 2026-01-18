@@ -296,10 +296,15 @@
         </div>
         <form method="POST" id="trialForm">
             <div class="modal-body">
-                <div class="form-section-modal">
-                    <h5><i class="fas fa-magic"></i> 智能识别 <small class="text-muted">(可选)</small></h5>
-                    <div class="smart-input-container">
-                        <textarea id="smartInput" placeholder="粘贴学员信息，系统将自动识别..." rows="4"></textarea>
+                <div class="form-section-modal smart-section-collapsible">
+                    <h5 class="smart-section-header" onclick="toggleSmartSection()"
+                        style="cursor:pointer;user-select:none;display:flex;align-items:center;justify-content:space-between;">
+                        <span><i class="fas fa-magic"></i> 智能识别 <small class="text-muted">(可选)</small></span>
+                        <i class="fas fa-chevron-down smart-toggle-icon" id="smartToggleIcon"
+                            style="transition:transform 0.3s;font-size:12px;color:var(--gray-400);"></i>
+                    </h5>
+                    <div class="smart-input-container" id="smartInputContainer" style="display:none;">
+                        <textarea id="smartInput" placeholder="粘贴学员信息，系统将自动识别..." rows="3"></textarea>
                         <button type="button" id="parseBtn" class="btn btn-info btn-sm mt-2"><i
                                 class="fas fa-wand-magic-sparkles"></i> 智能解析</button>
                     </div>
@@ -510,6 +515,19 @@
             icon.style.transform = 'rotate(180deg)';
         } else {
             content.style.display = 'none';
+            icon.style.transform = 'rotate(0deg)';
+        }
+    }
+
+    // ========== 智能识别区域折叠功能 ==========
+    function toggleSmartSection() {
+        const container = document.getElementById('smartInputContainer');
+        const icon = document.getElementById('smartToggleIcon');
+        if (container.style.display === 'none') {
+            container.style.display = 'flex';
+            icon.style.transform = 'rotate(180deg)';
+        } else {
+            container.style.display = 'none';
             icon.style.transform = 'rotate(0deg)';
         }
     }
